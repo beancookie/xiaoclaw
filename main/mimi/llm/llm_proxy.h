@@ -27,6 +27,13 @@ esp_err_t llm_set_provider(const char *provider);
  */
 esp_err_t llm_set_model(const char *model);
 
+/**
+ * Save the custom API URL for a provider to NVS.
+ * @param provider  "anthropic" or "openai"
+ * @param api_url   Full URL (e.g. "https://api.lkeap.cloud.tencent.com/coding/anthropic")
+ */
+esp_err_t llm_set_api_url(const char *provider, const char *api_url);
+
 /* ── Tool Use Support ──────────────────────────────────────────── */
 
 typedef struct {

@@ -192,6 +192,13 @@ static void agent_loop_task(void *arg)
 
         ESP_LOGI(TAG, "Processing message from %s:%s", msg.channel, msg.chat_id);
 
+        /* Skip LLM processing for non-xiaozhi channels (Telegram, Feishu, WebSocket, CLI) */
+        if (strcmp(msg.channel, MIMI_CHAN_XIAOZHI) != 0) {
+            ESP_LOGI(TAG, "Skipping LLM for channel: %s", msg.channel);
+            free(msg.content);
+            continue;
+        }
+
         /* 1. Build system prompt */
         context_build_system_prompt(system_prompt, MIMI_CONTEXT_BUF_SIZE);
         append_turn_context_prompt(system_prompt, MIMI_CONTEXT_BUF_SIZE, &msg);

@@ -46,6 +46,12 @@
 #ifndef MIMI_SECRET_TAVILY_KEY
 #define MIMI_SECRET_TAVILY_KEY      ""
 #endif
+#ifndef MIMI_SECRET_ANTHROPIC_API_URL
+#define MIMI_SECRET_ANTHROPIC_API_URL  ""
+#endif
+#ifndef MIMI_SECRET_OPENAI_API_URL
+#define MIMI_SECRET_OPENAI_API_URL     ""
+#endif
 
 /* WiFi */
 #define MIMI_WIFI_MAX_RETRY          10
@@ -153,6 +159,8 @@
 #define MIMI_NVS_KEY_PROXY_HOST      "host"
 #define MIMI_NVS_KEY_PROXY_PORT      "port"
 #define MIMI_NVS_KEY_PROXY_TYPE      "proxy_type"
+#define MIMI_NVS_KEY_ANTHROPIC_API_URL "anthropic_api_url"
+#define MIMI_NVS_KEY_OPENAI_API_URL    "openai_api_url"
 
 /* WiFi Onboarding (Captive Portal) */
 #define MIMI_ONBOARD_AP_PREFIX    "MimiClaw-"
