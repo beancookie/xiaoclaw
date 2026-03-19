@@ -22,15 +22,15 @@ All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw Firmware                        │
+│                      XiaoClaw Firmware                       │
 ├──────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐      ┌─────────────────────────────┐    │
 │  │   Voice I/O     │      │      Agent Brain            │    │
 │  │   (xiaozhi)     │      │      (mimiclaw)             │    │
 │  ├─────────────────┤      ├─────────────────────────────┤    │
 │  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (server)  │─────▶│ • Tool calling (ReAct)      │    │
-│  │ • TTS playback  │◀─────│ • Long-term memory          │    │
+│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
+│  │ • TTS playback  │◀────│ • Long-term memory          │    │
 │  │ • Display/LCD   │      │ • Session management        │    │
 │  │ • WiFi/Network  │      │ • Cron scheduler            │    │
 │  └─────────────────┘      └─────────────────────────────┘    │

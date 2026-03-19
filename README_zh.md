@@ -22,26 +22,27 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw 固件                            │
+│                      XiaoClaw Firmware                       │
 ├──────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐      ┌─────────────────────────────┐    │
-│  │   语音 I/O      │      │      Agent 大脑             │    │
+│  │   Voice I/O     │      │      Agent Brain            │    │
 │  │   (xiaozhi)     │      │      (mimiclaw)             │    │
 │  ├─────────────────┤      ├─────────────────────────────┤    │
-│  │ • 唤醒词检测     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (服务器)  │─────▶│ • 工具调用 (ReAct)          │    │
-│  │ • TTS 播放      │◀─────│ • 长期记忆                  │    │
-│  │ • 显示屏/LCD    │      │ • 会话管理                  │    │
-│  │ • WiFi/网络     │      │ • 定时任务                  │    │
+│  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
+│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
+│  │ • TTS playback  │◀────│ • Long-term memory          │    │
+│  │ • Display/LCD   │      │ • Session management        │    │
+│  │ • WiFi/Network  │      │ • Cron scheduler            │    │
 │  └─────────────────┘      └─────────────────────────────┘    │
 │           │                          ▲                       │
-│           └──────── Bridge 层 ───────┘                       │
+│           └──────── Bridge Layer ────┘                       │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ## 功能特性
 
 ### 语音 I/O 层 (xiaozhi)
+
 - 离线语音唤醒 ([ESP-SR](https://github.com/espressif/esp-sr))
 - 通过服务器连接实现流式 ASR + TTS
 - OPUS 音频编解码
@@ -51,6 +52,7 @@
 - WebSocket / MQTT 协议支持
 
 ### Agent 大脑层 (mimiclaw)
+
 - LLM API 集成 (Anthropic Claude / OpenAI GPT)
 - ReAct Agent 循环与工具调用
 - 长期记忆 (基于 SPIFFS)
@@ -69,6 +71,7 @@
 ### 支持的开发板
 
 XiaoClaw 继承了 xiaozhi-esp32 的开发板支持，包括：
+
 - ESP32-S3-BOX3
 - M5Stack CoreS3 / AtomS3R
 - 立创实战派 ESP32-S3 开发板
@@ -138,49 +141,49 @@ Bridge 层连接语音 I/O 层与 Agent 大脑：
 
 ### 内存布局
 
-| 分区 | 大小 | 用途 |
-|------|------|------|
-| ota_0 | 4MB | 主固件 |
-| ota_1 | 4MB | OTA 备份 |
+| 分区   | 大小  | 用途             |
+| ------ | ----- | ---------------- |
+| ota_0  | 4MB   | 主固件           |
+| ota_1  | 4MB   | OTA 备份         |
 | spiffs | ~27MB | 记忆、会话、技能 |
 
 ### 任务布局
 
-| 任务 | 核心 | 优先级 | 功能 |
-|------|------|--------|------|
-| audio_* | 0 | 8 | 音频 I/O |
-| main_loop | 0 | 5 | 应用主循环 |
-| bridge | 0 | 5 | Bridge 通信 |
-| agent_loop | 1 | 6 | LLM 处理 |
+| 任务       | 核心 | 优先级 | 功能        |
+| ---------- | ---- | ------ | ----------- |
+| audio\_\*  | 0    | 8      | 音频 I/O    |
+| main_loop  | 0    | 5      | 应用主循环  |
+| bridge     | 0    | 5      | Bridge 通信 |
+| agent_loop | 1    | 6      | LLM 处理    |
 
 ## 工具
 
 Agent 可以使用多种工具：
 
-| 工具 | 描述 |
-|------|------|
-| `web_search` | 搜索网络获取最新信息 |
-| `get_current_time` | 获取当前日期/时间 |
-| `gpio_write` | 控制 GPIO 引脚 |
-| `gpio_read` | 读取 GPIO 状态 |
-| `cron_add` | 创建定时任务 |
-| `cron_list` | 列出定时任务 |
-| `cron_remove` | 删除定时任务 |
-| `read_file` | 从 SPIFFS 读取文件 |
-| `write_file` | 写入文件到 SPIFFS |
+| 工具               | 描述                 |
+| ------------------ | -------------------- |
+| `web_search`       | 搜索网络获取最新信息 |
+| `get_current_time` | 获取当前日期/时间    |
+| `gpio_write`       | 控制 GPIO 引脚       |
+| `gpio_read`        | 读取 GPIO 状态       |
+| `cron_add`         | 创建定时任务         |
+| `cron_list`        | 列出定时任务         |
+| `cron_remove`      | 删除定时任务         |
+| `read_file`        | 从 SPIFFS 读取文件   |
+| `write_file`       | 写入文件到 SPIFFS    |
 
 ## 记忆系统
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 
-| 文件 | 用途 |
-|------|------|
-| `SOUL.md` | AI 人格定义 |
-| `USER.md` | 用户信息和偏好 |
-| `MEMORY.md` | 长期记忆 |
-| `HEARTBEAT.md` | 自主任务列表 |
-| `cron.json` | 定时任务 |
-| `sessions/*.jsonl` | 对话历史 |
+| 文件               | 用途           |
+| ------------------ | -------------- |
+| `SOUL.md`          | AI 人格定义    |
+| `USER.md`          | 用户信息和偏好 |
+| `MEMORY.md`        | 长期记忆       |
+| `HEARTBEAT.md`     | 自主任务列表   |
+| `cron.json`        | 定时任务       |
+| `sessions/*.jsonl` | 对话历史       |
 
 ## 开发
 
