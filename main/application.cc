@@ -527,32 +527,8 @@ void Application::InitializeProtocol() {
         // Parse JSON data
         auto type = cJSON_GetObjectItem(root, "type");
         if (strcmp(type->valuestring, "tts") == 0) {
-            auto state = cJSON_GetObjectItem(root, "state");
-            if (strcmp(state->valuestring, "start") == 0) {
-                Schedule([this]() {
-                    aborted_ = false;
-                    SetDeviceState(kDeviceStateSpeaking);
-                });
-            } else if (strcmp(state->valuestring, "stop") == 0) {
-                Schedule([this]() {
-                    if (GetDeviceState() == kDeviceStateSpeaking) {
-                        if (listening_mode_ == kListeningModeManualStop) {
-                            SetDeviceState(kDeviceStateIdle);
-                        } else {
-                            SetDeviceState(kDeviceStateListening);
-                        }
-                    }
-                });
-            } else if (strcmp(state->valuestring, "sentence_start") == 0) {
-                auto text = cJSON_GetObjectItem(root, "text");
-                if (cJSON_IsString(text)) {
-                    std::string prefixed = "[Cloud] " + std::string(text->valuestring);
-                    ESP_LOGI(TAG, "<< %s", prefixed.c_str());
-                    Schedule([display, message = prefixed]() {
-                        display->SetChatMessage("assistant", message.c_str());
-                    });
-                }
-            }
+            // Ignore all cloud TTS - only use local Agent TTS
+            // auto state = cJSON_GetObjectItem(root, "state");
         } else if (strcmp(type->valuestring, "stt") == 0) {
             auto text = cJSON_GetObjectItem(root, "text");
             if (cJSON_IsString(text)) {
