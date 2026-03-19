@@ -546,8 +546,9 @@ void Application::InitializeProtocol() {
             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
                 auto text = cJSON_GetObjectItem(root, "text");
                 if (cJSON_IsString(text)) {
-                    ESP_LOGI(TAG, "<< %s", text->valuestring);
-                    Schedule([display, message = std::string(text->valuestring)]() {
+                    std::string prefixed = "[Cloud] " + std::string(text->valuestring);
+                    ESP_LOGI(TAG, "<< %s", prefixed.c_str());
+                    Schedule([display, message = prefixed]() {
                         display->SetChatMessage("assistant", message.c_str());
                     });
                 }

@@ -235,6 +235,39 @@ static const char *llm_api_host(void)
 
 static const char *llm_api_path(void)
 {
+    static char path_buf[256];
+
+    const char *base_url;
+    if (provider_is_openai()) {
+        base_url = s_openai_api_url[0] ? s_openai_api_url : MIMI_OPENAI_API_URL;
+    } else {
+        base_url = s_anthropic_api_url[0] ? s_anthropic_api_url : MIMI_LLM_API_URL;
+    }
+
+    // Find path after host in URL like "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+    const char *p = strstr(base_url, "://");
+    if (p) {
+        const char *host_start = p + 3;
+        // Skip host
+        while (*host_start && *host_start != ':' && *host_start != '/') {
+            host_start++;
+        }
+        // Skip port if present
+        if (*host_start == ':') {
+            host_start++;
+            while (*host_start >= '0' && *host_start <= '9') {
+                host_start++;
+            }
+        }
+        // Now at path
+        if (*host_start == '/') {
+            strncpy(path_buf, host_start, sizeof(path_buf) - 1);
+            path_buf[sizeof(path_buf) - 1] = '\0';
+            return path_buf;
+        }
+    }
+
+    // Default paths
     return provider_is_openai() ? "/v1/chat/completions" : "/v1/messages";
 }
 
