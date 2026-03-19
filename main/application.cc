@@ -558,15 +558,17 @@ void Application::InitializeProtocol() {
                 ESP_LOGI(TAG, ">> %s", text->valuestring);
                 Schedule([display, message = std::string(text->valuestring)]() {
                     display->SetChatMessage("user", message.c_str());
+                    bridge_send_to_agent(message.c_str());
                 });
             }
         } else if (strcmp(type->valuestring, "llm") == 0) {
-            auto emotion = cJSON_GetObjectItem(root, "emotion");
-            if (cJSON_IsString(emotion)) {
-                Schedule([display, emotion_str = std::string(emotion->valuestring)]() {
-                    display->SetEmotion(emotion_str.c_str());
-                });
-            }
+            // Disabled: ignore WebSocket LLM emotion messages from xiaozhi server
+            // auto emotion = cJSON_GetObjectItem(root, "emotion");
+            // if (cJSON_IsString(emotion)) {
+            //     Schedule([display, emotion_str = std::string(emotion->valuestring)]() {
+            //         display->SetEmotion(emotion_str.c_str());
+            //     });
+            // }
         } else if (strcmp(type->valuestring, "mcp") == 0) {
             auto payload = cJSON_GetObjectItem(root, "payload");
             if (cJSON_IsObject(payload)) {
