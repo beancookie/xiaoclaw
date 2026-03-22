@@ -659,6 +659,20 @@ void AudioService::PlaySound(const std::string_view& ogg) {
     demuxer->Process(buf, size);
 }
 
+void AudioService::PlayOpusData(const std::vector<uint8_t>& opus_data, int sample_rate) {
+    if (!codec_->output_enabled()) {
+        esp_timer_stop(audio_power_timer_);
+        esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
+        codec_->EnableOutput(true);
+    }
+
+    auto packet = std::make_unique<AudioStreamPacket>();
+    packet->sample_rate = sample_rate;
+    packet->frame_duration = 60;
+    packet->payload = opus_data;
+    PushPacketToDecodeQueue(std::move(packet), true);
+}
+
 bool AudioService::IsIdle() {
     std::lock_guard<std::mutex> lock(audio_queue_mutex_);
     return audio_encode_queue_.empty() && audio_decode_queue_.empty() && audio_playback_queue_.empty() && audio_testing_queue_.empty();

@@ -16,8 +16,10 @@ extern "C" {
 }
 
 #include <cstring>
+#include <vector>
 #include <esp_log.h>
 #include <cJSON.h>
+#include <mbedtls/base64.h>
 #include <driver/gpio.h>
 #include <arpa/inet.h>
 #include <font_awesome.h>
@@ -522,13 +524,52 @@ void Application::InitializeProtocol() {
             SetDeviceState(kDeviceStateIdle);
         });
     });
-    
+
     protocol_->OnIncomingJson([this, display](const cJSON* root) {
         // Parse JSON data
         auto type = cJSON_GetObjectItem(root, "type");
-        if (strcmp(type->valuestring, "tts") == 0) {
-            // Ignore all cloud TTS - only use local Agent TTS
-            // auto state = cJSON_GetObjectItem(root, "state");
+        if (strcmp(type->valuestring, "tts_response") == 0) {
+            auto state = cJSON_GetObjectItem(root, "state");
+            if (state && cJSON_IsString(state)) {
+                if (strcmp(state->valuestring, "start") == 0) {
+                    Schedule([this]() {
+                        aborted_ = false;
+                        SetDeviceState(kDeviceStateSpeaking);
+                    });
+                } else if (strcmp(state->valuestring, "stop") == 0) {
+                    Schedule([this]() {
+                        if (GetDeviceState() == kDeviceStateSpeaking) {
+                            if (listening_mode_ == kListeningModeManualStop) {
+                                SetDeviceState(kDeviceStateIdle);
+                            } else {
+                                SetDeviceState(kDeviceStateListening);
+                            }
+                        }
+                    });
+                } else if (strcmp(state->valuestring, "sentence_start") == 0) {
+                    auto text = cJSON_GetObjectItem(root, "text");
+                    if (cJSON_IsString(text)) {
+                        ESP_LOGI(TAG, "<< %s", text->valuestring);
+                    }
+                }
+            }
+            // Handle audio data from backend TTS
+            auto audio = cJSON_GetObjectItem(root, "audio");
+            if (cJSON_IsString(audio) && audio->valuestring) {
+                size_t audio_len = strlen(audio->valuestring);
+                size_t decoded_len = (audio_len * 3) / 4 + 1;
+                std::vector<uint8_t> decoded(decoded_len);
+
+                int ret = mbedtls_base64_decode(decoded.data(), decoded_len, &decoded_len,
+                    (const unsigned char*)audio->valuestring, audio_len);
+                if (ret == 0 && decoded_len > 0) {
+                    decoded.resize(decoded_len);
+                    audio_service_.PlayOpusData(decoded);
+                    ESP_LOGI(TAG, "Playing TTS audio: %zu bytes", decoded_len);
+                } else {
+                    ESP_LOGE(TAG, "Failed to decode base64 audio, ret=%d", ret);
+                }
+            }
         } else if (strcmp(type->valuestring, "stt") == 0) {
             auto text = cJSON_GetObjectItem(root, "text");
             if (cJSON_IsString(text)) {
@@ -538,14 +579,6 @@ void Application::InitializeProtocol() {
                     bridge_send_to_agent(message.c_str());
                 });
             }
-        } else if (strcmp(type->valuestring, "llm") == 0) {
-            // Disabled: ignore WebSocket LLM emotion messages from xiaozhi server
-            // auto emotion = cJSON_GetObjectItem(root, "emotion");
-            // if (cJSON_IsString(emotion)) {
-            //     Schedule([display, emotion_str = std::string(emotion->valuestring)]() {
-            //         display->SetEmotion(emotion_str.c_str());
-            //     });
-            // }
         } else if (strcmp(type->valuestring, "mcp") == 0) {
             auto payload = cJSON_GetObjectItem(root, "payload");
             if (cJSON_IsObject(payload)) {
@@ -585,6 +618,8 @@ void Application::InitializeProtocol() {
                 ESP_LOGW(TAG, "Invalid custom message format: missing payload");
             }
 #endif
+        } else if (strcmp(type->valuestring, "llm") == 0) {
+        } else if (strcmp(type->valuestring, "tts") == 0) {
         } else {
             ESP_LOGW(TAG, "Unknown message type: %s", type->valuestring);
         }
@@ -1150,8 +1185,17 @@ void Application::HandleAgentResponse(const std::string& text) {
         auto display = Board::GetInstance().GetDisplay();
         display->SetChatMessage("assistant", text.c_str());
 
-        // TODO: Trigger TTS playback if available
-        // For now, just show the response on display
+        // Send TTS request to backend
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "type", "tts_request");
+        cJSON_AddStringToObject(root, "text", text.c_str());
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) {
+            protocol_->SendText(json_str);
+            free(json_str);
+        }
+        cJSON_Delete(root);
+
         ESP_LOGI(TAG, "Displayed Agent response: %.60s...", text.c_str());
     });
 }

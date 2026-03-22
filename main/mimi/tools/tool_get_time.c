@@ -44,8 +44,8 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
     tzset();
     time_t t = mktime(&tm);
 
-    /* Restore timezone */
-    setenv("TZ", MIMI_TIMEZONE, 1);
+    /* Restore timezone (UTC+8 for East China / Beijing) */
+    setenv("TZ", "UTC-8", 1);
     tzset();
 
     if (t < 0) return false;

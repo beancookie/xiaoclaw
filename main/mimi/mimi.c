@@ -103,6 +103,7 @@ esp_err_t mimiclaw_init(void)
     ESP_ERROR_CHECK(llm_proxy_init());
     ESP_ERROR_CHECK(tool_registry_init());
     ESP_ERROR_CHECK(cron_service_init());
+    ESP_ERROR_CHECK(cron_service_start());
     ESP_ERROR_CHECK(heartbeat_init());
     ESP_ERROR_CHECK(agent_loop_init());
 
