@@ -1179,11 +1179,37 @@ void Application::InitializeMimiclaw() {
 void Application::HandleAgentResponse(const std::string& text) {
     ESP_LOGI(TAG, "Agent response: %.100s...", text.c_str());
 
+    // Skip TTS for working status messages
+    if (text == "思考中...") {
+        ESP_LOGI(TAG, "Skipping TTS for working status message");
+        return;
+    }
+
     // Schedule in main task context
     Schedule([this, text]() {
+        // Check if protocol is still valid (may have been reset)
+        if (!protocol_) {
+            ESP_LOGW(TAG, "Protocol not available, cannot send TTS request");
+            return;
+        }
+
         // Update display with Agent response
         auto display = Board::GetInstance().GetDisplay();
         display->SetChatMessage("assistant", text.c_str());
+
+        // Debug: Check protocol connection state before sending TTS request
+        bool channel_opened = protocol_->IsAudioChannelOpened();
+        ESP_LOGI(TAG, "Protocol state: IsAudioChannelOpened=%d", channel_opened ? 1 : 0);
+
+        // If audio channel is not opened, try to open it first
+        if (!channel_opened) {
+            ESP_LOGI(TAG, "Audio channel not opened, attempting to reopen for TTS...");
+            if (!protocol_->OpenAudioChannel()) {
+                ESP_LOGE(TAG, "Failed to reopen audio channel for TTS");
+                return;
+            }
+            ESP_LOGI(TAG, "Audio channel reopened successfully");
+        }
 
         // Send TTS request to backend
         cJSON *root = cJSON_CreateObject();
@@ -1191,7 +1217,12 @@ void Application::HandleAgentResponse(const std::string& text) {
         cJSON_AddStringToObject(root, "text", text.c_str());
         char *json_str = cJSON_PrintUnformatted(root);
         if (json_str) {
-            protocol_->SendText(json_str);
+            ESP_LOGI(TAG, "Sending TTS request: %.100s...", json_str);
+            if (!protocol_->SendText(json_str)) {
+                ESP_LOGE(TAG, "Failed to send TTS request");
+            } else {
+                ESP_LOGI(TAG, "TTS request sent successfully");
+            }
             free(json_str);
         }
         cJSON_Delete(root);

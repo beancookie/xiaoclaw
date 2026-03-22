@@ -30,15 +30,15 @@ static bool cron_sanitize_destination(cron_job_t *job)
     }
 
     if (job->channel[0] == '\0') {
-        strncpy(job->channel, MIMI_CHAN_SYSTEM, sizeof(job->channel) - 1);
+        strncpy(job->channel, MIMI_CHAN_XIAOZHI, sizeof(job->channel) - 1);
         changed = true;
     }
 
     if (strcmp(job->channel, MIMI_CHAN_TELEGRAM) == 0) {
         if (job->chat_id[0] == '\0' || strcmp(job->chat_id, "cron") == 0) {
-            ESP_LOGW(TAG, "Cron job %s has invalid telegram chat_id, fallback to system:cron",
+            ESP_LOGW(TAG, "Cron job %s has invalid telegram chat_id, fallback to xiaozhi:cron",
                      job->id[0] ? job->id : "<new>");
-            strncpy(job->channel, MIMI_CHAN_SYSTEM, sizeof(job->channel) - 1);
+            strncpy(job->channel, MIMI_CHAN_XIAOZHI, sizeof(job->channel) - 1);
             strncpy(job->chat_id, "cron", sizeof(job->chat_id) - 1);
             changed = true;
         }
@@ -127,7 +127,7 @@ static esp_err_t cron_load_jobs(void)
         strncpy(job->id, id, sizeof(job->id) - 1);
         strncpy(job->name, name, sizeof(job->name) - 1);
         strncpy(job->message, message, sizeof(job->message) - 1);
-        strncpy(job->channel, channel ? channel : MIMI_CHAN_SYSTEM,
+        strncpy(job->channel, channel ? channel : MIMI_CHAN_XIAOZHI,
                 sizeof(job->channel) - 1);
         strncpy(job->chat_id, chat_id ? chat_id : "cron",
                 sizeof(job->chat_id) - 1);
