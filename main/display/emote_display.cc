@@ -136,10 +136,8 @@ EmoteDisplay::~EmoteDisplay()
 
 void EmoteDisplay::SetEmotion(const char* const emotion)
 {
-    ESP_LOGI(TAG, "SetEmotion: %s", emotion);
-    if (emote_handle_ && emotion && strlen(emotion) > 0) {
-        emote_set_anim_emoji(emote_handle_, emotion);
-    }
+    ESP_LOGI(TAG, "SetEmotion: %s (disabled)", emotion);
+    // Emote animation disabled - do not call emote_set_anim_emoji
 }
 
 void EmoteDisplay::SetChatMessage(const char* const role, const char* const content)

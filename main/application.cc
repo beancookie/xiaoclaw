@@ -578,6 +578,8 @@ void Application::InitializeProtocol() {
                 Schedule([display, message = std::string(text->valuestring)]() {
                     display->SetChatMessage("user", message.c_str());
                     bridge_send_to_agent(message.c_str());
+                    // Show "thinking" message immediately after sending to Agent
+                    display->SetChatMessage("assistant", "思考中...");
                 });
             }
         } else if (strcmp(type->valuestring, "mcp") == 0) {
