@@ -547,12 +547,18 @@ std::unique_ptr<AudioStreamPacket> AudioService::PopWakeWordPacket() {
 }
 
 void AudioService::EnableWakeWordDetection(bool enable) {
-    if (!wake_word_) {
-        return;
-    }
-
-    ESP_LOGD(TAG, "%s wake word detection", enable ? "Enabling" : "Disabling");
     if (enable) {
+        // Lazy create wake_word_ if not yet created
+        if (!wake_word_) {
+            ESP_LOGI(TAG, "Lazy creating AfeWakeWord");
+            wake_word_ = std::make_unique<AfeWakeWord>();
+            wake_word_->OnWakeWordDetected([this](const std::string& wake_word) {
+                if (callbacks_.on_wake_word_detected) {
+                    callbacks_.on_wake_word_detected(wake_word);
+                }
+            });
+        }
+
         if (!wake_word_initialized_) {
             if (!wake_word_->Initialize(codec_, models_list_)) {
                 ESP_LOGE(TAG, "Failed to initialize wake word");

@@ -58,6 +58,7 @@ list(APPEND SOURCES
     "mimi/proxy/http_proxy.c"
     "mimi/skills/skill_loader.c"
     "mimi/cron/cron_service.c"
+    "mimi/heartbeat/heartbeat.c"
 )
 
 # Bridge layer sources

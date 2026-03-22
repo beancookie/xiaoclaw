@@ -403,7 +403,10 @@ esp_err_t cron_add_job(cron_job_t *job)
     s_jobs[s_job_count] = *job;
     s_job_count++;
 
-    cron_save_jobs();
+    esp_err_t err = cron_save_jobs();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to persist cron job to SPIFFS");
+    }
 
     ESP_LOGI(TAG, "Added cron job: %s (%s) kind=%s next_run=%lld",
              job->name, job->id,
@@ -414,6 +417,7 @@ esp_err_t cron_add_job(cron_job_t *job)
 
 esp_err_t cron_remove_job(const char *job_id)
 {
+    esp_err_t err;
     for (int i = 0; i < s_job_count; i++) {
         if (strcmp(s_jobs[i].id, job_id) == 0) {
             ESP_LOGI(TAG, "Removing cron job: %s (%s)", s_jobs[i].name, job_id);
@@ -424,7 +428,10 @@ esp_err_t cron_remove_job(const char *job_id)
             }
             s_job_count--;
 
-            cron_save_jobs();
+            err = cron_save_jobs();
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to persist cron job removal to SPIFFS");
+            }
             return ESP_OK;
         }
     }

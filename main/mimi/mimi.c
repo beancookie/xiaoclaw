@@ -39,8 +39,8 @@
 // #include "channels/feishu/feishu_bot.h"
 // #include "gateway/ws_server.h"
 // #include "cli/serial_cli.h"
-// #include "cron/cron_service.h"
-// #include "heartbeat/heartbeat.h"
+#include "cron/cron_service.h"
+#include "heartbeat/heartbeat.h"
 // #include "onboard/wifi_onboard.h"
 
 static const char *TAG = "mimi";
@@ -102,6 +102,8 @@ esp_err_t mimiclaw_init(void)
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());
     ESP_ERROR_CHECK(tool_registry_init());
+    ESP_ERROR_CHECK(cron_service_init());
+    ESP_ERROR_CHECK(heartbeat_init());
     ESP_ERROR_CHECK(agent_loop_init());
 
     /* Start Agent Loop on Core 1 */

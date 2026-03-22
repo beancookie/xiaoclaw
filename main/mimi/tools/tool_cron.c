@@ -122,11 +122,20 @@ esp_err_t tool_cron_list_execute(const char *input_json, char *output, size_t ou
 {
     (void)input_json;
 
+    /* Defensive checks */
+    if (output == NULL || output_size == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     const cron_job_t *jobs;
     int count;
     cron_list_jobs(&jobs, &count);
 
-    if (count == 0) {
+    ESP_LOGI(TAG, "cron_list: jobs=%p, count=%d", jobs, count);
+
+    /* Validate count is in reasonable range */
+    if (count <= 0 || count > 128 || jobs == NULL) {
+        ESP_LOGW(TAG, "cron_list: invalid count=%d or jobs=%p, returning empty", count, jobs);
         snprintf(output, output_size, "No cron jobs scheduled.");
         return ESP_OK;
     }
@@ -138,23 +147,27 @@ esp_err_t tool_cron_list_execute(const char *input_json, char *output, size_t ou
     for (int i = 0; i < count && off < output_size - 1; i++) {
         const cron_job_t *j = &jobs[i];
 
+        /* Only print first 8 chars of each string to be safe */
+        char id_short[9] = {0};
+        char name_short[17] = {0};
+        strncpy(id_short, j->id, 8);
+        strncpy(name_short, j->name, 16);
+
         if (j->kind == CRON_KIND_EVERY) {
             off += snprintf(output + off, output_size - off,
-                "  %d. [%s] \"%s\" — every %lus, %s, next=%lld, last=%lld, ch=%s:%s\n",
-                i + 1, j->id, j->name,
-                (unsigned long)j->interval_s,
-                j->enabled ? "enabled" : "disabled",
-                (long long)j->next_run, (long long)j->last_run,
-                j->channel, j->chat_id);
+                "  %d. [%s] [%.16s] every%us en=%d n=%lld l=%lld\n",
+                i + 1, id_short, name_short,
+                (unsigned int)j->interval_s,
+                (int)j->enabled,
+                (long long)j->next_run, (long long)j->last_run);
         } else {
             off += snprintf(output + off, output_size - off,
-                "  %d. [%s] \"%s\" — at %lld, %s, last=%lld, ch=%s:%s%s\n",
-                i + 1, j->id, j->name,
+                "  %d. [%s] [%.16s] at=%lld en=%d l=%lld del=%d\n",
+                i + 1, id_short, name_short,
                 (long long)j->at_epoch,
-                j->enabled ? "enabled" : "disabled",
+                (int)j->enabled,
                 (long long)j->last_run,
-                j->channel, j->chat_id,
-                j->delete_after_run ? " (auto-delete)" : "");
+                (int)j->delete_after_run);
         }
     }
 
