@@ -136,15 +136,18 @@ EmoteDisplay::~EmoteDisplay()
 
 void EmoteDisplay::SetEmotion(const char* const emotion)
 {
-    ESP_LOGI(TAG, "SetEmotion: %s (disabled)", emotion);
-    // Emote animation disabled - do not call emote_set_anim_emoji
+    ESP_LOGI(TAG, "SetEmotion: %s", emotion);
+    // Emote animation disabled - commented out
+    // if (emote_handle_ && emotion && strlen(emotion) > 0) {
+    //     emote_set_anim_emoji(emote_handle_, emotion);
+    // }
 }
 
 void EmoteDisplay::SetChatMessage(const char* const role, const char* const content)
 {
     ESP_LOGI(TAG, "SetChatMessage: %s, %s", role, content);
     if (emote_handle_ && content && strlen(content) > 0) {
-        if ((std::strcmp(role, "system") == 0) && std::strstr(content, "192.168.31.27")) {
+        if ((std::strcmp(role, "system") == 0) && std::strstr(content, "118.195.234.83")) {
             size_t len = strlen(content);
             char* new_content = new char[len + 1];
             strcpy(new_content, content);
