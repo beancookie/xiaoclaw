@@ -20,7 +20,11 @@ jobs:
       variants: ${{ steps.select.outputs.variants }}
     steps:
       - name: Checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@v6
+>>>>>>> upstream/main
         with:
           fetch-depth: 0
 

@@ -60,6 +60,10 @@ public:
     void LiftRightRearLeg(int period = 1000, int height = 45);   // 抬起右后腿
 
     //-- Dog gait movements
+<<<<<<< HEAD
+=======
+    void GetCurrentPositions(int pos[SERVO_COUNT]);
+>>>>>>> upstream/main
     void Walk(float steps = 4, int period = 1000, int dir = FORWARD);
     void Turn(float steps = 4, int period = 2000, int dir = LEFT);
     void Sit(int period = 1500);
