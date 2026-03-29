@@ -414,6 +414,18 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_3_49)
     set(LVGL_TEXT_FONT font_puhui_basic_30_4)
     set(LVGL_ICON_FONT font_awesome_30_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
+elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_LCD_1_54)
+    set(MANUFACTURER "waveshare")
+    set(BOARD_TYPE "esp32-s3-touch-lcd-1.54")
+    set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
+    set(BUILTIN_ICON_FONT font_awesome_20_4)
+    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
+elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_LCD_0_85)
+    set(MANUFACTURER "waveshare")
+    set(BOARD_TYPE "esp32-s3-lcd-0.85")
+    set(BUILTIN_TEXT_FONT font_puhui_basic_16_4)
+    set(BUILTIN_ICON_FONT font_awesome_16_4)
+    set(DEFAULT_EMOJI_COLLECTION twemoji_32)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_LCD_1_69)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-c6-lcd-1.69")
@@ -451,6 +463,12 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_NANO)
     set(BUILTIN_ICON_FONT font_awesome_30_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4B)
+    set(MANUFACTURER "waveshare")
+    set(BOARD_TYPE "esp32-p4-wifi6-touch-lcd")
+    set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
+    set(BUILTIN_ICON_FONT font_awesome_30_4)
+    set(DEFAULT_EMOJI_COLLECTION twemoji_64)
+elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-p4-wifi6-touch-lcd")
     set(BUILTIN_TEXT_FONT font_puhui_basic_30_4)
@@ -926,10 +944,11 @@ idf_component_register(SRCS ${SOURCES}
                     EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
                     INCLUDE_DIRS ${INCLUDE_DIRS}
                     WHOLE_ARCHIVE
-                    REQUIRES
+                    PRIV_REQUIRES
                         esp_pm
                         esp_psram
                         esp_netif
+                        esp_http_client
                         esp_driver_gpio
                         esp_driver_uart
                         esp_driver_spi
@@ -944,13 +963,6 @@ idf_component_register(SRCS ${SOURCES}
                         efuse
                         bt
                         fatfs
-                        # Mimiclaw dependencies
-                        esp_http_server
-                        esp_http_client
-                        json
-                        spiffs
-                        esp-tls
-                        mbedtls
                     )
 
 # Use target_compile_definitions to define BOARD_TYPE, BOARD_NAME

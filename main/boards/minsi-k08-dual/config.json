@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
     "target": "esp32s3",
     "builds": [
@@ -6,4 +7,14 @@
             "sdkconfig_append": []
         }
     ]
+=======
+{
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "minsi-k08-dual",
+            "sdkconfig_append": []
+        }
+    ]
+>>>>>>> upstream/main
 }

@@ -9,6 +9,10 @@ Configuration in `menuconfig`.
 
 Selection Board Type `Xiaozhi Assistant --> Board Type`
 - Waveshare ESP32-P4-WIFI6-Touch-LCD-4B
+<<<<<<< HEAD
+=======
+- Waveshare ESP32-P4-WIFI6-Touch-LCD-4.3
+>>>>>>> upstream/main
 - Waveshare ESP32-P4-WIFI6-Touch-LCD-7B
 - Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C
 - Waveshare ESP32-P4-WIFI6-Touch-LCD-4C
