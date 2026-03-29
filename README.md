@@ -114,6 +114,9 @@ idf.py build
 ```bash
 # Flash and monitor
 idf.py -p PORT flash monitor
+
+# Flash app only (skip SPIFFS to preserve data)
+esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 ```
 
 ### Configuration
