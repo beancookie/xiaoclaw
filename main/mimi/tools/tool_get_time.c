@@ -39,9 +39,6 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
         .tm_mday = day, .tm_mon = mon, .tm_year = year - 1900,
     };
 
-    /* Convert UTC to epoch — mktime expects local, so temporarily set TZ to UTC0 */
-    setenv("TZ", "UTC0", 1);
-    tzset();
     time_t t = mktime(&tm);
 
     /* Beijing Time is UTC+8 */
@@ -49,6 +46,9 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
     tzset();
 
     if (t < 0) return false;
+
+    /* ESP32 settimeofday expects local epoch, add 8h offset for Beijing */
+    t += 8 * 3600;
 
     struct timeval tv = { .tv_sec = t };
     settimeofday(&tv, NULL);
