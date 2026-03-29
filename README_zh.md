@@ -136,16 +136,25 @@ idf.py -p PORT flash monitor
 
 Bridge 层连接语音 I/O 层与 Agent 大脑：
 
-```
-用户语音 → 唤醒词 → ASR (服务器) → 文本
-                                     ↓
-                               Bridge 层
-                                     ↓
-                               Agent 循环 (LLM)
-                                     ↓
-                               Bridge 层
-                                     ↓
-                               TTS 播放 → 扬声器
+```mermaid
+flowchart LR
+    A["用户语音"] --> B["唤醒词"]
+    B --> C["ASR (服务器)"]
+    C --> D["文本"]
+    D --> E["Bridge 层"]
+    E --> F["Agent 循环 (LLM)"]
+    F --> G["Bridge 层"]
+    G --> H["TTS 播放"]
+    H --> I["扬声器"]
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#e1f5fe
+    style I fill:#e1f5fe
+    style E fill:#fff3e0
+    style G fill:#fff3e0
+    style F fill:#f3e5f5
 ```
 
 ### 内存布局
