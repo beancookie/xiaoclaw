@@ -949,6 +949,11 @@ idf_component_register(SRCS ${SOURCES}
                         esp_psram
                         esp_netif
                         esp_http_client
+                        esp_http_server
+                        json
+                        spiffs
+                        esp-tls
+                        mbedtls
                         esp_driver_gpio
                         esp_driver_uart
                         esp_driver_spi
