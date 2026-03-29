@@ -20,23 +20,32 @@
 
 All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw Firmware                       │
-├──────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐      ┌─────────────────────────────┐    │
-│  │   Voice I/O     │      │      Agent Brain            │    │
-│  │   (xiaozhi)     │      │      (mimiclaw)             │    │
-│  ├─────────────────┤      ├─────────────────────────────┤    │
-│  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
-│  │ • TTS playback  │◀────│ • Long-term memory          │    │
-│  │ • Display/LCD   │      │ • Session management        │    │
-│  │ • WiFi/Network  │      │ • Cron scheduler            │    │
-│  └─────────────────┘      └─────────────────────────────┘    │
-│           │                          ▲                       │
-│           └──────── Bridge Layer ────┘                       │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Firmware["XiaoClaw Firmware"]
+        subgraph VoiceIO["Voice I/O (xiaozhi)"]
+            A[("Wake Word")]
+            B[("ASR (Server)")]
+            C[("TTS Playback")]
+            D[("Display/LCD")]
+            E[("WiFi/Network")]
+        end
+
+        subgraph Agent["Agent Brain (mimiclaw)"]
+            F["LLM API (Claude/GPT)"]
+            G["Tool Calling (ReAct)"]
+            H["Long-term Memory"]
+            I["Session Management"]
+            J["Cron Scheduler"]
+            K["Web Search"]
+        end
+
+        VoiceIO <-->|"Bridge Layer"| Agent
+    end
+
+    style VoiceIO fill:#e1f5fe,stroke:#01579b
+    style Agent fill:#f3e5f5,stroke:#4a148c
+    style Firmware fill:#fafafa,stroke:#424242
 ```
 
 ## Features
@@ -169,18 +178,20 @@ The agent can use various tools:
 | `read_file` | Read file from SPIFFS |
 | `write_file` | Write file to SPIFFS |
 
+**Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
+
 ## Memory System
 
 XiaoClaw stores data in plain text files on SPIFFS:
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `SOUL.md` | AI personality definition |
-| `USER.md` | User information and preferences |
-| `MEMORY.md` | Long-term memory |
-| `HEARTBEAT.md` | Autonomous task list |
-| `cron.json` | Scheduled jobs |
-| `sessions/*.jsonl` | Conversation history |
+| `/spiffs/SOUL.md` | AI personality definition |
+| `/spiffs/USER.md` | User information and preferences |
+| `/spiffs/MEMORY.md` | Long-term memory |
+| `/spiffs/HEARTBEAT.md` | Autonomous task list |
+| `/spiffs/cron.json` | Scheduled jobs |
+| `/spiffs/sessions/*.jsonl` | Conversation history |
 
 ## Development
 
@@ -189,20 +200,37 @@ XiaoClaw stores data in plain text files on SPIFFS:
 ```
 xiaoclaw/
 ├── main/
-│   ├── bridge/           # Bridge layer (new)
-│   │   ├── bridge.h
-│   │   └── bridge.cc
 │   ├── mimi/             # Agent brain (from mimiclaw)
-│   │   ├── agent/
-│   │   ├── llm/
-│   │   ├── tools/
-│   │   ├── memory/
-│   │   └── ...
+│   │   ├── agent/        # Agent loop and context building
+│   │   ├── bus/          # Message bus
+│   │   ├── channels/     # Telegram, Feishu bot integrations
+│   │   ├── cli/          # Serial CLI
+│   │   ├── cron/         # Cron scheduler service
+│   │   ├── gateway/      # WebSocket server
+│   │   ├── heartbeat/    # Autonomous task heartbeat
+│   │   ├── llm/          # LLM proxy
+│   │   ├── memory/       # Memory store and session manager
+│   │   ├── onboard/      # WiFi onboarding
+│   │   ├── ota/          # OTA updates
+│   │   ├── proxy/        # HTTP proxy
+│   │   ├── skills/       # Skill loader
+│   │   ├── tools/        # Tool registry
+│   │   └── wifi/         # WiFi manager
 │   ├── audio/            # Voice I/O (from xiaozhi)
+│   ├── bridge/           # Bridge layer
+│   ├── display/
 │   ├── protocols/
 │   ├── boards/
-│   ├── display/
-│   └── application.cc    # Main application
+│   ├── assets.cc/h       # Assets management
+│   ├── application.cc/h  # Main application
+│   ├── device_state.h   # Device state
+│   ├── device_state_machine.cc/h # State machine
+│   ├── idf_component.yml # Component manifest
+│   ├── main.cc           # Entry point
+│   ├── mcp_server.cc/h   # MCP server
+│   ├── ota.cc/h          # OTA updates
+│   ├── settings.cc/h     # Settings management
+│   └── system_info.cc/h  # System info
 ├── spiffs_data/          # SPIFFS content
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3

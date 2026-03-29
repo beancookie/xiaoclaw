@@ -20,23 +20,32 @@
 
 所有功能运行在单个 ESP32-S3 芯片上，配备 32MB Flash 和 8MB PSRAM。
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw Firmware                       │
-├──────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐      ┌─────────────────────────────┐    │
-│  │   Voice I/O     │      │      Agent Brain            │    │
-│  │   (xiaozhi)     │      │      (mimiclaw)             │    │
-│  ├─────────────────┤      ├─────────────────────────────┤    │
-│  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
-│  │ • TTS playback  │◀────│ • Long-term memory          │    │
-│  │ • Display/LCD   │      │ • Session management        │    │
-│  │ • WiFi/Network  │      │ • Cron scheduler            │    │
-│  └─────────────────┘      └─────────────────────────────┘    │
-│           │                          ▲                       │
-│           └──────── Bridge Layer ────┘                       │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Firmware["XiaoClaw Firmware"]
+        subgraph VoiceIO["Voice I/O (xiaozhi)"]
+            A[("Wake Word")]
+            B[("ASR (Server)")]
+            C[("TTS Playback")]
+            D[("Display/LCD")]
+            E[("WiFi/Network")]
+        end
+
+        subgraph Agent["Agent Brain (mimiclaw)"]
+            F["LLM API (Claude/GPT)"]
+            G["Tool Calling (ReAct)"]
+            H["Long-term Memory"]
+            I["Session Management"]
+            J["Cron Scheduler"]
+            K["Web Search"]
+        end
+
+        VoiceIO <-->|"Bridge Layer"| Agent
+    end
+
+    style VoiceIO fill:#e1f5fe,stroke:#01579b
+    style Agent fill:#f3e5f5,stroke:#4a148c
+    style Firmware fill:#fafafa,stroke:#424242
 ```
 
 ## 功能特性
@@ -172,18 +181,20 @@ Agent 可以使用多种工具：
 | `read_file`        | 从 SPIFFS 读取文件   |
 | `write_file`       | 写入文件到 SPIFFS    |
 
+**注意：** GPIO 工具遵循 `gpio_policy.h` 中定义的板级策略。
+
 ## 记忆系统
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 
-| 文件               | 用途           |
-| ------------------ | -------------- |
-| `SOUL.md`          | AI 人格定义    |
-| `USER.md`          | 用户信息和偏好 |
-| `MEMORY.md`        | 长期记忆       |
-| `HEARTBEAT.md`     | 自主任务列表   |
-| `cron.json`        | 定时任务       |
-| `sessions/*.jsonl` | 对话历史       |
+| 路径                | 用途           |
+| ------------------- | -------------- |
+| `/spiffs/SOUL.md`   | AI 人格定义    |
+| `/spiffs/USER.md`   | 用户信息和偏好 |
+| `/spiffs/MEMORY.md` | 长期记忆       |
+| `/spiffs/HEARTBEAT.md` | 自主任务列表 |
+| `/spiffs/cron.json` | 定时任务       |
+| `/spiffs/sessions/*.jsonl` | 对话历史 |
 
 ## 开发
 
@@ -192,20 +203,37 @@ XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 ```
 xiaoclaw/
 ├── main/
-│   ├── bridge/           # Bridge 层（新增）
-│   │   ├── bridge.h
-│   │   └── bridge.cc
 │   ├── mimi/             # Agent 大脑（来自 mimiclaw）
-│   │   ├── agent/
-│   │   ├── llm/
-│   │   ├── tools/
-│   │   ├── memory/
-│   │   └── ...
+│   │   ├── agent/        # Agent 循环和上下文构建
+│   │   ├── bus/          # 消息总线
+│   │   ├── channels/     # Telegram、飞书机器人集成
+│   │   ├── cli/          # 串口 CLI
+│   │   ├── cron/         # Cron 调度器服务
+│   │   ├── gateway/      # WebSocket 服务器
+│   │   ├── heartbeat/    # 自主任务心跳
+│   │   ├── llm/          # LLM 代理
+│   │   ├── memory/       # 记忆存储和会话管理
+│   │   ├── onboard/      # WiFi 入网配置
+│   │   ├── ota/          # OTA 更新
+│   │   ├── proxy/        # HTTP 代理
+│   │   ├── skills/       # 技能加载器
+│   │   ├── tools/        # 工具注册表
+│   │   └── wifi/         # WiFi 管理器
 │   ├── audio/            # 语音 I/O（来自 xiaozhi）
+│   ├── bridge/           # Bridge 层
+│   ├── display/
 │   ├── protocols/
 │   ├── boards/
-│   ├── display/
-│   └── application.cc    # 主应用
+│   ├── assets.cc/h       # 资源管理
+│   ├── application.cc/h  # 主应用
+│   ├── device_state.h   # 设备状态
+│   ├── device_state_machine.cc/h # 状态机
+│   ├── idf_component.yml # 组件清单
+│   ├── main.cc           # 入口点
+│   ├── mcp_server.cc/h   # MCP 服务器
+│   ├── ota.cc/h          # OTA 更新
+│   ├── settings.cc/h     # 设置管理
+│   └── system_info.cc/h  # 系统信息
 ├── spiffs_data/          # SPIFFS 内容
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3
