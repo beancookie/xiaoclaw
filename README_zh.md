@@ -117,6 +117,9 @@ idf.py build
 ```bash
 # 烧录并监控
 idf.py -p PORT flash monitor
+
+# 仅烧录 app 分区（跳过 SPIFFS，保留数据）
+esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 ```
 
 ### 配置
