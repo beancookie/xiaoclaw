@@ -133,16 +133,25 @@ Create `main/mimi/mimi_secrets.h` from the example:
 
 The bridge layer connects the voice I/O layer with the agent brain:
 
-```
-User Voice → Wake Word → ASR (server) → Text
-                                           ↓
-                                    Bridge Layer
-                                           ↓
-                                    Agent Loop (LLM)
-                                           ↓
-                                    Bridge Layer
-                                           ↓
-                                    TTS Playback → Speaker
+```mermaid
+flowchart LR
+    A["User Voice"] --> B["Wake Word"]
+    B --> C["ASR (Server)"]
+    C --> D["Text"]
+    D --> E["Bridge Layer"]
+    E --> F["Agent Loop (LLM)"]
+    F --> G["Bridge Layer"]
+    G --> H["TTS Playback"]
+    H --> I["Speaker"]
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#e1f5fe
+    style I fill:#e1f5fe
+    style E fill:#fff3e0
+    style G fill:#fff3e0
+    style F fill:#f3e5f5
 ```
 
 ### Memory Layout
