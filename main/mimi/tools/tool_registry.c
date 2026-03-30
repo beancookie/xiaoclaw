@@ -28,6 +28,8 @@ static void register_tool(const mimi_tool_t *tool)
     ESP_LOGI(TAG, "Registered tool: %s", tool->name);
 }
 
+static void build_tools_json(void);
+
 esp_err_t tool_registry_add(const mimi_tool_t *tool)
 {
     if (s_tool_count >= MAX_TOOLS) {
