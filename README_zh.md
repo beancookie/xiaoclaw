@@ -195,6 +195,48 @@ Agent 可以使用多种工具：
 
 **注意：** GPIO 工具遵循 `gpio_policy.h` 中定义的板级策略。
 
+### MCP Client（动态远程工具）
+
+XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。配置在运行时从 skill 文件加载。
+
+```mermaid
+flowchart TB
+    subgraph Startup["启动阶段"]
+        A["skill_loader 读取<br/>mcp-connection.md"] --> B["tool_mcp_client_init()"]
+        B --> C["esp_mcp_mgr_init()"]
+        C --> D["mcp_initialize()"]
+        D --> E["mcp_list_tools()"]
+        E --> F["tool_registry_add() × N"]
+        F --> G["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["LLM 工具调用"]
+        H["LLM 请求工具列表"]
+        H --> I["tool_registry_get_tools_json()"]
+        I --> J["(包含 mcp.* 远程工具)"]
+        J --> K["LLM 返回 tool_call"]
+        K --> L["agent_loop"]
+        L --> M["tool_registry_execute()"]
+        M --> N["mcp_tool_execute()"]
+        N --> O["esp_mcp_mgr_post_tools_call()"]
+        O --> P["等待响应"]
+        P --> Q["返回 JSON 结果给 LLM"]
+    end
+
+    style Startup fill:#e8f5e9,stroke:#2e7d32
+    style LLM_Call fill:#fff3e0,stroke:#ef6c00
+```
+
+**配置文件：** 首次创建 MCP skill 时 AI 会自动生成 `/spiffs/skills/mcp-connection.md`
+
+**Python MCP 服务器示例：** `scripts/mcp_server.py`
+```bash
+pip install "mcp[cli]"
+python scripts/mcp_server.py --port 8000
+```
+
+远程工具以 `mcp.` 前缀注册（如 `mcp.get_device_status`），与本地工具区分。
+
 ## 记忆系统
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：

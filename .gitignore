@@ -20,3 +20,4 @@ mmap_generate_*.h
 .clangd
 main/mimi/mimi_secrets.h
 debug
+/examples

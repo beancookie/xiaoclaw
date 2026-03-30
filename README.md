@@ -192,6 +192,48 @@ The agent can use various tools:
 
 **Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
 
+### MCP Client (Dynamic Remote Tools)
+
+XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools. Configuration is loaded at runtime from a skill file.
+
+```mermaid
+flowchart TB
+    subgraph Startup["Startup Phase"]
+        A["skill_loader reads<br/>mcp-connection.md"] --> B["tool_mcp_client_init()"]
+        B --> C["esp_mcp_mgr_init()"]
+        C --> D["mcp_initialize()"]
+        D --> E["mcp_list_tools()"]
+        E --> F["tool_registry_add() × N"]
+        F --> G["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["LLM Tool Calling"]
+        H["LLM requests tools"]
+        H --> I["tool_registry_get_tools_json()"]
+        I --> J["(includes mcp.* remote tools)"]
+        J --> K["LLM returns tool_call"]
+        K --> L["agent_loop"]
+        L --> M["tool_registry_execute()"]
+        M --> N["mcp_tool_execute()"]
+        N --> O["esp_mcp_mgr_post_tools_call()"]
+        O --> P["Wait for response"]
+        P --> Q["Return JSON result to LLM"]
+    end
+
+    style Startup fill:#e8f5e9,stroke:#2e7d32
+    style LLM_Call fill:#fff3e0,stroke:#ef6c00
+```
+
+**Configuration file:** Created dynamically by AI when adding MCP skill via `/spiffs/skills/mcp-connection.md`
+
+**Python MCP Server Example:** `scripts/mcp_server.py`
+```bash
+pip install "mcp[cli]"
+python scripts/mcp_server.py --port 8000
+```
+
+Remote tools are registered with the `mcp.` prefix (e.g., `mcp.get_device_status`), distinguishing them from local tools.
+
 ## Memory System
 
 XiaoClaw stores data in plain text files on SPIFFS:
