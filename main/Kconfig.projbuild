@@ -919,4 +919,43 @@ menu "TAIJIPAI_S3_CONFIG"
         启动双声道
 endmenu
 
+menu "MCP Client Configuration"
+    config MIMI_MCP_CLIENT_ENABLE
+        bool "Enable MCP Client"
+        default n
+        help
+            Enable MCP client to call tools from a remote MCP server.
+
+    config MIMI_MCP_REMOTE_HOST
+        string "Remote MCP server host"
+        default ""
+        depends on MIMI_MCP_CLIENT_ENABLE
+        help
+            IP address or hostname of the remote MCP server.
+
+    config MIMI_MCP_REMOTE_PORT
+        int "Remote MCP server port"
+        range 1 65535
+        default 8080
+        depends on MIMI_MCP_CLIENT_ENABLE
+        help
+            HTTP port of the remote MCP server.
+
+    config MIMI_MCP_REMOTE_EP
+        string "Remote MCP endpoint name"
+        default "mcp_server"
+        depends on MIMI_MCP_CLIENT_ENABLE
+        help
+            Endpoint name used as HTTP path: POST /<endpoint>.
+            Also used as prefix for local tool names.
+
+    config MIMI_MCP_TIMEOUT_MS
+        int "MCP tool call timeout (ms)"
+        range 1000 60000
+        default 10000
+        depends on MIMI_MCP_CLIENT_ENABLE
+        help
+            Timeout for individual tool calls to the remote MCP server.
+endmenu
+
 endmenu
