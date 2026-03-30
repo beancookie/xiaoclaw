@@ -28,6 +28,23 @@ static void register_tool(const mimi_tool_t *tool)
     ESP_LOGI(TAG, "Registered tool: %s", tool->name);
 }
 
+esp_err_t tool_registry_add(const mimi_tool_t *tool)
+{
+    if (s_tool_count >= MAX_TOOLS) {
+        ESP_LOGE(TAG, "Tool registry full, cannot add: %s", tool->name);
+        return ESP_ERR_NO_MEM;
+    }
+    s_tools[s_tool_count++] = *tool;
+    ESP_LOGI(TAG, "Added tool: %s", tool->name);
+    /* Note: Caller should call tool_registry_rebuild_json() after adding multiple tools */
+    return ESP_OK;
+}
+
+void tool_registry_rebuild_json(void)
+{
+    build_tools_json();
+}
+
 static void build_tools_json(void)
 {
     cJSON *arr = cJSON_CreateArray();

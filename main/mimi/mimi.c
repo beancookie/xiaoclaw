@@ -31,6 +31,7 @@
 #include "memory/session_mgr.h"
 #include "proxy/http_proxy.h"
 #include "tools/tool_registry.h"
+#include "tools/tool_mcp_client.h"
 #include "skills/skill_loader.h"
 
 // Disabled for embedded mode (xiaozhi handles these):
@@ -102,6 +103,7 @@ esp_err_t mimiclaw_init(void)
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());
     ESP_ERROR_CHECK(tool_registry_init());
+    ESP_ERROR_CHECK(tool_mcp_client_init());
     ESP_ERROR_CHECK(cron_service_init());
     ESP_ERROR_CHECK(cron_service_start());
     ESP_ERROR_CHECK(heartbeat_init());
