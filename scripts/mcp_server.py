@@ -6,23 +6,22 @@ A simple MCP (Model Context Protocol) server that exposes tools
 for the ESP32 mimi agent to call.
 
 Usage:
-    pip install "mcp[cli]"
-    python scripts/mcp_server.py [--host HOST] [--port PORT] [--path PATH]
+    pip install "mcp[cli]" "uvicorn[standard]"
+    python scripts/mcp_server.py
 
 Example:
-    python scripts/mcp_server.py --port 8000
-    # Server will start at http://localhost:8000/mcp
+    python scripts/mcp_server.py
+    # Server will start at http://0.0.0.0:8000/mcp
 """
 
-import argparse
 import json
-import sys
+import asyncio
 from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 
-# Create FastMCP server instance
-mcp = FastMCP("ESP32 Bridge")
+# Create FastMCP server instance with defaults
+mcp = FastMCP("ESP32 Bridge", host="0.0.0.0", port=8000, streamable_http_path="/mcp")
 
 
 @mcp.tool()
@@ -157,27 +156,7 @@ def echo(message: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MCP Server for ESP32 Bridge")
-    parser.add_argument(
-        "--host",
-        default="0.0.0.0",
-        help="Host to bind to (default: 0.0.0.0)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port to listen on (default: 8000)",
-    )
-    parser.add_argument(
-        "--path",
-        default="/mcp",
-        help="HTTP path for MCP endpoint (default: /mcp)",
-    )
-    args = parser.parse_args()
-
-    url = f"http://{args.host}:{args.port}{args.path}"
-    print(f"Starting MCP Server: {url}")
+    print(f"Starting MCP Server: http://0.0.0.0:8000/mcp")
     print(f"Tools available:")
     for tool in ["get_device_status", "set_led", "read_sensor", "control_motor", "get_time", "echo"]:
         print(f"  - {tool}")
@@ -186,7 +165,7 @@ def main():
     print()
 
     # Run with streamable-http transport
-    mcp.run(transport="streamable-http", host=args.host, port=args.port, route_path=args.path)
+    asyncio.run(mcp.run_streamable_http_async())
 
 
 if __name__ == "__main__":
