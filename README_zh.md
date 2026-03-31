@@ -187,47 +187,73 @@ Agent 可以使用多种工具：
 | `get_current_time` | 获取当前日期/时间    |
 | `gpio_write`       | 控制 GPIO 引脚       |
 | `gpio_read`        | 读取 GPIO 状态       |
+| `gpio_read_all`    | 读取所有允许的 GPIO  |
+| `lua_eval`         | 直接执行 Lua 代码     |
+| `lua_run`          | 从 SPIFFS 执行 Lua 脚本 |
+| `mcp_connect`      | 连接 MCP 服务器      |
+| `mcp_disconnect`   | 断开 MCP 服务器连接  |
 | `cron_add`         | 创建定时任务         |
 | `cron_list`        | 列出定时任务         |
 | `cron_remove`      | 删除定时任务         |
 | `read_file`        | 从 SPIFFS 读取文件   |
 | `write_file`       | 写入文件到 SPIFFS    |
+| `edit_file`        | 编辑文件（查找替换） |
+| `list_dir`         | 列出目录中的文件     |
 
 **注意：** GPIO 工具遵循 `gpio_policy.h` 中定义的板级策略。
 
 ### MCP Client（动态远程工具）
 
-XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。配置在运行时从 skill 文件加载。
+XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。服务器配置存储在 `mcp-servers.md` skill 文件中。
 
 ```mermaid
 flowchart TB
-    subgraph Startup["启动阶段"]
-        A["skill_loader 读取<br/>mcp-connection.md"] --> B["tool_mcp_client_init()"]
-        B --> C["esp_mcp_mgr_init()"]
-        C --> D["mcp_initialize()"]
-        D --> E["mcp_list_tools()"]
-        E --> F["tool_registry_add() × N"]
-        F --> G["tool_registry_rebuild_json()"]
+    subgraph Config["配置"]
+        A["mcp-servers.md<br/>skill 文件"] --> B["可用 MCP 服务器列表"]
     end
 
-    subgraph LLM_Call["LLM 工具调用"]
-        H["LLM 请求工具列表"]
-        H --> I["tool_registry_get_tools_json()"]
-        I --> J["(包含 mcp.* 远程工具)"]
-        J --> K["LLM 返回 tool_call"]
-        K --> L["agent_loop"]
-        L --> M["tool_registry_execute()"]
-        M --> N["mcp_tool_execute()"]
-        N --> O["esp_mcp_mgr_post_tools_call()"]
-        O --> P["等待响应"]
-        P --> Q["返回 JSON 结果给 LLM"]
+    subgraph Init["tool_mcp_client_init()"]
+        C["注册 mcp_connect<br/>和 mcp_disconnect 工具"]
     end
 
-    style Startup fill:#e8f5e9,stroke:#2e7d32
-    style LLM_Call fill:#fff3e0,stroke:#ef6c00
+    subgraph Connect["LLM 调用 mcp_connect"]
+        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
+        E --> F["esp_mcp_mgr_init()"]
+        F --> G["mcp_initialize()"]
+        G --> H["mcp_list_tools()"]
+        H --> I["tool_registry_add() × N"]
+        I --> J["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["远程工具调用"]
+        K["LLM 请求工具"] --> L["mcp.server_name.tool"]
+        L --> M["mcp_tool_execute()"]
+        M --> N["esp_mcp_mgr_post()"]
+        N --> O["等待响应"]
+        O --> P["返回 JSON 结果给 LLM"]
+    end
+
+    style Config fill:#e3f2fd,stroke:#1565c0
+    style Init fill:#e8f5e9,stroke:#2e7d32
+    style Connect fill:#fff3e0,stroke:#ef6c00
+    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
 ```
 
-**配置文件：** 首次创建 MCP skill 时 AI 会自动生成 `/spiffs/skills/mcp-connection.md`
+**配置文件：** `/spiffs/skills/mcp-servers.md`
+```markdown
+# MCP Servers
+
+## my_server
+- host: 192.168.1.100
+- port: 8000
+- endpoint: mcp
+```
+
+**可用工具：**
+| 工具 | 描述 |
+|------|------|
+| `mcp_connect` | 按名称连接 MCP 服务器 |
+| `mcp_disconnect` | 断开当前服务器连接 |
 
 **Python MCP 服务器示例：** `scripts/mcp_server.py`
 ```bash
@@ -235,7 +261,7 @@ pip install "mcp[cli]"
 python scripts/mcp_server.py --port 8000
 ```
 
-远程工具以 `mcp.` 前缀注册（如 `mcp.get_device_status`），与本地工具区分。
+远程工具以 `{server_name}.` 前缀注册（如 `my_server.get_device_status`），与本地工具区分。
 
 ## 记忆系统
 

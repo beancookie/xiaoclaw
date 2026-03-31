@@ -30,18 +30,60 @@ write_file path="/spiffs/skills/translate.md" content="# Translate\n\nTranslate 
 
 To connect to a remote MCP server for additional tools:
 
-1. Create the connection config file:
-   write_file path="/spiffs/skills/mcp-connection.md" content="# MCP Server Connection\n\n## Connection\n- host: <server-ip-address>\n- port: <server-port>\n- endpoint: mcp\n- timeout_ms: 10000\n- enabled: true\n\n## Description\nConfigure the connection to a remote MCP server.\n"
+1. First, read the available servers from mcp-servers.md:
+   read_file path="/spiffs/skills/mcp-servers.md"
 
-2. Available parameters:
-   - **host**: IP address or hostname of the MCP server
-   - **port**: HTTP port (default: 8000)
-   - **endpoint**: HTTP path endpoint (default: mcp)
-   - **timeout_ms**: Tool call timeout in milliseconds (default: 10000)
-   - **enabled**: "true" to enable, "false" to disable
+2. If your server is not listed, add it to mcp-servers.md:
+   write_file path="/spiffs/skills/mcp-servers.md" content="# MCP Servers\n\nAvailable MCP servers.\n\n## my_server\n- host: <server-ip-address>\n- port: <server-port>\n- endpoint: mcp\n\n## another_server\n- host: 10.0.0.50\n- port: 9000\n- endpoint: mcp\n"
 
-3. After creating the file, the MCP client will automatically connect on next startup
+3. Connect using the mcp_connect tool:
+   mcp_connect {"server_name": "my_server"}
+
+4. After connecting, the server's tools will be dynamically registered and available with the prefix "{server_name}." (e.g., my_server.get_status)
+
+5. To disconnect:
+   mcp_disconnect {}
+
+## MCP Server Parameters
+- **host**: IP address or hostname of the MCP server
+- **port**: HTTP port (default: 8000)
+- **endpoint**: HTTP path endpoint (default: mcp)
 
 ## Example
 User: "Add an MCP server at 192.168.1.100 port 8000"
-Agent: writes_file path="/spiffs/skills/mcp-connection.md" content="# MCP Server Connection\n\n## Connection\n- host: 192.168.1.100\n- port: 8000\n- endpoint: mcp\n- timeout_ms: 10000\n- enabled: true\n..."
+Agent:
+1. write_file path="/spiffs/skills/mcp-servers.md" content="# MCP Servers\n\n## my_server\n- host: 192.168.1.100\n- port: 8000\n- endpoint: mcp\n"
+2. mcp_connect {"server_name": "my_server"}
+3. Now tools like my_server.get_status are available
+
+## How to create and run Lua scripts
+
+XiaoClaw supports Lua scripting. You can create Lua scripts and execute them.
+
+### Create a Lua script
+1. Use write_file to save the script to `/spiffs/lua/<name>.lua`
+2. Scripts should return a value or use print() for output
+
+### Run Lua code directly
+Use lua_eval to execute a code snippet:
+lua_eval {"code": "return 2 + 2"}  -- returns {"result": 4}
+
+### Run a saved Lua script
+Use lua_run to execute a stored script:
+lua_run {"path": "/spiffs/lua/myscript.lua"}
+
+### Example: Creating a Lua script
+User: "Create a Lua script that calculates fibonacci"
+Agent: write_file path="/spiffs/lua/fibonacci.lua" content="-- Fibonacci function\nlocal function fib(n)\n    if n <= 1 then return n end\n    return fib(n-1) + fib(n-2)\nend\n\n-- Calculate and return result\nreturn fib(10)"
+
+### Example: Running the script
+User: "Run the fibonacci script"
+Agent: lua_run {"path": "/spiffs/lua/fibonacci.lua"}
+
+### Lua available libraries
+- print() - Output text
+- string library - String operations
+- math library - Math functions
+- table library - Table operations
+- coroutine library - Coroutines
+- os library - Limited (time only)

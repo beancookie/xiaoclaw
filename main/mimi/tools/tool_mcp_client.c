@@ -2,14 +2,16 @@
  * @file tool_mcp_client.c
  * @brief MCP Client tool - Bridge to remote MCP server tools
  *
- * This module enables mimi to call tools from a remote MCP server.
- * Configuration is loaded from a skill file at runtime.
- * Remote tools are discovered at startup and registered as local mimi_tool_t entries.
+ * This module enables mimi to dynamically connect to MCP servers.
+ * Server configurations are stored in mcp-servers.md skill file.
+ * Use mcp_connect(server_name) to establish a connection.
+ * Remote tools are discovered and registered as local mimi_tool_t entries.
  * Tool calls are forwarded via HTTP to the remote MCP server.
  */
 
 #include "tool_mcp_client.h"
 #include "tool_registry.h"
+#include "skills/skill_loader.h"
 #include "mimi_config.h"
 #include "cJSON.h"
 
@@ -24,165 +26,72 @@
 #include "esp_http_client.h"
 
 static const char *TAG = "mcp_client";
-static const char *MCP_SKILL_FILE = MIMI_SPIFFS_BASE "/skills/mcp-connection.md";
 
-/* Default timeout if not specified in skill file */
+/* Default timeout for MCP operations */
 #define DEFAULT_MCP_TIMEOUT_MS 10000
 
 /**
- * @brief MCP connection configuration (loaded from skill file)
+ * @brief Response synchronization context
+ */
+typedef struct {
+    SemaphoreHandle_t resp_sem;
+    atomic_int pending_responses;
+    int last_error_code;
+    char *resp_json;
+} resp_sync_ctx_t;
+
+/**
+ * @brief MCP connection state
  */
 typedef struct {
     char host[128];
     int port;
     char endpoint[64];
     int timeout_ms;
-    bool enabled;
-} mcp_config_t;
+    char server_name[64];
+} mcp_server_config_t;
 
-/* Global configuration (loaded from skill file) */
-static mcp_config_t s_config = {
+/* Current connected server config */
+static mcp_server_config_t s_server_config = {
     .host = {0},
     .port = 8000,
     .endpoint = "mcp",
     .timeout_ms = DEFAULT_MCP_TIMEOUT_MS,
-    .enabled = false,
+    .server_name = {0},
 };
 
 /* Global state */
 static esp_mcp_t *s_mcp = NULL;
-static esp_mcp_mgr_handle_t s_mgr = NULL;
-static bool s_initialized = false;
+static esp_mcp_mgr_handle_t s_mgr = 0;
+static bool s_connected = false;
 
 /* Remote tool mapping: local_name -> remote_name */
 #define MAX_MCP_TOOLS 16
-static char s_local_names[MAX_MCP_TOOLS][64];
+static char s_local_names[MAX_MCP_TOOLS][128];
 static char s_remote_names[MAX_MCP_TOOLS][64];
 static int s_mcp_tool_count = 0;
 
-/* Forward declaration */
+/**
+ * @brief MCP response callback (called from MCP manager task)
+ */
 static esp_err_t mcp_resp_cb(int error_code, const char *ep_name,
-                               const char *resp_json, void *user_ctx);
-
-/**
- * @brief Trim leading and trailing whitespace
- */
-static void trim_string(char *str)
+                              const char *resp_json, void *user_ctx)
 {
-    if (!str) return;
-
-    /* Trim leading */
-    char *start = str;
-    while (*start == ' ' || *start == '\t') start++;
-
-    /* Trim trailing */
-    char *end = start + strlen(start) - 1;
-    while (end > start && (*end == '\n' || *end == '\r' || *end == ' ' || *end == '\t')) {
-        *end-- = '\0';
+    resp_sync_ctx_t *ctx = (resp_sync_ctx_t *)user_ctx;
+    if (!ctx) {
+        ESP_LOGW(TAG, "Response callback: user_ctx is NULL");
+        return ESP_ERR_INVALID_ARG;
     }
 
-    if (start != str) {
-        memmove(str, start, strlen(start) + 1);
-    }
-}
-
-/**
- * @brief Parse a key: value or - key: value line
- */
-static bool parse_line(const char *line, char *key, char *value)
-{
-    const char *colon = strchr(line, ':');
-    if (!colon) return false;
-
-    size_t key_len = colon - line;
-    while (key_len > 0 && (line[key_len - 1] == ' ' || line[key_len - 1] == '\t')) {
-        key_len--;
+    ctx->last_error_code = error_code;
+    if (resp_json) {
+        ctx->resp_json = strdup(resp_json);
     }
 
-    if (key_len == 0) return false;
-
-    memcpy(key, line, key_len);
-    key[key_len] = '\0';
-
-    const char *val_start = colon + 1;
-    while (*val_start == ' ' || *val_start == '\t') val_start++;
-
-    strcpy(value, val_start);
-    trim_string(value);
-
-    return true;
-}
-
-/**
- * @brief Load MCP configuration from skill file
- *
- * Expected format:
- * # MCP Server Connection
- *
- * ## Connection
- * - host: 192.168.1.100
- * - port: 8000
- * - endpoint: mcp
- * - timeout_ms: 10000
- * - enabled: true
- */
-static esp_err_t load_config_from_skill(mcp_config_t *config)
-{
-    FILE *f = fopen(MCP_SKILL_FILE, "r");
-    if (!f) {
-        ESP_LOGI(TAG, "MCP skill file not found: %s (MCP client disabled)", MCP_SKILL_FILE);
-        config->enabled = false;
-        return ESP_OK;
+    atomic_fetch_sub(&ctx->pending_responses, 1);
+    if (ctx->resp_sem) {
+        xSemaphoreGive(ctx->resp_sem);
     }
-
-    ESP_LOGI(TAG, "Loading MCP config from: %s", MCP_SKILL_FILE);
-
-    char line[256];
-    bool in_connection_section = false;
-    char current_key[64] = {0};
-    char current_value[128] = {0};
-
-    while (fgets(line, sizeof(line), f)) {
-        /* Check for section header */
-        if (strncmp(line, "## Connection", 13) == 0) {
-            in_connection_section = true;
-            continue;
-        }
-
-        /* Exit connection section on next header or EOF */
-        if (line[0] == '#' && line[1] == '#') {
-            in_connection_section = false;
-            continue;
-        }
-
-        /* Skip non-connection sections */
-        if (!in_connection_section) continue;
-
-        /* Skip empty lines */
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
-
-        /* Parse key: value lines */
-        if (parse_line(line, current_key, current_value)) {
-            if (strcmp(current_key, "host") == 0) {
-                strncpy(config->host, current_value, sizeof(config->host) - 1);
-            } else if (strcmp(current_key, "port") == 0) {
-                config->port = atoi(current_value);
-            } else if (strcmp(current_key, "endpoint") == 0) {
-                strncpy(config->endpoint, current_value, sizeof(config->endpoint) - 1);
-            } else if (strcmp(current_key, "timeout_ms") == 0) {
-                config->timeout_ms = atoi(current_value);
-            } else if (strcmp(current_key, "enabled") == 0) {
-                config->enabled = (strcmp(current_value, "true") == 0 ||
-                                   strcmp(current_value, "1") == 0 ||
-                                   strcmp(current_value, "yes") == 0);
-            }
-        }
-    }
-
-    fclose(f);
-
-    ESP_LOGI(TAG, "MCP config loaded: enabled=%d, host=%s, port=%d, endpoint=%s, timeout=%d",
-             config->enabled, config->host, config->port, config->endpoint, config->timeout_ms);
 
     return ESP_OK;
 }
@@ -190,23 +99,24 @@ static esp_err_t load_config_from_skill(mcp_config_t *config)
 /**
  * @brief Create a semaphore-based sync context for a tool call
  */
-static mcp_call_ctx_t *create_call_ctx(void)
+static resp_sync_ctx_t *create_sync_ctx(void)
 {
-    mcp_call_ctx_t *ctx = calloc(1, sizeof(mcp_call_ctx_t));
+    resp_sync_ctx_t *ctx = calloc(1, sizeof(resp_sync_ctx_t));
     if (ctx) {
-        ctx->resp_sem = xSemaphoreCreateCounting(1, 0);
+        ctx->resp_sem = xSemaphoreCreateCounting(10, 0);
         if (ctx->resp_sem == NULL) {
             free(ctx);
             return NULL;
         }
+        atomic_init(&ctx->pending_responses, 0);
     }
     return ctx;
 }
 
 /**
- * @brief Free a call context
+ * @brief Free a sync context
  */
-static void free_call_ctx(mcp_call_ctx_t *ctx)
+static void free_sync_ctx(resp_sync_ctx_t *ctx)
 {
     if (ctx) {
         if (ctx->resp_sem) {
@@ -222,63 +132,19 @@ static void free_call_ctx(mcp_call_ctx_t *ctx)
 /**
  * @brief Wait for response with timeout
  */
-static esp_err_t wait_for_response(mcp_call_ctx_t *ctx, int timeout_ms)
+static esp_err_t wait_for_response(resp_sync_ctx_t *ctx, int timeout_ms)
 {
-    if (xSemaphoreTake(ctx->resp_sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
-        return ESP_ERR_TIMEOUT;
-    }
-    return ESP_OK;
-}
+    TickType_t start_tick = xTaskGetTickCount();
 
-/**
- * @brief MCP response callback (called from MCP manager task)
- */
-static esp_err_t mcp_resp_cb(int error_code, const char *ep_name,
-                               const char *resp_json, void *user_ctx)
-{
-    mcp_call_ctx_t *ctx = (mcp_call_ctx_t *)user_ctx;
-    if (!ctx) {
-        ESP_LOGW(TAG, "Response callback: user_ctx is NULL");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    ctx->error_code = error_code;
-    if (resp_json) {
-        ctx->resp_json = strdup(resp_json);
-        ctx->resp_len = ctx->resp_json ? strlen(ctx->resp_json) : 0;
-    }
-    ctx->done = true;
-
-    if (ctx->resp_sem) {
-        xSemaphoreGive(ctx->resp_sem);
-    }
-
-    return ESP_OK;
-}
-
-/**
- * @brief Post a request and wait for response
- */
-static esp_err_t post_and_wait(esp_mcp_mgr_handle_t mgr, esp_mcp_mgr_req_t *req,
-                                mcp_call_ctx_t *ctx, int timeout_ms)
-{
-    ctx->done = false;
-    ctx->error_code = 0;
-    ctx->resp_json = NULL;
-    ctx->resp_len = 0;
-
-    ESP_ERROR_CHECK(esp_mcp_mgr_post(mgr, req));
-
-    esp_err_t ret = wait_for_response(ctx, timeout_ms);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Timeout waiting for response");
-        return ret;
-    }
-
-    if (ctx->error_code < 0) {
-        ESP_LOGW(TAG, "Protocol error: code=%d, msg=%s",
-                 ctx->error_code, ctx->resp_json ? ctx->resp_json : "N/A");
-        return ESP_FAIL;
+    while (atomic_load(&ctx->pending_responses) > 0) {
+        TickType_t elapsed_ticks = xTaskGetTickCount() - start_tick;
+        int elapsed_ms = (int)(elapsed_ticks * portTICK_PERIOD_MS);
+        if (elapsed_ms >= timeout_ms) {
+            return ESP_ERR_TIMEOUT;
+        }
+        int wait_ms = timeout_ms - elapsed_ms;
+        int wait_ticks = (wait_ms > 100) ? pdMS_TO_TICKS(100) : pdMS_TO_TICKS(wait_ms);
+        xSemaphoreTake(ctx->resp_sem, wait_ticks);
     }
 
     return ESP_OK;
@@ -288,9 +154,9 @@ static esp_err_t post_and_wait(esp_mcp_mgr_handle_t mgr, esp_mcp_mgr_req_t *req,
  * @brief Execute wrapper for MCP tools (generic, uses tool_index)
  */
 static esp_err_t mcp_tool_execute(const char *input_json, char *output,
-                                    size_t output_size, int tool_index)
+                                   size_t output_size, int tool_index)
 {
-    if (!s_initialized || !s_mgr) {
+    if (!s_connected || !s_mgr) {
         snprintf(output, output_size, "{\"error\": \"MCP client not initialized\"}");
         return ESP_ERR_INVALID_STATE;
     }
@@ -300,32 +166,36 @@ static esp_err_t mcp_tool_execute(const char *input_json, char *output,
         return ESP_ERR_INVALID_ARG;
     }
 
-    mcp_call_ctx_t *ctx = create_call_ctx();
+    resp_sync_ctx_t *ctx = create_sync_ctx();
     if (!ctx) {
         snprintf(output, output_size, "{\"error\": \"out of memory\"}");
         return ESP_ERR_NO_MEM;
     }
 
     esp_mcp_mgr_req_t req = {
-        .ep_name = s_config.endpoint,
+        .ep_name = s_server_config.endpoint,
         .cb = mcp_resp_cb,
         .user_ctx = ctx,
         .u.call.tool_name = s_remote_names[tool_index],
         .u.call.args_json = input_json ? input_json : "{}",
     };
 
-    esp_err_t ret = post_and_wait(s_mgr, &req, ctx, s_config.timeout_ms);
+    atomic_fetch_add(&ctx->pending_responses, 1);
+    ESP_ERROR_CHECK(esp_mcp_mgr_post_tools_call(s_mgr, &req));
+
+    esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
 
     if (ret == ESP_ERR_TIMEOUT) {
         snprintf(output, output_size, "{\"error\": \"timeout\"}");
-    } else if (ret != ESP_OK) {
-        snprintf(output, output_size, "{\"error\": \"protocol error: %d\"}", ctx->error_code);
+    } else if (ctx->last_error_code < 0) {
+        snprintf(output, output_size, "{\"error\": \"protocol error: %d\", \"message\": \"%s\"}",
+                 ctx->last_error_code, ctx->resp_json ? ctx->resp_json : "");
     } else if (ctx->resp_json) {
         strncpy(output, ctx->resp_json, output_size - 1);
         output[output_size - 1] = '\0';
     }
 
-    free_call_ctx(ctx);
+    free_sync_ctx(ctx);
     return ret;
 }
 
@@ -395,20 +265,26 @@ static esp_err_t handle_tools_list(const char *resp_json)
         }
 
         /* Build local name with prefix */
-        char local_name[64];
+        char local_name[128];
         snprintf(local_name, sizeof(local_name), "%s.%s",
-                 s_config.endpoint, name->valuestring);
+                 s_server_config.endpoint, name->valuestring);
 
         /* Build schema JSON */
         char schema_json[512] = "{\"type\":\"object\",\"properties\":{}}";
         if (input_schema) {
-            cJSON_PrintUnformatted(input_schema, schema_json, sizeof(schema_json) - 1);
-            schema_json[sizeof(schema_json) - 1] = '\0';
+            char *json_str = cJSON_PrintUnformatted(input_schema);
+            if (json_str) {
+                strncpy(schema_json, json_str, sizeof(schema_json) - 1);
+                schema_json[sizeof(schema_json) - 1] = '\0';
+                free(json_str);
+            }
         }
 
         /* Store mapping */
         strncpy(s_local_names[count], local_name, sizeof(s_local_names[count]) - 1);
+        s_local_names[count][sizeof(s_local_names[count]) - 1] = '\0';
         strncpy(s_remote_names[count], name->valuestring, sizeof(s_remote_names[count]) - 1);
+        s_remote_names[count][sizeof(s_remote_names[count]) - 1] = '\0';
 
         /* Register as mimi_tool_t */
         mimi_tool_t tool = {
@@ -440,13 +316,13 @@ static esp_err_t handle_tools_list(const char *resp_json)
  */
 static esp_err_t mcp_initialize(void)
 {
-    mcp_call_ctx_t *ctx = create_call_ctx();
+    resp_sync_ctx_t *ctx = create_sync_ctx();
     if (!ctx) {
         return ESP_ERR_NO_MEM;
     }
 
     esp_mcp_mgr_req_t req = {
-        .ep_name = s_config.endpoint,
+        .ep_name = s_server_config.endpoint,
         .cb = mcp_resp_cb,
         .user_ctx = ctx,
         .u.init = {
@@ -456,14 +332,17 @@ static esp_err_t mcp_initialize(void)
         },
     };
 
-    esp_err_t ret = post_and_wait(s_mgr, &req, ctx, s_config.timeout_ms);
+    atomic_fetch_add(&ctx->pending_responses, 1);
+    ESP_ERROR_CHECK(esp_mcp_mgr_post_info_init(s_mgr, &req));
+
+    esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "MCP initialize failed: %d", ret);
-    } else {
-        ESP_LOGI(TAG, "MCP initialize success");
+    } else if (ctx->resp_json) {
+        ESP_LOGI(TAG, "MCP initialize response: %s", ctx->resp_json);
     }
 
-    free_call_ctx(ctx);
+    free_sync_ctx(ctx);
     return ret;
 }
 
@@ -472,65 +351,67 @@ static esp_err_t mcp_initialize(void)
  */
 static esp_err_t mcp_list_tools(void)
 {
-    mcp_call_ctx_t *ctx = create_call_ctx();
+    resp_sync_ctx_t *ctx = create_sync_ctx();
     if (!ctx) {
         return ESP_ERR_NO_MEM;
     }
 
     esp_mcp_mgr_req_t req = {
-        .ep_name = s_config.endpoint,
+        .ep_name = s_server_config.endpoint,
         .cb = mcp_resp_cb,
         .user_ctx = ctx,
         .u.list.cursor = NULL,
     };
 
-    esp_err_t ret = post_and_wait(s_mgr, &req, ctx, s_config.timeout_ms);
+    atomic_fetch_add(&ctx->pending_responses, 1);
+    ESP_ERROR_CHECK(esp_mcp_mgr_post_tools_list(s_mgr, &req));
+
+    esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "MCP tools/list failed: %d", ret);
     } else if (ctx->resp_json) {
         ret = handle_tools_list(ctx->resp_json);
     }
 
-    free_call_ctx(ctx);
+    free_sync_ctx(ctx);
     return ret;
 }
 
-esp_err_t tool_mcp_client_init(void)
+/**
+ * @brief Internal: Establish MCP connection to a server
+ */
+static esp_err_t mcp_do_connect(const char *server_name, const char *host, int port,
+                                 const char *endpoint)
 {
-    /* Load configuration from skill file */
-    ESP_ERROR_CHECK(load_config_from_skill(&s_config));
-
-    if (!s_config.enabled) {
-        ESP_LOGI(TAG, "MCP client disabled (enabled=false in skill file)");
-        return ESP_OK;
+    /* Disconnect existing if any */
+    if (s_connected) {
+        tool_mcp_client_deinit();
     }
 
-    if (s_initialized) {
-        ESP_LOGW(TAG, "MCP client already initialized");
-        return ESP_OK;
-    }
+    ESP_LOGI(TAG, "Connecting to MCP server: %s at %s:%d/%s",
+             server_name, host, port, endpoint);
 
-    if (s_config.host[0] == '\0') {
-        ESP_LOGW(TAG, "MCP client enabled but host is empty - skipping");
-        return ESP_OK;
-    }
-
-    ESP_LOGI(TAG, "Initializing MCP client...");
-    ESP_LOGI(TAG, "  Server: %s:%d", s_config.host, s_config.port);
-    ESP_LOGI(TAG, "  Endpoint: %s", s_config.endpoint);
+    /* Store server info */
+    strncpy(s_server_config.server_name, server_name, sizeof(s_server_config.server_name) - 1);
+    s_server_config.server_name[sizeof(s_server_config.server_name) - 1] = '\0';
+    strncpy(s_server_config.host, host, sizeof(s_server_config.host) - 1);
+    s_server_config.host[sizeof(s_server_config.host) - 1] = '\0';
+    s_server_config.port = port;
+    strncpy(s_server_config.endpoint, endpoint, sizeof(s_server_config.endpoint) - 1);
+    s_server_config.endpoint[sizeof(s_server_config.endpoint) - 1] = '\0';
+    s_server_config.timeout_ms = DEFAULT_MCP_TIMEOUT_MS;
 
     /* Create MCP instance */
     ESP_ERROR_CHECK(esp_mcp_create(&s_mcp));
 
     /* Build base URL */
     char base_url[256];
-    snprintf(base_url, sizeof(base_url), "http://%s:%d",
-             s_config.host, s_config.port);
+    snprintf(base_url, sizeof(base_url), "http://%s:%d", host, port);
 
     /* Configure HTTP transport */
     esp_http_client_config_t httpc_cfg = {
         .url = base_url,
-        .timeout_ms = s_config.timeout_ms,
+        .timeout_ms = s_server_config.timeout_ms,
     };
 
     /* Initialize MCP manager */
@@ -540,9 +421,10 @@ esp_err_t tool_mcp_client_init(void)
         .instance = s_mcp,
     };
 
+    s_mgr = 0;
     ESP_ERROR_CHECK(esp_mcp_mgr_init(mgr_cfg, &s_mgr));
     ESP_ERROR_CHECK(esp_mcp_mgr_start(s_mgr));
-    ESP_ERROR_CHECK(esp_mcp_mgr_register_endpoint(s_mgr, s_config.endpoint, NULL));
+    ESP_ERROR_CHECK(esp_mcp_mgr_register_endpoint(s_mgr, endpoint, NULL));
 
     /* Send initialize */
     esp_err_t ret = mcp_initialize();
@@ -559,21 +441,130 @@ esp_err_t tool_mcp_client_init(void)
     /* Rebuild tools JSON to include newly added MCP tools */
     tool_registry_rebuild_json();
 
-    s_initialized = true;
-    ESP_LOGI(TAG, "MCP client initialized (%d tools)", s_mcp_tool_count);
+    s_connected = true;
+    ESP_LOGI(TAG, "MCP client connected to %s (%d tools)", server_name, s_mcp_tool_count);
+    return ESP_OK;
+}
+
+/**
+ * @brief mcp_connect tool implementation
+ * Input: {"server_name": "xxx"}
+ */
+static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t output_size)
+{
+    if (!input_json || strlen(input_json) == 0) {
+        snprintf(output, output_size, "{\"error\": \"server_name required\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Parse server_name from input */
+    cJSON *root = cJSON_Parse(input_json);
+    if (!root) {
+        snprintf(output, output_size, "{\"error\": \"invalid JSON\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *server_name_json = cJSON_GetObjectItem(root, "server_name");
+    if (!server_name_json || !cJSON_IsString(server_name_json)) {
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"server_name string required\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const char *server_name = server_name_json->valuestring;
+    char host[128] = {0};
+    int port = 0;
+    char endpoint[64] = {0};
+
+    /* Get config from skill_loader */
+    esp_err_t err = skill_loader_get_mcp_server_config(server_name,
+                                                         host, sizeof(host),
+                                                         &port, endpoint, sizeof(endpoint));
+    cJSON_Delete(root);
+
+    if (err != ESP_OK) {
+        snprintf(output, output_size, "{\"error\": \"server '%s' not found in mcp-servers.md\"}", server_name);
+        return err;
+    }
+
+    /* Connect */
+    err = mcp_do_connect(server_name, host, port, endpoint);
+    if (err != ESP_OK) {
+        snprintf(output, output_size, "{\"error\": \"failed to connect: %d\"}", err);
+        return err;
+    }
+
+    snprintf(output, output_size,
+             "{\"connected\": true, \"server\": \"%s\", \"host\": \"%s\", \"port\": %d, \"tools\": %d}",
+             server_name, host, port, s_mcp_tool_count);
+    return ESP_OK;
+}
+
+/**
+ * @brief mcp_disconnect tool implementation
+ */
+static esp_err_t mcp_tool_disconnect(const char *input_json, char *output, size_t output_size)
+{
+    (void)input_json; /* unused */
+
+    if (!s_connected) {
+        snprintf(output, output_size, "{\"connected\": false, \"message\": \"not connected\"}");
+        return ESP_OK;
+    }
+
+    /* Save server name before deinit clears it */
+    char server_name[64] = {0};
+    strncpy(server_name, s_server_config.server_name, sizeof(server_name) - 1);
+
+    tool_mcp_client_deinit();
+
+    snprintf(output, output_size, "{\"connected\": false, \"disconnected\": \"%s\"}", server_name);
+    return ESP_OK;
+}
+
+esp_err_t tool_mcp_client_init(void)
+{
+    if (s_connected) {
+        ESP_LOGW(TAG, "MCP client already initialized");
+        return ESP_OK;
+    }
+
+    ESP_LOGI(TAG, "Registering MCP dynamic tools (mcp_connect, mcp_disconnect)");
+
+    /* Register mcp_connect tool */
+    mimi_tool_t connect_tool = {
+        .name = "mcp_connect",
+        .description = "Connect to an MCP server. Input: {\"server_name\": \"xxx\"}. Server must be defined in mcp-servers.md skill file.",
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{\"server_name\":{\"type\":\"string\"}},\"required\":[\"server_name\"]}",
+        .execute = mcp_tool_connect,
+    };
+    ESP_ERROR_CHECK(tool_registry_add(&connect_tool));
+
+    /* Register mcp_disconnect tool */
+    mimi_tool_t disconnect_tool = {
+        .name = "mcp_disconnect",
+        .description = "Disconnect from the currently connected MCP server.",
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{}}",
+        .execute = mcp_tool_disconnect,
+    };
+    ESP_ERROR_CHECK(tool_registry_add(&disconnect_tool));
+
+    tool_registry_rebuild_json();
+
+    ESP_LOGI(TAG, "MCP dynamic tools registered");
     return ESP_OK;
 }
 
 esp_err_t tool_mcp_client_deinit(void)
 {
-    if (!s_initialized) {
+    if (!s_connected) {
         return ESP_OK;
     }
 
     if (s_mgr) {
         esp_mcp_mgr_stop(s_mgr);
         esp_mcp_mgr_deinit(s_mgr);
-        s_mgr = NULL;
+        s_mgr = 0;
     }
 
     if (s_mcp) {
@@ -581,7 +572,13 @@ esp_err_t tool_mcp_client_deinit(void)
         s_mcp = NULL;
     }
 
-    s_initialized = false;
+    /* Reset server config */
+    memset(&s_server_config, 0, sizeof(s_server_config));
+    s_server_config.port = 8000;
+    strcpy(s_server_config.endpoint, "mcp");
+    s_server_config.timeout_ms = DEFAULT_MCP_TIMEOUT_MS;
+
+    s_connected = false;
     s_mcp_tool_count = 0;
 
     ESP_LOGI(TAG, "MCP client deinitialized");
@@ -590,5 +587,5 @@ esp_err_t tool_mcp_client_deinit(void)
 
 bool tool_mcp_client_is_ready(void)
 {
-    return s_initialized && s_mgr != NULL;
+    return s_connected && s_mgr != 0;
 }
