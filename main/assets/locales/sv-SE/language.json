@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Anslutningen lyckades",
         "CONNECTED_TO": "Ansluten till ",
         "LISTENING": "Lyssnar...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Talar...",
         "SERVER_NOT_FOUND": "Söker efter tillgänglig tjänst",
         "SERVER_NOT_CONNECTED": "Kan inte ansluta till tjänsten, försök igen senare",

@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Успешно повезивање",
         "CONNECTED_TO": "Повезано са ",
         "LISTENING": "Слушање...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Говорење...",
         "SERVER_NOT_FOUND": "Тражење доступне услуге",
         "SERVER_NOT_CONNECTED": "Није могуће повезати се са услугом, покушајте касније",
