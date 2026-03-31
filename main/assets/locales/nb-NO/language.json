@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Tilkobling vellykket",
         "CONNECTED_TO": "Koblet til ",
         "LISTENING": "Lytter...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Snakker...",
         "SERVER_NOT_FOUND": "Søker etter tilgjengelig tjeneste",
         "SERVER_NOT_CONNECTED": "Kan ikke koble til tjeneste, vennligst prøv igjen senere",

@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Sikeres csatlakozás",
         "CONNECTED_TO": "Csatlakozva: ",
         "LISTENING": "Figyelés...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Beszéd...",
         "SERVER_NOT_FOUND": "Elérhető szolgáltatás keresése",
         "SERVER_NOT_CONNECTED": "A szolgáltatáshoz nem sikerült csatlakozni, kérjük, próbálja újra később",

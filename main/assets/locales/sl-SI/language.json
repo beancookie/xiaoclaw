@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Povezava uspešna",
         "CONNECTED_TO": "Povezano z ",
         "LISTENING": "Poslušanje...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Govorjenje...",
         "SERVER_NOT_FOUND": "Iskanje razpoložljive storitve",
         "SERVER_NOT_CONNECTED": "Ni se mogoče povezati s storitvijo, poskusite kasneje",

@@ -22,6 +22,7 @@
         "CONNECTING": "Menghubungkan...",
         "CONNECTED_TO": "Terhubung ke ",
         "LISTENING": "Mendengarkan...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Berbicara...",
         "SERVER_NOT_FOUND": "Mencari layanan yang tersedia",
         "SERVER_NOT_CONNECTED": "Tidak dapat terhubung ke layanan, coba lagi nanti",

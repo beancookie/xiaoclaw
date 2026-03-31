@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Connexió exitosa",
         "CONNECTED_TO": "Connectat a ",
         "LISTENING": "Escoltant...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Parlant...",
         "SERVER_NOT_FOUND": "Buscant servei disponible",
         "SERVER_NOT_CONNECTED": "No es pot connectar al servei, si us plau intenteu-ho més tard",

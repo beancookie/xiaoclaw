@@ -22,6 +22,7 @@
         "CONNECTING": "कनेक्ट हो रहे हैं...",
         "CONNECTED_TO": "कनेक्ट हो गए ",
         "LISTENING": "सुन रहे हैं...",
+        "THINKING": "Thinking...",
         "SPEAKING": "बोल रहे हैं...",
         "SERVER_NOT_FOUND": "उपलब्ध सेवा खोज रहे हैं",
         "SERVER_NOT_CONNECTED": "सेवा से कनेक्ट नहीं हो सकते, कृपया बाद में कोशिश करें",
