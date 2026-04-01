@@ -191,6 +191,11 @@ static void trim_string(char *str)
  */
 static bool parse_line(const char *line, char *key, char *value)
 {
+    /* Skip leading "- " prefix if present */
+    if (line[0] == '-' && line[1] == ' ') {
+        line += 2;
+    }
+
     const char *colon = strchr(line, ':');
     if (!colon) return false;
 

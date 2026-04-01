@@ -18,4 +18,6 @@ main/mmap_generate_emoji.h
 *.bin
 mmap_generate_*.h
 .clangd
+debug/
+examples/
 main/mimi/mimi_secrets.h
