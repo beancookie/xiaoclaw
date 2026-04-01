@@ -15,7 +15,6 @@ Example:
 """
 
 import json
-import asyncio
 from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
@@ -164,8 +163,8 @@ def main():
     print("Press Ctrl+C to stop the server")
     print()
 
-    # Run with streamable-http transport
-    asyncio.run(mcp.run_streamable_http_async())
+    # Run the server (transport configured in constructor)
+    mcp.run()
 
 
 if __name__ == "__main__":
