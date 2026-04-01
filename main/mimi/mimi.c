@@ -35,14 +35,11 @@
 #include "skills/skill_loader.h"
 
 // Disabled for embedded mode (xiaozhi handles these):
-// #include "wifi/wifi_manager.h"
 // #include "channels/telegram/telegram_bot.h"
 // #include "channels/feishu/feishu_bot.h"
 // #include "gateway/ws_server.h"
-// #include "cli/serial_cli.h"
 #include "cron/cron_service.h"
 #include "heartbeat/heartbeat.h"
-// #include "onboard/wifi_onboard.h"
 
 static const char *TAG = "mimi";
 
@@ -50,7 +47,7 @@ static esp_err_t init_spiffs(void)
 {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = MIMI_SPIFFS_BASE,
-        .partition_label = NULL,
+        .partition_label = "spiffs",
         .max_files = 10,
         .format_if_mount_failed = true,
     };
@@ -62,7 +59,7 @@ static esp_err_t init_spiffs(void)
     }
 
     size_t total = 0, used = 0;
-    esp_spiffs_info(NULL, &total, &used);
+    esp_spiffs_info("spiffs", &total, &used);
     ESP_LOGI(TAG, "SPIFFS: total=%d, used=%d", (int)total, (int)used);
 
     return ESP_OK;
