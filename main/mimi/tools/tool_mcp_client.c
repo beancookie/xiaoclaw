@@ -333,7 +333,12 @@ static esp_err_t mcp_initialize(void)
     };
 
     atomic_fetch_add(&ctx->pending_responses, 1);
-    ESP_ERROR_CHECK(esp_mcp_mgr_post_info_init(s_mgr, &req));
+    esp_err_t err = esp_mcp_mgr_post_info_init(s_mgr, &req);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_mcp_mgr_post_info_init failed: %s", esp_err_to_name(err));
+        free_sync_ctx(ctx);
+        return err;
+    }
 
     esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
@@ -364,7 +369,12 @@ static esp_err_t mcp_list_tools(void)
     };
 
     atomic_fetch_add(&ctx->pending_responses, 1);
-    ESP_ERROR_CHECK(esp_mcp_mgr_post_tools_list(s_mgr, &req));
+    esp_err_t err = esp_mcp_mgr_post_tools_list(s_mgr, &req);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_mcp_mgr_post_tools_list failed: %s", esp_err_to_name(err));
+        free_sync_ctx(ctx);
+        return err;
+    }
 
     esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
