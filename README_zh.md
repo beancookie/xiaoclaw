@@ -20,23 +20,32 @@
 
 所有功能运行在单个 ESP32-S3 芯片上，配备 32MB Flash 和 8MB PSRAM。
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw Firmware                       │
-├──────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐      ┌─────────────────────────────┐    │
-│  │   Voice I/O     │      │      Agent Brain            │    │
-│  │   (xiaozhi)     │      │      (mimiclaw)             │    │
-│  ├─────────────────┤      ├─────────────────────────────┤    │
-│  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
-│  │ • TTS playback  │◀────│ • Long-term memory          │    │
-│  │ • Display/LCD   │      │ • Session management        │    │
-│  │ • WiFi/Network  │      │ • Cron scheduler            │    │
-│  └─────────────────┘      └─────────────────────────────┘    │
-│           │                          ▲                       │
-│           └──────── Bridge Layer ────┘                       │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Firmware["XiaoClaw Firmware"]
+        subgraph VoiceIO["Voice I/O (xiaozhi)"]
+            A[("Wake Word")]
+            B[("ASR (Server)")]
+            C[("TTS Playback")]
+            D[("Display/LCD")]
+            E[("WiFi/Network")]
+        end
+
+        subgraph Agent["Agent Brain (mimiclaw)"]
+            F["LLM API (Claude/GPT)"]
+            G["Tool Calling (ReAct)"]
+            H["Long-term Memory"]
+            I["Session Management"]
+            J["Cron Scheduler"]
+            K["Web Search"]
+        end
+
+        VoiceIO <-->|"Bridge Layer"| Agent
+    end
+
+    style VoiceIO fill:#e1f5fe,stroke:#01579b
+    style Agent fill:#f3e5f5,stroke:#4a148c
+    style Firmware fill:#fafafa,stroke:#424242
 ```
 
 ## 功能特性
@@ -108,6 +117,9 @@ idf.py build
 ```bash
 # 烧录并监控
 idf.py -p PORT flash monitor
+
+# 仅烧录 app 分区（跳过 SPIFFS，保留数据）
+esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 ```
 
 ### 配置
@@ -127,16 +139,25 @@ idf.py -p PORT flash monitor
 
 Bridge 层连接语音 I/O 层与 Agent 大脑：
 
-```
-用户语音 → 唤醒词 → ASR (服务器) → 文本
-                                     ↓
-                               Bridge 层
-                                     ↓
-                               Agent 循环 (LLM)
-                                     ↓
-                               Bridge 层
-                                     ↓
-                               TTS 播放 → 扬声器
+```mermaid
+flowchart LR
+    A["用户语音"] --> B["唤醒词"]
+    B --> C["ASR (服务器)"]
+    C --> D["文本"]
+    D --> E["Bridge 层"]
+    E --> F["Agent 循环 (LLM)"]
+    F --> G["Bridge 层"]
+    G --> H["TTS 播放"]
+    H --> I["扬声器"]
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#e1f5fe
+    style I fill:#e1f5fe
+    style E fill:#fff3e0
+    style G fill:#fff3e0
+    style F fill:#f3e5f5
 ```
 
 ### 内存布局
@@ -166,24 +187,94 @@ Agent 可以使用多种工具：
 | `get_current_time` | 获取当前日期/时间    |
 | `gpio_write`       | 控制 GPIO 引脚       |
 | `gpio_read`        | 读取 GPIO 状态       |
+| `gpio_read_all`    | 读取所有允许的 GPIO  |
+| `lua_eval`         | 直接执行 Lua 代码     |
+| `lua_run`          | 从 SPIFFS 执行 Lua 脚本 |
+| `mcp_connect`      | 连接 MCP 服务器      |
+| `mcp_disconnect`   | 断开 MCP 服务器连接  |
 | `cron_add`         | 创建定时任务         |
 | `cron_list`        | 列出定时任务         |
 | `cron_remove`      | 删除定时任务         |
 | `read_file`        | 从 SPIFFS 读取文件   |
 | `write_file`       | 写入文件到 SPIFFS    |
+| `edit_file`        | 编辑文件（查找替换） |
+| `list_dir`         | 列出目录中的文件     |
+
+**注意：** GPIO 工具遵循 `gpio_policy.h` 中定义的板级策略。
+
+### MCP Client（动态远程工具）
+
+XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。服务器配置存储在 `mcp-servers.md` skill 文件中。
+
+```mermaid
+flowchart TB
+    subgraph Config["配置"]
+        A["mcp-servers.md<br/>skill 文件"] --> B["可用 MCP 服务器列表"]
+    end
+
+    subgraph Init["tool_mcp_client_init()"]
+        C["注册 mcp_connect<br/>和 mcp_disconnect 工具"]
+    end
+
+    subgraph Connect["LLM 调用 mcp_connect"]
+        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
+        E --> F["esp_mcp_mgr_init()"]
+        F --> G["mcp_initialize()"]
+        G --> H["mcp_list_tools()"]
+        H --> I["tool_registry_add() × N"]
+        I --> J["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["远程工具调用"]
+        K["LLM 请求工具"] --> L["mcp.server_name.tool"]
+        L --> M["mcp_tool_execute()"]
+        M --> N["esp_mcp_mgr_post()"]
+        N --> O["等待响应"]
+        O --> P["返回 JSON 结果给 LLM"]
+    end
+
+    style Config fill:#e3f2fd,stroke:#1565c0
+    style Init fill:#e8f5e9,stroke:#2e7d32
+    style Connect fill:#fff3e0,stroke:#ef6c00
+    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
+```
+
+**配置文件：** `/spiffs/skills/mcp-servers.md`
+```markdown
+# MCP Servers
+
+## my_server
+- host: 192.168.1.100
+- port: 8000
+- endpoint: mcp
+```
+
+**可用工具：**
+| 工具 | 描述 |
+|------|------|
+| `mcp_connect` | 按名称连接 MCP 服务器 |
+| `mcp_disconnect` | 断开当前服务器连接 |
+
+**Python MCP 服务器示例：** `scripts/mcp_server.py`
+```bash
+pip install "mcp[cli]"
+python scripts/mcp_server.py --port 8000
+```
+
+远程工具以 `{server_name}.` 前缀注册（如 `my_server.get_device_status`），与本地工具区分。
 
 ## 记忆系统
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 
-| 文件               | 用途           |
-| ------------------ | -------------- |
-| `SOUL.md`          | AI 人格定义    |
-| `USER.md`          | 用户信息和偏好 |
-| `MEMORY.md`        | 长期记忆       |
-| `HEARTBEAT.md`     | 自主任务列表   |
-| `cron.json`        | 定时任务       |
-| `sessions/*.jsonl` | 对话历史       |
+| 路径                | 用途           |
+| ------------------- | -------------- |
+| `/spiffs/SOUL.md`   | AI 人格定义    |
+| `/spiffs/USER.md`   | 用户信息和偏好 |
+| `/spiffs/MEMORY.md` | 长期记忆       |
+| `/spiffs/HEARTBEAT.md` | 自主任务列表 |
+| `/spiffs/cron.json` | 定时任务       |
+| `/spiffs/sessions/*.jsonl` | 对话历史 |
 
 ## 开发
 
@@ -192,20 +283,37 @@ XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 ```
 xiaoclaw/
 ├── main/
-│   ├── bridge/           # Bridge 层（新增）
-│   │   ├── bridge.h
-│   │   └── bridge.cc
 │   ├── mimi/             # Agent 大脑（来自 mimiclaw）
-│   │   ├── agent/
-│   │   ├── llm/
-│   │   ├── tools/
-│   │   ├── memory/
-│   │   └── ...
+│   │   ├── agent/        # Agent 循环和上下文构建
+│   │   ├── bus/          # 消息总线
+│   │   ├── channels/     # Telegram、飞书机器人集成
+│   │   ├── cli/          # 串口 CLI
+│   │   ├── cron/         # Cron 调度器服务
+│   │   ├── gateway/      # WebSocket 服务器
+│   │   ├── heartbeat/    # 自主任务心跳
+│   │   ├── llm/          # LLM 代理
+│   │   ├── memory/       # 记忆存储和会话管理
+│   │   ├── onboard/      # WiFi 入网配置
+│   │   ├── ota/          # OTA 更新
+│   │   ├── proxy/        # HTTP 代理
+│   │   ├── skills/       # 技能加载器
+│   │   ├── tools/        # 工具注册表
+│   │   └── wifi/         # WiFi 管理器
 │   ├── audio/            # 语音 I/O（来自 xiaozhi）
+│   ├── bridge/           # Bridge 层
+│   ├── display/
 │   ├── protocols/
 │   ├── boards/
-│   ├── display/
-│   └── application.cc    # 主应用
+│   ├── assets.cc/h       # 资源管理
+│   ├── application.cc/h  # 主应用
+│   ├── device_state.h   # 设备状态
+│   ├── device_state_machine.cc/h # 状态机
+│   ├── idf_component.yml # 组件清单
+│   ├── main.cc           # 入口点
+│   ├── mcp_server.cc/h   # MCP 服务器
+│   ├── ota.cc/h          # OTA 更新
+│   ├── settings.cc/h     # 设置管理
+│   └── system_info.cc/h  # 系统信息
 ├── spiffs_data/          # SPIFFS 内容
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3

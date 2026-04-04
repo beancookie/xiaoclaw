@@ -22,6 +22,7 @@
         "CONNECTING": "Bağlanıyor...",
         "CONNECTED_TO": "Bağlandı ",
         "LISTENING": "Dinleniyor...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Konuşuluyor...",
         "SERVER_NOT_FOUND": "Mevcut hizmet aranıyor",
         "SERVER_NOT_CONNECTED": "Hizmete bağlanılamıyor, lütfen daha sonra deneyin",

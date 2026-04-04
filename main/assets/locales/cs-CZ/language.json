@@ -22,6 +22,7 @@
         "CONNECTING": "Připojování...",
         "CONNECTED_TO": "Připojeno k ",
         "LISTENING": "Naslouchání...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Mluvení...",
         "SERVER_NOT_FOUND": "Hledání dostupné služby",
         "SERVER_NOT_CONNECTED": "Nelze se připojit ke službě, zkuste to později",

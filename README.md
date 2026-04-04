@@ -20,23 +20,32 @@
 
 All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      XiaoClaw Firmware                       │
-├──────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐      ┌─────────────────────────────┐    │
-│  │   Voice I/O     │      │      Agent Brain            │    │
-│  │   (xiaozhi)     │      │      (mimiclaw)             │    │
-│  ├─────────────────┤      ├─────────────────────────────┤    │
-│  │ • Wake word     │      │ • LLM API (Claude/GPT)      │    │
-│  │ • ASR (server)  │────▶│ • Tool calling (ReAct)      │    │
-│  │ • TTS playback  │◀────│ • Long-term memory          │    │
-│  │ • Display/LCD   │      │ • Session management        │    │
-│  │ • WiFi/Network  │      │ • Cron scheduler            │    │
-│  └─────────────────┘      └─────────────────────────────┘    │
-│           │                          ▲                       │
-│           └──────── Bridge Layer ────┘                       │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Firmware["XiaoClaw Firmware"]
+        subgraph VoiceIO["Voice I/O (xiaozhi)"]
+            A[("Wake Word")]
+            B[("ASR (Server)")]
+            C[("TTS Playback")]
+            D[("Display/LCD")]
+            E[("WiFi/Network")]
+        end
+
+        subgraph Agent["Agent Brain (mimiclaw)"]
+            F["LLM API (Claude/GPT)"]
+            G["Tool Calling (ReAct)"]
+            H["Long-term Memory"]
+            I["Session Management"]
+            J["Cron Scheduler"]
+            K["Web Search"]
+        end
+
+        VoiceIO <-->|"Bridge Layer"| Agent
+    end
+
+    style VoiceIO fill:#e1f5fe,stroke:#01579b
+    style Agent fill:#f3e5f5,stroke:#4a148c
+    style Firmware fill:#fafafa,stroke:#424242
 ```
 
 ## Features
@@ -105,6 +114,9 @@ idf.py build
 ```bash
 # Flash and monitor
 idf.py -p PORT flash monitor
+
+# Flash app only (skip SPIFFS to preserve data)
+esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 ```
 
 ### Configuration
@@ -124,16 +136,25 @@ Create `main/mimi/mimi_secrets.h` from the example:
 
 The bridge layer connects the voice I/O layer with the agent brain:
 
-```
-User Voice → Wake Word → ASR (server) → Text
-                                           ↓
-                                    Bridge Layer
-                                           ↓
-                                    Agent Loop (LLM)
-                                           ↓
-                                    Bridge Layer
-                                           ↓
-                                    TTS Playback → Speaker
+```mermaid
+flowchart LR
+    A["User Voice"] --> B["Wake Word"]
+    B --> C["ASR (Server)"]
+    C --> D["Text"]
+    D --> E["Bridge Layer"]
+    E --> F["Agent Loop (LLM)"]
+    F --> G["Bridge Layer"]
+    G --> H["TTS Playback"]
+    H --> I["Speaker"]
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#e1f5fe
+    style I fill:#e1f5fe
+    style E fill:#fff3e0
+    style G fill:#fff3e0
+    style F fill:#f3e5f5
 ```
 
 ### Memory Layout
@@ -163,24 +184,94 @@ The agent can use various tools:
 | `get_current_time` | Get current date/time |
 | `gpio_write` | Control GPIO pins |
 | `gpio_read` | Read GPIO state |
+| `gpio_read_all` | Read all allowed GPIO pins |
+| `lua_eval` | Execute a Lua code string directly |
+| `lua_run` | Execute a Lua script from SPIFFS |
+| `mcp_connect` | Connect to an MCP server |
+| `mcp_disconnect` | Disconnect from MCP server |
 | `cron_add` | Schedule a task |
 | `cron_list` | List scheduled tasks |
 | `cron_remove` | Remove a scheduled task |
 | `read_file` | Read file from SPIFFS |
 | `write_file` | Write file to SPIFFS |
+| `edit_file` | Edit file (find-and-replace) |
+| `list_dir` | List files in directory |
+
+**Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
+
+### MCP Client (Dynamic Remote Tools)
+
+XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools. Server configurations are stored in `mcp-servers.md` skill file.
+
+```mermaid
+flowchart TB
+    subgraph Config["Configuration"]
+        A["mcp-servers.md<br/>skill file"] --> B["List of available<br/>MCP servers"]
+    end
+
+    subgraph Init["tool_mcp_client_init()"]
+        C["Register mcp_connect<br/>and mcp_disconnect tools"]
+    end
+
+    subgraph Connect["LLM calls mcp_connect"]
+        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
+        E --> F["esp_mcp_mgr_init()"]
+        F --> G["mcp_initialize()"]
+        G --> H["mcp_list_tools()"]
+        H --> I["tool_registry_add() × N"]
+        I --> J["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["Remote Tool Calling"]
+        K["LLM requests tools"] --> L["mcp.server_name.tool"]
+        L --> M["mcp_tool_execute()"]
+        M --> N["esp_mcp_mgr_post()"]
+        N --> O["Wait for response"]
+        O --> P["Return JSON result to LLM"]
+    end
+
+    style Config fill:#e3f2fd,stroke:#1565c0
+    style Init fill:#e8f5e9,stroke:#2e7d32
+    style Connect fill:#fff3e0,stroke:#ef6c00
+    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
+```
+
+**Configuration file:** `/spiffs/skills/mcp-servers.md`
+```markdown
+# MCP Servers
+
+## my_server
+- host: 192.168.1.100
+- port: 8000
+- endpoint: mcp
+```
+
+**Available tools:**
+| Tool | Description |
+|------|-------------|
+| `mcp_connect` | Connect to an MCP server by name |
+| `mcp_disconnect` | Disconnect from current server |
+
+**Python MCP Server Example:** `scripts/mcp_server.py`
+```bash
+pip install "mcp[cli]"
+python scripts/mcp_server.py --port 8000
+```
+
+Remote tools are registered with the `{server_name}.` prefix (e.g., `my_server.get_device_status`), distinguishing them from local tools.
 
 ## Memory System
 
 XiaoClaw stores data in plain text files on SPIFFS:
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `SOUL.md` | AI personality definition |
-| `USER.md` | User information and preferences |
-| `MEMORY.md` | Long-term memory |
-| `HEARTBEAT.md` | Autonomous task list |
-| `cron.json` | Scheduled jobs |
-| `sessions/*.jsonl` | Conversation history |
+| `/spiffs/SOUL.md` | AI personality definition |
+| `/spiffs/USER.md` | User information and preferences |
+| `/spiffs/MEMORY.md` | Long-term memory |
+| `/spiffs/HEARTBEAT.md` | Autonomous task list |
+| `/spiffs/cron.json` | Scheduled jobs |
+| `/spiffs/sessions/*.jsonl` | Conversation history |
 
 ## Development
 
@@ -189,20 +280,37 @@ XiaoClaw stores data in plain text files on SPIFFS:
 ```
 xiaoclaw/
 ├── main/
-│   ├── bridge/           # Bridge layer (new)
-│   │   ├── bridge.h
-│   │   └── bridge.cc
 │   ├── mimi/             # Agent brain (from mimiclaw)
-│   │   ├── agent/
-│   │   ├── llm/
-│   │   ├── tools/
-│   │   ├── memory/
-│   │   └── ...
+│   │   ├── agent/        # Agent loop and context building
+│   │   ├── bus/          # Message bus
+│   │   ├── channels/     # Telegram, Feishu bot integrations
+│   │   ├── cli/          # Serial CLI
+│   │   ├── cron/         # Cron scheduler service
+│   │   ├── gateway/      # WebSocket server
+│   │   ├── heartbeat/    # Autonomous task heartbeat
+│   │   ├── llm/          # LLM proxy
+│   │   ├── memory/       # Memory store and session manager
+│   │   ├── onboard/      # WiFi onboarding
+│   │   ├── ota/          # OTA updates
+│   │   ├── proxy/        # HTTP proxy
+│   │   ├── skills/       # Skill loader
+│   │   ├── tools/        # Tool registry
+│   │   └── wifi/         # WiFi manager
 │   ├── audio/            # Voice I/O (from xiaozhi)
+│   ├── bridge/           # Bridge layer
+│   ├── display/
 │   ├── protocols/
 │   ├── boards/
-│   ├── display/
-│   └── application.cc    # Main application
+│   ├── assets.cc/h       # Assets management
+│   ├── application.cc/h  # Main application
+│   ├── device_state.h   # Device state
+│   ├── device_state_machine.cc/h # State machine
+│   ├── idf_component.yml # Component manifest
+│   ├── main.cc           # Entry point
+│   ├── mcp_server.cc/h   # MCP server
+│   ├── ota.cc/h          # OTA updates
+│   ├── settings.cc/h     # Settings management
+│   └── system_info.cc/h  # System info
 ├── spiffs_data/          # SPIFFS content
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3

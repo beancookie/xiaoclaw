@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Sambungan berjaya",
         "CONNECTED_TO": "Disambungkan ke ",
         "LISTENING": "Mendengar...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Bercakap...",
         "SERVER_NOT_FOUND": "Mencari perkhidmatan yang tersedia",
         "SERVER_NOT_CONNECTED": "Tidak dapat menyambung ke perkhidmatan, sila cuba lagi kemudian",

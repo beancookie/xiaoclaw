@@ -39,21 +39,21 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
         .tm_mday = day, .tm_mon = mon, .tm_year = year - 1900,
     };
 
-    /* Convert UTC to epoch — mktime expects local, so temporarily set UTC */
-    setenv("TZ", "UTC0", 1);
-    tzset();
     time_t t = mktime(&tm);
 
-    /* Restore timezone (UTC+8 for East China / Beijing) */
+    /* Beijing Time is UTC+8 */
     setenv("TZ", "UTC+8", 1);
     tzset();
 
     if (t < 0) return false;
 
+    /* ESP32 settimeofday expects local epoch, add 8h offset for Beijing */
+    t += 8 * 3600;
+
     struct timeval tv = { .tv_sec = t };
     settimeofday(&tv, NULL);
 
-    /* Format in local time */
+    /* Format in Beijing time */
     struct tm local;
     localtime_r(&t, &local);
     strftime(out, out_size, "%Y-%m-%d %H:%M:%S %Z (%A)", &local);
