@@ -116,10 +116,16 @@ dependencies:
     - if: target in [esp32s3, esp32c5]
 
   espressif/esp_lcd_touch_st7123: ^1.0.0
-  espressif/iot_usbh_rndis: 
+  espressif/iot_usbh_rndis:
     version: ^0.3.1
     rules:
     - if: target in [esp32s3, esp32p4]
+
+  ## Lua scripting support
+  georgik/lua: "==5.4.7"
+
+  ## MCP Client support
+  espressif/mcp-c-sdk: "~1.*"
 
   ## Required IDF version
   idf:

@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "התחברות הצליחה",
         "CONNECTED_TO": "מחובר ל-",
         "LISTENING": "מקשיב...",
+        "THINKING": "Thinking...",
         "SPEAKING": "מדבר...",
         "SERVER_NOT_FOUND": "מחפש שירות זמין",
         "SERVER_NOT_CONNECTED": "לא ניתן להתחבר לשירות, אנא נסה שוב מאוחר יותר",

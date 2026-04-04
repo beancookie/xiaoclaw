@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "اتصال موفق",
         "CONNECTED_TO": "متصل به ",
         "LISTENING": "در حال گوش دادن...",
+        "THINKING": "Thinking...",
         "SPEAKING": "در حال صحبت...",
         "SERVER_NOT_FOUND": "جستجوی سرویس در دسترس",
         "SERVER_NOT_CONNECTED": "اتصال به سرویس برقرار نشد، لطفاً بعداً تلاش کنید",

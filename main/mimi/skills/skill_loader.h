@@ -68,3 +68,19 @@ size_t skill_loader_get_always_content(char *buf, size_t size);
  * @return true if requirements are met or no requirements
  */
 bool skill_loader_check_requirements(const char *name);
+
+/**
+ * Get MCP server configuration by server name.
+ * Parses mcp-servers.md skill file and extracts server config.
+ *
+ * @param server_name  Server identifier (section name in skill file)
+ * @param host         Output buffer for host string
+ * @param host_size    Host buffer size
+ * @param port         Output pointer for port number
+ * @param endpoint     Output buffer for endpoint string
+ * @param ep_size      Endpoint buffer size
+ * @return ESP_OK if found, ESP_ERR_NOT_FOUND if server doesn't exist
+ */
+esp_err_t skill_loader_get_mcp_server_config(const char *server_name,
+                                               char *host, size_t host_size,
+                                               int *port, char *endpoint, size_t ep_size);
