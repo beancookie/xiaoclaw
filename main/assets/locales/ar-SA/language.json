@@ -22,6 +22,7 @@
         "CONNECTING": "جاري الاتصال...",
         "CONNECTED_TO": "متصل بـ ",
         "LISTENING": "الاستماع...",
+        "THINKING": "Thinking...",
         "SPEAKING": "التحدث...",
         "SERVER_NOT_FOUND": "البحث عن خدمة متاحة",
         "SERVER_NOT_CONNECTED": "لا يمكن الاتصال بالخدمة، يرجى المحاولة لاحقاً",

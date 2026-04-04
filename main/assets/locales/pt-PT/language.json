@@ -22,6 +22,7 @@
         "CONNECTING": "A ligar...",
         "CONNECTED_TO": "Ligado a ",
         "LISTENING": "A escutar...",
+        "THINKING": "Thinking...",
         "SPEAKING": "A falar...",
         "SERVER_NOT_FOUND": "A procurar serviço disponível",
         "SERVER_NOT_CONNECTED": "Não é possível ligar ao serviço, tente mais tarde",

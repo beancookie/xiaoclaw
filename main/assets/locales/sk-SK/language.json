@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Pripojenie úspešné",
         "CONNECTED_TO": "Pripojené k ",
         "LISTENING": "Načúvanie...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Hovorenie...",
         "SERVER_NOT_FOUND": "Hľadanie dostupnej služby",
         "SERVER_NOT_CONNECTED": "Nie je možné pripojiť sa k službe, skúste to neskôr",

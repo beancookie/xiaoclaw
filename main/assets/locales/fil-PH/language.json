@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Matagumpay na koneksyon",
         "CONNECTED_TO": "Nakakonekta sa ",
         "LISTENING": "Nakikinig...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Nagsasalita...",
         "SERVER_NOT_FOUND": "Naghahanap ng available na serbisyo",
         "SERVER_NOT_CONNECTED": "Hindi makakonekta sa serbisyo, mangyaring subukan muli mamaya",

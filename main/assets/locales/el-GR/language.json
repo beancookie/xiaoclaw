@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Επιτυχής σύνδεση",
         "CONNECTED_TO": "Συνδέθηκε σε ",
         "LISTENING": "Ακρόαση...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Ομιλία...",
         "SERVER_NOT_FOUND": "Αναζήτηση διαθέσιμης υπηρεσίας",
         "SERVER_NOT_CONNECTED": "Αδυναμία σύνδεσης στην υπηρεσία, παρακαλώ δοκιμάστε αργότερα",

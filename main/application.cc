@@ -932,6 +932,12 @@ void Application::HandleStateChangedEvent() {
                 audio_service_.PlaySound(Lang::Sounds::OGG_POPUP);
             }
             break;
+        case kDeviceStateThinking:
+            display->SetStatus(Lang::Strings::THINKING);
+            display->SetEmotion("microchip_ai");
+            audio_service_.EnableVoiceProcessing(false);
+            audio_service_.EnableWakeWordDetection(false);
+            break;
         case kDeviceStateSpeaking:
             display->SetStatus(Lang::Strings::SPEAKING);
 
@@ -1182,9 +1188,12 @@ void Application::InitializeMimiclaw() {
 void Application::HandleAgentResponse(const std::string& text) {
     ESP_LOGI(TAG, "Agent response: %.100s...", text.c_str());
 
-    // Skip TTS for working status messages
-    if (text == "思考中...") {
-        ESP_LOGI(TAG, "Skipping TTS for working status message");
+    // Skip TTS for working status messages, enter thinking state instead
+    if (text.rfind("思考中", 0) == 0) {
+        ESP_LOGI(TAG, "Entering thinking state");
+        Schedule([this]() {
+            SetDeviceState(kDeviceStateThinking);
+        });
         return;
     }
 

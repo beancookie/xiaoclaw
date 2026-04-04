@@ -184,13 +184,81 @@ The agent can use various tools:
 | `get_current_time` | Get current date/time |
 | `gpio_write` | Control GPIO pins |
 | `gpio_read` | Read GPIO state |
+| `gpio_read_all` | Read all allowed GPIO pins |
+| `lua_eval` | Execute a Lua code string directly |
+| `lua_run` | Execute a Lua script from SPIFFS |
+| `mcp_connect` | Connect to an MCP server |
+| `mcp_disconnect` | Disconnect from MCP server |
 | `cron_add` | Schedule a task |
 | `cron_list` | List scheduled tasks |
 | `cron_remove` | Remove a scheduled task |
 | `read_file` | Read file from SPIFFS |
 | `write_file` | Write file to SPIFFS |
+| `edit_file` | Edit file (find-and-replace) |
+| `list_dir` | List files in directory |
 
 **Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
+
+### MCP Client (Dynamic Remote Tools)
+
+XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools. Server configurations are stored in `mcp-servers.md` skill file.
+
+```mermaid
+flowchart TB
+    subgraph Config["Configuration"]
+        A["mcp-servers.md<br/>skill file"] --> B["List of available<br/>MCP servers"]
+    end
+
+    subgraph Init["tool_mcp_client_init()"]
+        C["Register mcp_connect<br/>and mcp_disconnect tools"]
+    end
+
+    subgraph Connect["LLM calls mcp_connect"]
+        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
+        E --> F["esp_mcp_mgr_init()"]
+        F --> G["mcp_initialize()"]
+        G --> H["mcp_list_tools()"]
+        H --> I["tool_registry_add() × N"]
+        I --> J["tool_registry_rebuild_json()"]
+    end
+
+    subgraph LLM_Call["Remote Tool Calling"]
+        K["LLM requests tools"] --> L["mcp.server_name.tool"]
+        L --> M["mcp_tool_execute()"]
+        M --> N["esp_mcp_mgr_post()"]
+        N --> O["Wait for response"]
+        O --> P["Return JSON result to LLM"]
+    end
+
+    style Config fill:#e3f2fd,stroke:#1565c0
+    style Init fill:#e8f5e9,stroke:#2e7d32
+    style Connect fill:#fff3e0,stroke:#ef6c00
+    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
+```
+
+**Configuration file:** `/spiffs/skills/mcp-servers.md`
+```markdown
+# MCP Servers
+
+## my_server
+- host: 192.168.1.100
+- port: 8000
+- endpoint: mcp
+```
+
+**Available tools:**
+| Tool | Description |
+|------|-------------|
+| `mcp_connect` | Connect to an MCP server by name |
+| `mcp_disconnect` | Disconnect from current server |
+
+**Python MCP Server Example:** `scripts/mcp_server.py`
+```bash
+pip install "mcp[cli]"
+python scripts/mcp_server.py --port 8000
+```
+
+Remote tools are registered with the `{server_name}.` prefix (e.g., `my_server.get_device_status`), distinguishing them from local tools.
 
 ## Memory System
 

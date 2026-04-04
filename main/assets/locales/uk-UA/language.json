@@ -22,6 +22,7 @@
         "CONNECTING": "Підключення...",
         "CONNECTED_TO": "Підключено до ",
         "LISTENING": "Прослуховування...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Говоріння...",
         "SERVER_NOT_FOUND": "Пошук доступного сервісу",
         "SERVER_NOT_CONNECTED": "Неможливо підключитися до сервісу, спробуйте пізніше",

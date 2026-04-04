@@ -32,3 +32,17 @@ const char *tool_registry_get_tools_json(void);
  */
 esp_err_t tool_registry_execute(const char *name, const char *input_json,
                                 char *output, size_t output_size);
+
+/**
+ * Add a tool to the registry (e.g., dynamically discovered remote tools).
+ *
+ * @param tool Tool to register
+ * @return ESP_OK on success, ESP_ERR_NO_MEM if registry full
+ */
+esp_err_t tool_registry_add(const mimi_tool_t *tool);
+
+/**
+ * Rebuild the tools JSON cache after adding tools dynamically.
+ * Call this after tool_registry_add() when adding multiple tools.
+ */
+void tool_registry_rebuild_json(void);

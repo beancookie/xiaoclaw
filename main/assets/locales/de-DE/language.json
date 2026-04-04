@@ -22,6 +22,7 @@
         "CONNECTING": "Verbindung wird hergestellt...",
         "CONNECTED_TO": "Verbunden mit ",
         "LISTENING": "Zuhören...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Sprechen...",
         "SERVER_NOT_FOUND": "Verfügbaren Service suchen",
         "SERVER_NOT_CONNECTED": "Service-Verbindung fehlgeschlagen, bitte später versuchen",
