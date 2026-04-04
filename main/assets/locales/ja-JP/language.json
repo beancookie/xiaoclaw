@@ -22,6 +22,7 @@
         "CONNECTING": "接続中...",
         "CONNECTED_TO": "接続完了 ",
         "LISTENING": "リスニング中...",
+        "THINKING": "Thinking...",
         "SPEAKING": "話しています...",
         "SERVER_NOT_FOUND": "利用可能なサーバーを探しています",
         "SERVER_NOT_CONNECTED": "サーバーに接続できません。後でもう一度お試しください",

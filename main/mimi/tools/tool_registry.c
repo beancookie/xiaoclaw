@@ -5,6 +5,7 @@
 #include "tools/tool_files.h"
 #include "tools/tool_cron.h"
 #include "tools/tool_gpio.h"
+#include "tools/tool_lua.h"
 
 #include <string.h>
 #include "esp_log.h"
@@ -26,6 +27,25 @@ static void register_tool(const mimi_tool_t *tool)
     }
     s_tools[s_tool_count++] = *tool;
     ESP_LOGI(TAG, "Registered tool: %s", tool->name);
+}
+
+static void build_tools_json(void);
+
+esp_err_t tool_registry_add(const mimi_tool_t *tool)
+{
+    if (s_tool_count >= MAX_TOOLS) {
+        ESP_LOGE(TAG, "Tool registry full, cannot add: %s", tool->name);
+        return ESP_ERR_NO_MEM;
+    }
+    s_tools[s_tool_count++] = *tool;
+    ESP_LOGI(TAG, "Added tool: %s", tool->name);
+    /* Note: Caller should call tool_registry_rebuild_json() after adding multiple tools */
+    return ESP_OK;
+}
+
+void tool_registry_rebuild_json(void)
+{
+    build_tools_json();
 }
 
 static void build_tools_json(void)
@@ -213,6 +233,29 @@ esp_err_t tool_registry_init(void)
         .execute = tool_gpio_read_all_execute,
     };
     register_tool(&ga);
+
+    /* Register Lua tools */
+    mimi_tool_t le = {
+        .name = "lua_eval",
+        .description = "Evaluate and execute a Lua code string directly. Use this to run quick Lua snippets or test Lua code.",
+        .input_schema_json =
+            "{\"type\":\"object\","
+            "\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"Lua code to execute\"}},"
+            "\"required\":[\"code\"]}",
+        .execute = tool_lua_eval_execute,
+    };
+    register_tool(&le);
+
+    mimi_tool_t lr = {
+        .name = "lua_run",
+        .description = "Execute a Lua script stored in SPIFFS. Path must start with " MIMI_SPIFFS_BASE "/lua/.",
+        .input_schema_json =
+            "{\"type\":\"object\","
+            "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to Lua script starting with " MIMI_SPIFFS_BASE "/lua/\"}},"
+            "\"required\":[\"path\"]}",
+        .execute = tool_lua_run_execute,
+    };
+    register_tool(&lr);
 
     build_tools_json();
 

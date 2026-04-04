@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "Verbinding geslaagd",
         "CONNECTED_TO": "Verbonden met ",
         "LISTENING": "Luisteren...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Spreken...",
         "SERVER_NOT_FOUND": "Zoeken naar beschikbare service",
         "SERVER_NOT_CONNECTED": "Kan niet verbinden met service, probeer later opnieuw",

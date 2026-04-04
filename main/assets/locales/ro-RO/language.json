@@ -22,6 +22,7 @@
         "CONNECTING": "Se conectează...",
         "CONNECTED_TO": "Conectat la ",
         "LISTENING": "Se ascultă...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Se vorbește...",
         "SERVER_NOT_FOUND": "Se caută serviciul disponibil",
         "SERVER_NOT_CONNECTED": "Nu se poate conecta la serviciu, încercați mai târziu",

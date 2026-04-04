@@ -83,8 +83,15 @@ bool DeviceStateMachine::IsValidTransition(DeviceState from, DeviceState to) con
                    to == kDeviceStateListening;
 
         case kDeviceStateListening:
-            // Can go to speaking or idle
+            // Can go to speaking, thinking, or idle
             return to == kDeviceStateSpeaking ||
+                   to == kDeviceStateThinking ||
+                   to == kDeviceStateIdle;
+
+        case kDeviceStateThinking:
+            // Can go to speaking, listening, or idle
+            return to == kDeviceStateSpeaking ||
+                   to == kDeviceStateListening ||
                    to == kDeviceStateIdle;
 
         case kDeviceStateSpeaking:

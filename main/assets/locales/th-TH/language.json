@@ -23,6 +23,7 @@
         "CONNECTION_SUCCESSFUL": "เชื่อมต่อสำเร็จ",
         "CONNECTED_TO": "เชื่อมต่อกับ ",
         "LISTENING": "กำลังฟัง...",
+        "THINKING": "Thinking...",
         "SPEAKING": "กำลังพูด...",
         "SERVER_NOT_FOUND": "กำลังค้นหาบริการที่ใช้งานได้",
         "SERVER_NOT_CONNECTED": "ไม่สามารถเชื่อมต่อกับบริการได้ กรุณาลองใหม่ในภายหลัง",

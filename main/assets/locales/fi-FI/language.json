@@ -22,6 +22,7 @@
         "CONNECTING": "Yhdistetään...",
         "CONNECTED_TO": "Yhdistetty ",
         "LISTENING": "Kuunnellaan...",
+        "THINKING": "Thinking...",
         "SPEAKING": "Puhutaan...",
         "SERVER_NOT_FOUND": "Etsitään käytettävissä olevaa palvelua",
         "SERVER_NOT_CONNECTED": "Ei voi yhdistää palveluun, yritä myöhemmin",

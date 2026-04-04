@@ -22,6 +22,7 @@
         "CONNECTING": "連接中...",
         "CONNECTED_TO": "已連接 ",
         "LISTENING": "聆聽中...",
+        "THINKING": "思考中...",
         "SPEAKING": "說話中...",
         "SERVER_NOT_FOUND": "正在尋找可用服務",
         "SERVER_NOT_CONNECTED": "無法連接服務，請稍後再試",
