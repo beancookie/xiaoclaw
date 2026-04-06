@@ -1,5 +1,5 @@
 #include "consolidator.h"
-#include "session_mgr.h"
+#include "session_manager.h"
 #include "mimi_config.h"
 
 #include <stdio.h>

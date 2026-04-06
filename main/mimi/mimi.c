@@ -28,7 +28,7 @@
 #include "llm/llm_proxy.h"
 #include "agent/agent_loop.h"
 #include "memory/memory_store.h"
-#include "memory/session_mgr.h"
+#include "memory/session_manager.h"
 #include "proxy/http_proxy.h"
 #include "tools/tool_registry.h"
 #include "tools/tool_mcp_client.h"
@@ -96,7 +96,7 @@ esp_err_t mimiclaw_init(void)
     ESP_ERROR_CHECK(message_bus_init());
     ESP_ERROR_CHECK(memory_store_init());
     ESP_ERROR_CHECK(skill_loader_init());
-    ESP_ERROR_CHECK(session_mgr_init());
+    ESP_ERROR_CHECK(session_manager_init());
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());
     ESP_ERROR_CHECK(tool_registry_init());

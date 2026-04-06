@@ -1,4 +1,4 @@
-#include "session_mgr.h"
+#include "session_manager.h"
 #include "mimi_config.h"
 
 #include <stdio.h>
@@ -162,7 +162,7 @@ static esp_err_t session_save_metadata_to_file(const char *chat_id, session_meta
 
 /* ─── Public API ─────────────────────────────────────────────────────── */
 
-esp_err_t session_mgr_init(void)
+esp_err_t session_manager_init(void)
 {
     s_session_cache_count = 0;
     ESP_LOGI(TAG, "Session manager initialized (cache size: %d)", SESSION_CACHE_MAX_SIZE);
