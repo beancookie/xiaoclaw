@@ -63,9 +63,13 @@ graph TB
 ### Agent 大脑层 (mimiclaw)
 
 - LLM API 集成 (Anthropic Claude / OpenAI GPT)
-- ReAct Agent 循环与工具调用
+- 模块化 ReAct Agent 循环，`AgentRunner` 执行引擎
+- Hook 系统支持迭代/工具回调 (`before_iteration`, `after_iteration`, `on_tool_result`, `before_tool_execute`)
+- Checkpoint 系统用于崩溃恢复
+- Context Builder 模块化系统 prompt 构建
+- Session 合并压缩，自动历史整理
 - 长期记忆 (基于 SPIFFS)
-- 会话管理与对话历史
+- 基于游标的会话历史追踪
 - 定时任务调度器
 - 网络搜索能力 (Tavily / Brave)
 
@@ -265,16 +269,43 @@ python scripts/mcp_server.py --port 8000
 
 ## 记忆系统
 
-XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
+XiaoClaw 在 SPIFFS 上以纯文本文件存储数据，支持会话合并压缩：
 
-| 路径                | 用途           |
-| ------------------- | -------------- |
-| `/spiffs/SOUL.md`   | AI 人格定义    |
-| `/spiffs/USER.md`   | 用户信息和偏好 |
-| `/spiffs/MEMORY.md` | 长期记忆       |
-| `/spiffs/HEARTBEAT.md` | 自主任务列表 |
-| `/spiffs/cron.json` | 定时任务       |
-| `/spiffs/sessions/*.jsonl` | 对话历史 |
+| 路径                     | 用途                   |
+| ------------------------ | ---------------------- |
+| `/spiffs/SOUL.md`        | AI 人格定义            |
+| `/spiffs/USER.md`        | 用户信息和偏好         |
+| `/spiffs/MEMORY.md`      | 长期记忆               |
+| `/spiffs/HEARTBEAT.md`   | 自主任务列表           |
+| `/spiffs/cron.json`      | 定时任务               |
+| `/spiffs/sessions/tg_*.jsonl` | 对话历史 (JSONL 格式) |
+| `/spiffs/sessions/tg_*.meta`  | 会话元数据 (游标、已合并数) |
+| `/spiffs/archive/tg_*.archive` | 归档的旧消息      |
+
+### 会话管理
+
+- **游标追踪**: 每个会话通过游标跟踪已读取位置
+- **合并压缩**: 当会话超过 `max_history` 消息时，最旧的消息会被归档
+- **LRU 缓存**: 活跃会话缓存在内存中快速访问
+- **检查点恢复**: Agent 崩溃后可从上一个检查点恢复
+
+### Skills 系统
+
+Skills 从 `/spiffs/skills/` 目录加载，支持 YAML frontmatter：
+
+```yaml
+---
+name: weather
+description: 获取当前天气信息
+always: false
+---
+# Weather Skill
+Use the `weather` tool to...
+```
+
+- **`always: true`**: Skill 内容始终注入 system prompt
+- **`requires.bins`**: Skill 所需的 CLI 工具
+- **`requires.env`**: 所需的环境变量
 
 ## 开发
 
@@ -284,7 +315,12 @@ XiaoClaw 在 SPIFFS 上以纯文本文件存储数据：
 xiaoclaw/
 ├── main/
 │   ├── mimi/             # Agent 大脑（来自 mimiclaw）
-│   │   ├── agent/        # Agent 循环和上下文构建
+│   │   ├── agent/        # Agent 循环、runner、hooks、checkpoint
+│   │   │   ├── agent_loop.c   # Agent 主任务循环
+│   │   │   ├── runner.c       # ReAct 执行引擎
+│   │   │   ├── context_builder.c # 系统 prompt 构建
+│   │   │   ├── hook.c         # Agent hooks 实现
+│   │   │   └── checkpoint.c   # 崩溃恢复检查点
 │   │   ├── bus/          # 消息总线
 │   │   ├── channels/     # Telegram、飞书机器人集成
 │   │   ├── cli/          # 串口 CLI
@@ -292,12 +328,15 @@ xiaoclaw/
 │   │   ├── gateway/      # WebSocket 服务器
 │   │   ├── heartbeat/    # 自主任务心跳
 │   │   ├── llm/          # LLM 代理
-│   │   ├── memory/       # 记忆存储和会话管理
+│   │   ├── memory/       # 记忆存储、会话管理器、合并器
+│   │   │   ├── memory_store.c    # 长期记忆
+│   │   │   ├── session_manager.c # 带游标/合并的会话
+│   │   │   └── consolidator.c     # 自动历史压缩
 │   │   ├── onboard/      # WiFi 入网配置
 │   │   ├── ota/          # OTA 更新
 │   │   ├── proxy/        # HTTP 代理
-│   │   ├── skills/       # 技能加载器
-│   │   ├── tools/        # 工具注册表
+│   │   ├── skills/       # 支持 frontmatter 的技能加载器
+│   │   ├── tools/        # 支持并发的工具注册表
 │   │   └── wifi/         # WiFi 管理器
 │   ├── audio/            # 语音 I/O（来自 xiaozhi）
 │   ├── bridge/           # Bridge 层

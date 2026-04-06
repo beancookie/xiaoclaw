@@ -3,6 +3,7 @@
 #include "esp_err.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include <time.h>
 
 /**
  * Session metadata structure.
@@ -57,6 +58,22 @@ esp_err_t session_get_history_json(const char *chat_id, char *buf, size_t size, 
  * @return ESP_OK on success
  */
 esp_err_t session_get_metadata(const char *chat_id, session_metadata_t *meta);
+
+/**
+ * Get the session file path for a chat_id.
+ * @param chat_id   Session identifier
+ * @param buf       Output buffer
+ * @param size      Buffer size
+ */
+void session_get_path(const char *chat_id, char *buf, size_t size);
+
+/**
+ * Get the metadata file path for a chat_id.
+ * @param chat_id   Session identifier
+ * @param buf       Output buffer
+ * @param size      Buffer size
+ */
+void metadata_get_path(const char *chat_id, char *buf, size_t size);
 
 /**
  * Get unconsolidated messages (after last_consolidated).

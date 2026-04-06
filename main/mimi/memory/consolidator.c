@@ -161,7 +161,7 @@ static esp_err_t consolidate_session(const char *chat_id)
 
     /* Read oldest messages to archive */
     char path[64];
-    session_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) return ESP_FAIL;
@@ -240,7 +240,7 @@ static esp_err_t consolidate_session(const char *chat_id)
 
     /* Re-save full metadata */
     char meta_path[64];
-    metadata_path(chat_id, meta_path, sizeof(meta_path));
+    metadata_get_path(chat_id, meta_path, sizeof(meta_path));
     FILE *mf = fopen(meta_path, "w");
     if (mf) {
         fprintf(mf, "%d:%d:%d:%ld:%ld\n",

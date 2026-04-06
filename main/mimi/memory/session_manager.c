@@ -26,14 +26,14 @@ static int s_session_cache_count = 0;
 
 /* ─── Helper: get session file path ─────────────────────────────────── */
 
-static void session_get_file_path(const char *chat_id, char *buf, size_t size)
+void session_get_path(const char *chat_id, char *buf, size_t size)
 {
     snprintf(buf, size, "%s/tg_%s.jsonl", MIMI_SPIFFS_SESSION_DIR, chat_id);
 }
 
 /* ─── Helper: get metadata file path ─────────────────────────────────── */
 
-static void session_get_metadata_file_path(const char *chat_id, char *buf, size_t size)
+void metadata_get_path(const char *chat_id, char *buf, size_t size)
 {
     snprintf(buf, size, "%s/tg_%s.meta", MIMI_SPIFFS_SESSION_DIR, chat_id);
 }
@@ -80,7 +80,7 @@ static session_cache_entry_t *session_find_or_create_cache_entry(const char *ses
 static int session_count_messages_in_file(const char *chat_id)
 {
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) return 0;
@@ -100,7 +100,7 @@ static int session_count_messages_in_file(const char *chat_id)
 static esp_err_t session_load_metadata_from_file(const char *chat_id, session_metadata_t *metadata)
 {
     char path[64];
-    session_get_metadata_file_path(chat_id, path, sizeof(path));
+    metadata_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) {
@@ -141,7 +141,7 @@ static esp_err_t session_load_metadata_from_file(const char *chat_id, session_me
 static esp_err_t session_save_metadata_to_file(const char *chat_id, session_metadata_t *metadata)
 {
     char path[64];
-    session_get_metadata_file_path(chat_id, path, sizeof(path));
+    metadata_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "w");
     if (!f) {
@@ -172,7 +172,7 @@ esp_err_t session_manager_init(void)
 esp_err_t session_append(const char *chat_id, const char *role, const char *content)
 {
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "a");
     if (!f) {
@@ -209,7 +209,7 @@ esp_err_t session_append(const char *chat_id, const char *role, const char *cont
 esp_err_t session_get_history_json(const char *chat_id, char *buf, size_t size, int max_msgs)
 {
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) {
@@ -292,7 +292,7 @@ esp_err_t session_get_unconsolidated(const char *chat_id, char *buf, size_t size
     }
 
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) {
@@ -379,7 +379,7 @@ esp_err_t session_read_after_cursor(const char *chat_id, int cursor,
                                    char *buf, size_t size, int *next_cursor)
 {
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     FILE *f = fopen(path, "r");
     if (!f) {
@@ -480,11 +480,11 @@ int session_get_message_count(const char *chat_id)
 esp_err_t session_clear(const char *chat_id)
 {
     char path[64];
-    session_get_file_path(chat_id, path, sizeof(path));
+    session_get_path(chat_id, path, sizeof(path));
 
     if (remove(path) == 0) {
         /* Also remove metadata */
-        session_get_metadata_file_path(chat_id, path, sizeof(path));
+        metadata_get_path(chat_id, path, sizeof(path));
         remove(path);
 
         /* Remove from cache */

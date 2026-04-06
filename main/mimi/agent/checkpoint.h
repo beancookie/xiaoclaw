@@ -3,6 +3,7 @@
 #include "esp_err.h"
 #include "cJSON.h"
 #include <stddef.h>
+#include <stdbool.h>
 
 /**
  * Checkpoint phases

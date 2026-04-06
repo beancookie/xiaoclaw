@@ -61,9 +61,13 @@ graph TB
 
 ### Agent Brain Layer (mimiclaw)
 - LLM API integration (Anthropic Claude / OpenAI GPT)
-- ReAct agent loop with tool calling
+- Modular ReAct agent loop with `AgentRunner` execution engine
+- Hook system for iteration/tool callbacks (`before_iteration`, `after_iteration`, `on_tool_result`, `before_tool_execute`)
+- Checkpoint system for crash recovery
+- Context Builder with modular system prompt construction
+- Session consolidation with automatic history compression
 - Long-term memory (SPIFFS-based)
-- Session management with conversation history
+- Session management with cursor-based history tracking
 - Cron scheduler for autonomous tasks
 - Web search capability (Tavily / Brave)
 
@@ -262,7 +266,7 @@ Remote tools are registered with the `{server_name}.` prefix (e.g., `my_server.g
 
 ## Memory System
 
-XiaoClaw stores data in plain text files on SPIFFS:
+XiaoClaw stores data in plain text files on SPIFFS with session consolidation support:
 
 | Path | Purpose |
 |------|---------|
@@ -271,7 +275,34 @@ XiaoClaw stores data in plain text files on SPIFFS:
 | `/spiffs/MEMORY.md` | Long-term memory |
 | `/spiffs/HEARTBEAT.md` | Autonomous task list |
 | `/spiffs/cron.json` | Scheduled jobs |
-| `/spiffs/sessions/*.jsonl` | Conversation history |
+| `/spiffs/sessions/tg_*.jsonl` | Conversation history (JSONL format) |
+| `/spiffs/sessions/tg_*.meta` | Session metadata (cursor, consolidated count) |
+| `/spiffs/archive/tg_*.archive` | Archived old messages |
+
+### Session Management
+
+- **Cursor-based tracking**: Each session tracks read position via cursor
+- **Consolidation**: When session exceeds `max_history` messages, oldest messages are archived
+- **LRU cache**: Active sessions cached in memory for fast access
+- **Checkpoint recovery**: Agent can resume from last checkpoint on crash
+
+### Skills System
+
+Skills are loaded from `/spiffs/skills/` directory with YAML frontmatter support:
+
+```yaml
+---
+name: weather
+description: Get current weather information
+always: false
+---
+# Weather Skill
+Use the `weather` tool to...
+```
+
+- **`always: true`**: Skill content always injected into system prompt
+- **`requires.bins`**: CLI tools required by the skill
+- **`requires.env`**: Environment variables needed
 
 ## Development
 
@@ -281,7 +312,12 @@ XiaoClaw stores data in plain text files on SPIFFS:
 xiaoclaw/
 ├── main/
 │   ├── mimi/             # Agent brain (from mimiclaw)
-│   │   ├── agent/        # Agent loop and context building
+│   │   ├── agent/        # Agent loop, runner, hooks, checkpoint
+│   │   │   ├── agent_loop.c   # Main agent task loop
+│   │   │   ├── runner.c       # ReAct execution engine
+│   │   │   ├── context_builder.c # System prompt construction
+│   │   │   ├── hook.c         # Agent hooks implementation
+│   │   │   └── checkpoint.c   # Crash recovery checkpoint
 │   │   ├── bus/          # Message bus
 │   │   ├── channels/     # Telegram, Feishu bot integrations
 │   │   ├── cli/          # Serial CLI
@@ -289,12 +325,15 @@ xiaoclaw/
 │   │   ├── gateway/      # WebSocket server
 │   │   ├── heartbeat/    # Autonomous task heartbeat
 │   │   ├── llm/          # LLM proxy
-│   │   ├── memory/       # Memory store and session manager
+│   │   ├── memory/       # Memory store, session manager, consolidator
+│   │   │   ├── memory_store.c    # Long-term memory
+│   │   │   ├── session_manager.c # Session with cursor/consolidation
+│   │   │   └── consolidator.c     # Automatic history compression
 │   │   ├── onboard/      # WiFi onboarding
 │   │   ├── ota/          # OTA updates
 │   │   ├── proxy/        # HTTP proxy
-│   │   ├── skills/       # Skill loader
-│   │   ├── tools/        # Tool registry
+│   │   ├── skills/       # Skill loader with frontmatter
+│   │   ├── tools/        # Tool registry with concurrency support
 │   │   └── wifi/         # WiFi manager
 │   ├── audio/            # Voice I/O (from xiaozhi)
 │   ├── bridge/           # Bridge layer
