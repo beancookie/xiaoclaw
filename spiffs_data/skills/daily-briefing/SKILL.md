@@ -1,3 +1,8 @@
+---
+name: daily-briefing
+description: Compile a personalized daily briefing for the user
+always: false
+---
 # Daily Briefing
 
 Compile a personalized daily briefing for the user.

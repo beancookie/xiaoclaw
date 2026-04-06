@@ -403,7 +403,7 @@ bool skill_loader_check_requirements(const char *name)
 
 /* ── MCP Server Config ─────────────────────────────────────────── */
 
-static const char *MCP_SERVERS_FILE = MIMI_SPIFFS_BASE "/skills/mcp-servers.md";
+static const char *MCP_SERVERS_FILE = MIMI_SPIFFS_BASE "/mcp-servers.md";
 
 /**
  * Trim leading and trailing whitespace

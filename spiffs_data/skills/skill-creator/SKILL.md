@@ -1,6 +1,11 @@
+---
+name: skill-creator
+description: Create new skills for XiaoClaw
+always: false
+---
 # Skill Creator
 
-Create new skills for MimiClaw.
+Create new skills for XiaoClaw.
 
 ## When to use
 When the user asks to create a new skill, teach the bot something, or add a new capability.
@@ -8,12 +13,12 @@ When the user asks to create a new skill, teach the bot something, or add a new 
 ## How to create a skill
 1. Choose a short, descriptive name (lowercase, hyphens ok)
 2. Write a SKILL.md file with this structure:
-   - `# Title` — clear name
+   - `name` and `description` in frontmatter
    - Brief description paragraph
    - `## When to use` — trigger conditions
    - `## How to use` — step-by-step instructions
    - `## Example` — concrete example (optional but helpful)
-3. Save to `/spiffs/skills/<name>.md` using write_file
+3. Save to `/spiffs/skills/<name>/SKILL.md` using write_file
 4. The skill will be automatically available after the next conversation
 
 ## Best practices
@@ -24,17 +29,44 @@ When the user asks to create a new skill, teach the bot something, or add a new 
 
 ## Example
 To create a "translate" skill:
-write_file path="/spiffs/skills/translate.md" content="# Translate\n\nTranslate text between languages.\n\n## When to use\nWhen the user asks to translate text.\n\n## How to use\n1. Identify source and target languages\n2. Translate directly using your language knowledge\n3. For specialized terms, use web_search to verify\n"
+write_file path="/spiffs/skills/translate/SKILL.md" content="---
+name: translate
+description: Translate text between languages
+always: false
+---
+# Translate
+
+Translate text between languages.
+
+## When to use
+When the user asks to translate text.
+
+## How to use
+1. Identify source and target languages
+2. Translate directly using your language knowledge
+3. For specialized terms, use web_search to verify
+"
 
 ## How to add an MCP Server
 
 To connect to a remote MCP server for additional tools:
 
 1. First, read the available servers from mcp-servers.md:
-   read_file path="/spiffs/skills/mcp-servers.md"
+   read_file path="/spiffs/mcp-servers.md"
 
 2. If your server is not listed, add it to mcp-servers.md:
-   write_file path="/spiffs/skills/mcp-servers.md" content="# MCP Servers\n\nAvailable MCP servers.\n\n## my_server\n- host: <server-ip-address>\n- port: <server-port>\n- endpoint: mcp\n\n## another_server\n- host: 10.0.0.50\n- port: 9000\n- endpoint: mcp\n"
+   write_file path="/spiffs/mcp-servers.md" content="# MCP Servers
+
+## my_server
+- host: <server-ip-address>
+- port: <server-port>
+- endpoint: mcp
+
+## another_server
+- host: 10.0.0.50
+- port: 9000
+- endpoint: mcp
+"
 
 3. Connect using the mcp_connect tool:
    mcp_connect {"server_name": "my_server"}
@@ -52,7 +84,13 @@ To connect to a remote MCP server for additional tools:
 ## Example
 User: "Add an MCP server at 192.168.1.100 port 8000"
 Agent:
-1. write_file path="/spiffs/skills/mcp-servers.md" content="# MCP Servers\n\n## my_server\n- host: 192.168.1.100\n- port: 8000\n- endpoint: mcp\n"
+1. write_file path="/spiffs/mcp-servers.md" content="# MCP Servers
+
+## my_server
+- host: 192.168.1.100
+- port: 8000
+- endpoint: mcp
+"
 2. mcp_connect {"server_name": "my_server"}
 3. Now tools like my_server.get_status are available
 
@@ -74,7 +112,14 @@ lua_run {"path": "/spiffs/lua/myscript.lua"}
 
 ### Example: Creating a Lua script
 User: "Create a Lua script that calculates fibonacci"
-Agent: write_file path="/spiffs/lua/fibonacci.lua" content="-- Fibonacci function\nlocal function fib(n)\n    if n <= 1 then return n end\n    return fib(n-1) + fib(n-2)\nend\n\n-- Calculate and return result\nreturn fib(10)"
+Agent: write_file path="/spiffs/lua/fibonacci.lua" content="-- Fibonacci function
+local function fib(n)
+    if n <= 1 then return n end
+    return fib(n-1) + fib(n-2)
+end
+
+-- Calculate and return result
+return fib(10)"
 
 ### Example: Running the script
 User: "Run the fibonacci script"

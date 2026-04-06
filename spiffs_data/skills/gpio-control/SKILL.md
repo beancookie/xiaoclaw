@@ -1,3 +1,8 @@
+---
+name: gpio-control
+description: Control and monitor GPIO pins on ESP32-S3 for digital I/O
+always: true
+---
 # GPIO Control
 
 Control and monitor GPIO pins on the ESP32-S3 for digital I/O.
