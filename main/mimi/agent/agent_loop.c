@@ -4,7 +4,7 @@
 #include "agent/checkpoint.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
-#include "memory/session_mgr.h"
+#include "memory/session_manager.h"
 #include "tools/tool_registry.h"
 
 #include <string.h>

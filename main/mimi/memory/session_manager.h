@@ -28,7 +28,7 @@ typedef struct {
 /**
  * Initialize session manager.
  */
-esp_err_t session_mgr_init(void);
+esp_err_t session_manager_init(void);
 
 /**
  * Append a message to a session file (JSONL format).
