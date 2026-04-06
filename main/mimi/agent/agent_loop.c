@@ -61,38 +61,6 @@ esp_err_t agent_loop_start(void)
     return ESP_FAIL;
 }
 
-/* ─── Agent Hooks for this implementation ─────────────────────────────── */
-
-static void before_iteration_hook(int iteration)
-{
-    ESP_LOGD(TAG, "Before iteration %d", iteration);
-}
-
-static void after_iteration_hook(int iteration, const char *final_content)
-{
-    ESP_LOGD(TAG, "After iteration %d, content: %s",
-             iteration,
-             final_content ? final_content : "(none)");
-}
-
-static void before_tool_hook(const char *tool_name)
-{
-    ESP_LOGI(TAG, "Executing tool: %s", tool_name);
-}
-
-static void after_tool_hook(const char *tool_name, const char *result, bool success)
-{
-    ESP_LOGI(TAG, "Tool %s completed, success=%d, result_len=%d",
-             tool_name, success, result ? (int)strlen(result) : 0);
-}
-
-static const AgentHooks s_agent_hooks = {
-    .before_iteration = before_iteration_hook,
-    .after_iteration = after_iteration_hook,
-    .before_tool_execute = before_tool_hook,
-    .after_tool_execute = after_tool_hook,
-};
-
 /* ─── Main Agent Loop Task ────────────────────────────────────────────── */
 
 static void agent_loop_task(void *arg)

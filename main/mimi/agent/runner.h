@@ -6,8 +6,8 @@
 #include <stdbool.h>
 
 /* Forward declarations */
-typedef struct llm_response_t llm_response_t;
 #include "bus/message_bus.h"
+#include "llm/llm_proxy.h"
 
 /**
  * Agent Run Specification - configuration for a single agent execution.
