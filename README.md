@@ -5,8 +5,13 @@
 </p>
 
 <p align="center">
+  🌐 <a href="https://beancookie.github.io/xiaoclaw/"><strong>Official Website</strong></a>
+</p>
+
+<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://github.com/anthropics/claude-code"><img src="https://img.shields.io/badge/Claude-Opus_4.6-blue.svg" alt="Claude"></a>
+  <a href="https://beancookie.github.io/xiaoclaw/"><img src="https://img.shields.io/badge/Website-XiaoClaw-brightgreen.svg" alt="Website"></a>
 </p>
 
 ---
