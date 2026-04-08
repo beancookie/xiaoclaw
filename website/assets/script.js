@@ -104,10 +104,21 @@
     // ========================================
     // Typed.js Setup
     // ========================================
+    let typedInstance = null;
+    let typedSubtitleInstance = null;
+
     function initTyped() {
         const lang = localStorage.getItem('lang') || 'en';
 
-        const typed = new Typed('#typed', {
+        // Destroy existing instances to prevent duplication
+        if (typedInstance) {
+            typedInstance.destroy();
+        }
+        if (typedSubtitleInstance) {
+            typedSubtitleInstance.destroy();
+        }
+
+        typedInstance = new Typed('#typed', {
             strings: ['XiaoClaw'],
             typeSpeed: 100,
             startDelay: 500,
@@ -119,7 +130,7 @@
             zh: ['语音交互 + 本地 LLM Agent', '单芯片 ESP32-S3']
         };
 
-        new Typed('#typed-subtitle', {
+        typedSubtitleInstance = new Typed('#typed-subtitle', {
             strings: subtitleTexts[lang],
             typeSpeed: 50,
             backSpeed: 30,
