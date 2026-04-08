@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XiaoClaw - ESP32-S3 AI Voice Assistant</title>
+    <meta name="description" content="XiaoClaw is a unified ESP32-S3 firmware combining voice interaction with a local AI agent brain.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- AOS - Animate On Scroll -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Typed.js -->
+    <script src="https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js"></script>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <!-- Language Toggle -->
+    <div class="lang-toggle">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <span class="lang-divider">|</span>
+        <button class="lang-btn active" data-lang="zh">中文</button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <img src="assets/logo.jpg" alt="XiaoClaw" class="logo-img">
+                <span class="logo-text">XiaoClaw</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" data-i18n="nav.features">Features</a>
+                <a href="#architecture" data-i18n="nav.architecture">Architecture</a>
+                <a href="#hardware" data-i18n="nav.hardware">Hardware</a>
+                <a href="#quickstart" data-i18n="nav.quickstart">Quick Start</a>
+                <a href="https://github.com/beancookie/xiaoclaw" target="_blank" class="nav-github">
+                    <svg height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-dot"></span>
+                <span data-i18n="hero.badge">ESP32-S3 AI Voice Assistant</span>
+            </div>
+            <h1 class="hero-title">
+                <span class="title-main"></span><span class="title-main" id="typed"></span>
+            </h1>
+            <p class="hero-subtitle"><span id="typed-subtitle"></span></p>
+            <p class="hero-desc" data-i18n="hero.desc">A unified firmware combining offline wake word detection, streaming ASR/TTS, and a powerful local AI agent brain with tool calling, memory, and autonomous task execution.</p>
+            <div class="hero-actions">
+                <a href="#quickstart" class="btn btn-primary" data-i18n="hero.get_started">Get Started</a>
+                <a href="https://github.com/beancookie/xiaoclaw" target="_blank" class="btn btn-secondary">
+                    <svg height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    <span data-i18n="hero.view_github">View on GitHub</span>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">32MB</span>
+                    <span class="stat-label" data-i18n="hero.flash">Flash</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">8MB</span>
+                    <span class="stat-label" data-i18n="hero.psram">PSRAM</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">70+</span>
+                    <span class="stat-label" data-i18n="hero.boards">Supported Boards</span>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <span data-i18n="hero.scroll">Scroll to explore</span>
+            <div class="scroll-arrow"></div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-i18n="features.title">Features</h2>
+                <p class="section-desc" data-i18n="features.desc">Two powerful layers working in harmony</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card voice">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title" data-i18n="features.voice_title">Voice I/O Layer</h3>
+                    <p class="feature-subtitle">xiaozhi-esp32</p>
+                    <ul class="feature-list">
+                        <li data-i18n="features.voice_1">Offline wake word detection (ESP-SR)</li>
+                        <li data-i18n="features.voice_2">Streaming ASR + TTS via server</li>
+                        <li data-i18n="features.voice_3">OPUS audio codec</li>
+                        <li data-i18n="features.voice_4">OLED/LCD display with emoji</li>
+                        <li data-i18n="features.voice_5">Battery & power management</li>
+                        <li data-i18n="features.voice_6">Multi-language support</li>
+                    </ul>
+                </div>
+                <div class="feature-card agent">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title" data-i18n="features.agent_title">Agent Brain Layer</h3>
+                    <p class="feature-subtitle">mimiclaw</p>
+                    <ul class="feature-list">
+                        <li data-i18n="features.agent_1">LLM API (Claude / GPT)</li>
+                        <li data-i18n="features.agent_2">ReAct tool calling</li>
+                        <li data-i18n="features.agent_3">Long-term memory (SPIFFS)</li>
+                        <li data-i18n="features.agent_4">Session consolidation</li>
+                        <li data-i18n="features.agent_5">Cron scheduler</li>
+                        <li data-i18n="features.agent_6">Web search capability</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-i18n="arch.title">Architecture</h2>
+                <p class="section-desc" data-i18n="arch.desc">How the components work together</p>
+            </div>
+            <div class="arch-diagram">
+                <div class="arch-layer voice-layer">
+                    <div class="arch-layer-label" data-i18n="arch.voice_label">Voice I/O (xiaozhi)</div>
+                    <div class="arch-items">
+                        <div class="arch-item">Wake Word</div>
+                        <div class="arch-item">ASR</div>
+                        <div class="arch-item">TTS</div>
+                        <div class="arch-item">Display</div>
+                        <div class="arch-item">WiFi</div>
+                    </div>
+                </div>
+                <div class="arch-bridge">
+                    <div class="bridge-line"></div>
+                    <div class="bridge-label" data-i18n="arch.bridge_label">Bridge Layer</div>
+                    <div class="bridge-line"></div>
+                </div>
+                <div class="arch-layer agent-layer">
+                    <div class="arch-layer-label" data-i18n="arch.agent_label">Agent Brain (mimiclaw)</div>
+                    <div class="arch-items">
+                        <div class="arch-item">LLM API</div>
+                        <div class="arch-item">Tools</div>
+                        <div class="arch-item">Memory</div>
+                        <div class="arch-item">Sessions</div>
+                        <div class="arch-item">Cron</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hardware Section -->
+    <section id="hardware" class="hardware">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-i18n="hardware.title">Supported Hardware</h2>
+                <p class="section-desc" data-i18n="hardware.desc">Compatible with 70+ ESP32-S3 boards</p>
+            </div>
+            <div class="hardware-grid">
+                <div class="hardware-card">
+                    <div class="hardware-icon">📦</div>
+                    <h4>ESP32-S3-BOX3</h4>
+                </div>
+                <div class="hardware-card">
+                    <div class="hardware-icon">🖥️</div>
+                    <h4>M5Stack CoreS3</h4>
+                </div>
+                <div class="hardware-card">
+                    <div class="hardware-icon">⚡</div>
+                    <h4>AtomS3R</h4>
+                </div>
+                <div class="hardware-card">
+                    <div class="hardware-icon">🔧</div>
+                    <h4>LiChuang DevBoard</h4>
+                </div>
+                <div class="hardware-card">
+                    <div class="hardware-icon">⭕</div>
+                    <h4>T-Circle-S3</h4>
+                </div>
+                <div class="hardware-card">
+                    <div class="hardware-icon">+</div>
+                    <h4 data-i18n="hardware.more">And 70+ more...</h4>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="quickstart" class="quickstart">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-i18n="quickstart.title">Quick Start</h2>
+                <p class="section-desc" data-i18n="quickstart.desc">Get up and running in 3 steps</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3 class="step-title" data-i18n="quickstart.step1_title">Clone & Configure</h3>
+                        <p class="step-desc" data-i18n="quickstart.step1_desc">Clone the repository and set your target ESP32-S3 board</p>
+                        <pre class="step-code"><code>git clone https://github.com/beancookie/xiaoclaw.git
+cd xiaoclaw
+idf.py set-target esp32s3</code></pre>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3 class="step-title" data-i18n="quickstart.step2_title">Configure Secrets</h3>
+                        <p class="step-desc" data-i18n="quickstart.step2_desc">Set up your WiFi and API keys in mimi_secrets.h</p>
+                        <pre class="step-code"><code>#define MIMI_SECRET_WIFI_SSID "YourWiFi"
+#define MIMI_SECRET_WIFI_PASS "YourPassword"
+#define MIMI_SECRET_API_KEY "sk-ant-..."</code></pre>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3 class="step-title" data-i18n="quickstart.step3_title">Build & Flash</h3>
+                        <p class="step-desc" data-i18n="quickstart.step3_desc">Build the firmware and flash to your device</p>
+                        <pre class="step-code"><code>idf.py build
+idf.py -p PORT flash monitor</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Built On Section -->
+    <section class="built-on">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-i18n="built.title">基于以下优秀项目构建</h2>
+                <p class="section-desc" data-i18n="built.desc">XiaoClaw combines the best of both worlds</p>
+            </div>
+            <div class="built-grid">
+                <div class="built-card">
+                    <div class="built-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </div>
+                    <h3>xiaozhi-esp32</h3>
+                    <p data-i18n="built.xiaozhi_desc">语音交互框架 — 语音采集、回放、唤醒词、显示屏、网络通信</p>
+                    <a href="https://github.com/78/xiaozhi-esp32" target="_blank" class="built-link">
+                        <svg height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        <span>View on GitHub</span>
+                    </a>
+                </div>
+                <div class="built-card">
+                    <div class="built-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <h3>mimiclaw</h3>
+                    <p data-i18n="built.mimiclaw_desc">ESP32 AI Agent — LLM 推理、工具调用、记忆管理、自主任务执行</p>
+                    <a href="https://github.com/memovai/mimiclaw" target="_blank" class="built-link">
+                        <svg height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        <span>View on GitHub</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Links Section -->
+    <section class="links">
+        <div class="container">
+            <div class="links-grid">
+                <a href="https://github.com/beancookie/xiaoclaw" target="_blank" class="link-card">
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="link-icon">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    <h4>GitHub</h4>
+                    <p data-i18n="links.github_desc">Source code & issues</p>
+                </a>
+                <a href="https://github.com/78/xiaozhi-esp32" target="_blank" class="link-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="link-icon">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <h4>xiaozhi-esp32</h4>
+                    <p data-i18n="links.xiaozhi_desc">Voice interaction framework</p>
+                </a>
+                <a href="https://github.com/memovai/mimiclaw" target="_blank" class="link-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="link-icon">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </svg>
+                    <h4>mimiclaw</h4>
+                    <p data-i18n="links.mimiclaw_desc">ESP32 AI agent</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="assets/logo.jpg" alt="XiaoClaw" class="logo-img">
+                    <span>XiaoClaw</span>
+                </div>
+                <p class="footer-text" data-i18n="footer.copyright">MIT License. Built with ESP-IDF and ❤️</p>
+                <div class="footer-links">
+                    <a href="https://github.com/beancookie/xiaoclaw" target="_blank" data-i18n="footer.github">GitHub</a>
+                    <span class="footer-divider">·</span>
+                    <a href="#" data-i18n="footer.docs">Docs</a>
+                    <span class="footer-divider">·</span>
+                    <a href="https://github.com/78/xiaozhi-esp32" target="_blank">xiaozhi-esp32</a>
+                    <span class="footer-divider">·</span>
+                    <a href="https://github.com/memovai/mimiclaw" target="_blank">mimiclaw</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Particles Canvas -->
+    <canvas id="particles"></canvas>
+    <!-- AOS Script -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="assets/script.js"></script>
+</body>
+</html>
