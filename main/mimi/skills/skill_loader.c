@@ -403,8 +403,6 @@ bool skill_loader_check_requirements(const char *name)
 
 /* ── MCP Server Config ─────────────────────────────────────────── */
 
-static const char *MCP_SERVERS_FILE = MIMI_SPIFFS_BASE "/mcp-servers.md";
-
 /**
  * Trim leading and trailing whitespace
  */
@@ -463,59 +461,67 @@ esp_err_t skill_loader_get_mcp_server_config(const char *server_name,
                                               char *host, size_t host_size,
                                               int *port, char *endpoint, size_t ep_size)
 {
-    FILE *f = fopen(MCP_SERVERS_FILE, "r");
-    if (!f) {
-        ESP_LOGW(TAG, "MCP servers file not found: %s", MCP_SERVERS_FILE);
+    char content[8192];
+    esp_err_t err = skill_loader_load("mcp-servers", content, sizeof(content));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to load mcp-servers skill");
+        return err;
+    }
+
+    /* Find section header */
+    char target_section[128];
+    snprintf(target_section, sizeof(target_section), "## %s", server_name);
+    char *section_start = strstr(content, target_section);
+    if (!section_start) {
+        ESP_LOGW(TAG, "Server '%s' not found in mcp-servers skill", server_name);
         return ESP_ERR_NOT_FOUND;
     }
 
-    char line[256];
-    bool in_server_section = false;
-    char current_key[64] = {0};
-    char current_value[128] = {0};
-
-    /* Build section header to match */
-    char target_section[128];
-    snprintf(target_section, sizeof(target_section), "## %s", server_name);
-
-    while (fgets(line, sizeof(line), f)) {
-        /* Check for server section header */
-        if (strncmp(line, target_section, strlen(target_section)) == 0) {
-            in_server_section = true;
-            continue;
-        }
-
-        /* Exit section on next header or EOF */
-        if (line[0] == '#' && line[1] == '#') {
-            in_server_section = false;
-            continue;
-        }
-
-        /* Skip non-section lines */
-        if (!in_server_section) continue;
-
-        /* Skip empty lines */
-        if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
-
-        /* Parse key: value lines */
-        if (parse_line(line, current_key, current_value)) {
-            if (strcmp(current_key, "host") == 0) {
-                strncpy(host, current_value, host_size - 1);
-                host[host_size - 1] = '\0';
-            } else if (strcmp(current_key, "port") == 0) {
-                *port = atoi(current_value);
-            } else if (strcmp(current_key, "endpoint") == 0) {
-                strncpy(endpoint, current_value, ep_size - 1);
-                endpoint[ep_size - 1] = '\0';
-            }
-        }
+    /* Find next section or end */
+    char *section_end = strstr(section_start + 1, "\n## ");
+    size_t section_len;
+    if (section_end) {
+        section_len = section_end - section_start;
+    } else {
+        section_len = strlen(section_start);
     }
 
-    fclose(f);
+    /* Extract host, port, endpoint from section */
+    host[0] = '\0';
+    *port = 0;
+    endpoint[0] = '\0';
+
+    char *line_start = section_start;
+    char *line_end;
+    while (line_start < section_start + section_len) {
+        line_end = strchr(line_start, '\n');
+        if (!line_end) line_end = section_start + section_len;
+
+        size_t line_len = line_end - line_start;
+        char line[256];
+        if (line_len < sizeof(line)) {
+            memcpy(line, line_start, line_len);
+            line[line_len] = '\0';
+
+            char key[64], value[128];
+            if (parse_line(line, key, value)) {
+                if (strcmp(key, "host") == 0) {
+                    strncpy(host, value, host_size - 1);
+                    host[host_size - 1] = '\0';
+                } else if (strcmp(key, "port") == 0) {
+                    *port = atoi(value);
+                } else if (strcmp(key, "endpoint") == 0) {
+                    strncpy(endpoint, value, ep_size - 1);
+                    endpoint[ep_size - 1] = '\0';
+                }
+            }
+        }
+        line_start = line_end + 1;
+    }
 
     /* Check if we found the server */
     if (host[0] == '\0') {
-        ESP_LOGW(TAG, "Server '%s' not found in MCP servers file", server_name);
+        ESP_LOGW(TAG, "Server '%s' config incomplete in mcp-servers skill", server_name);
         return ESP_ERR_NOT_FOUND;
     }
 

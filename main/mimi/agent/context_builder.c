@@ -58,34 +58,29 @@ static size_t append_identity(char *buf, size_t size, size_t offset)
 
 static size_t append_tools_section(char *buf, size_t size, size_t offset)
 {
-    return snprintf(buf + offset, size - offset,
+    size_t off = snprintf(buf + offset, size - offset,
         "## Available Tools\n\n"
-        "You have access to the following tools:\n"
-        "- web_search: Search the web for current information (Tavily preferred, Brave fallback when configured). "
-        "Use this when you need up-to-date facts, news, weather, or anything beyond your training data.\n"
-        "- get_current_time: Get the current date and time. "
-        "You do NOT have an internal clock — always use this tool when you need to know the time or date.\n"
-        "- read_file: Read a file (path must start with " MIMI_SPIFFS_BASE "/).\n"
+        "Tool instructions are in skill files under /spiffs/skills/:\n");
+
+    skill_info_t skills[32];
+    int count = skill_loader_list(skills, 32);
+
+    for (int i = 0; i < count && off < size - 1; i++) {
+        off += snprintf(buf + offset + off, size - offset - off,
+            "- %s: %s\n",
+            skills[i].path,
+            skills[i].description);
+    }
+
+    off += snprintf(buf + offset + off, size - offset - off,
+        "\n"
+        "Other tools:\n"
+        "- read_file: Read a file from SPIFFS.\n"
         "- write_file: Write/overwrite a file.\n"
-        "- edit_file: Find-and-replace edit a file.\n"
-        "- list_dir: List files, optionally filter by prefix.\n"
-        "- cron_add: Schedule a recurring or one-shot task. The message will trigger an agent turn when the job fires.\n"
-        "- cron_list: List all scheduled cron jobs.\n"
-        "- cron_remove: Remove a scheduled cron job by ID.\n"
-        "- gpio_write: Set a GPIO pin HIGH or LOW. Use for controlling LEDs, relays, and digital outputs.\n"
-        "- gpio_read: Read a single GPIO pin state (HIGH or LOW). Use for checking switches, buttons, sensors.\n"
-        "- gpio_read_all: Read all allowed GPIO pins at once. Good for getting a full status overview.\n"
-        "- lua_eval: Evaluate and execute a Lua code string directly.\n"
-        "- lua_run: Execute a Lua script from SPIFFS. Path must start with " MIMI_SPIFFS_BASE "/lua/.\n"
-        "- mcp_connect: Connect to an MCP server. Input: {\"server_name\": \"xxx\"} where xxx is a server name defined in mcp-servers.md. "
-        "After connecting, MCP tools (echo, get_time, etc.) become available to call directly by name.\n"
-        "- mcp_disconnect: Disconnect from the currently connected MCP server.\n\n"
-        "When using cron_add for Telegram delivery, always set channel='telegram' and a valid numeric chat_id.\n\n"
-        "## GPIO\n"
-        "You can control hardware GPIO pins on the ESP32-S3. Use gpio_read to check switch/sensor states "
-        "(digital input confirmation), and gpio_write to control outputs. Pin range is validated by policy — "
-        "only allowed pins can be accessed. When asked about switch states or digital I/O, use these tools.\n\n"
-        "Use tools when needed. Provide your final answer as text after using tools.\n");
+        "- edit_file: Find-and-replace edit.\n"
+        "- list_dir: List files in a directory.\n\n");
+
+    return off;
 }
 
 /* ─── Memory Section ──────────────────────────────────────────────────────── */

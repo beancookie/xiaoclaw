@@ -19,8 +19,111 @@
 
 #include "esp_log.h"
 #include "esp_vfs.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "lua";
+
+/* ── HTTP response buffer ─────────────────────────────────────── */
+
+typedef struct {
+    char *data;
+    size_t len;
+    size_t cap;
+} http_buf_t;
+
+static esp_err_t http_event_handler(esp_http_client_event_t *evt)
+{
+    http_buf_t *hb = (http_buf_t *)evt->user_data;
+    if (evt->event_id == HTTP_EVENT_ON_DATA) {
+        size_t needed = hb->len + evt->data_len;
+        if (needed < hb->cap) {
+            memcpy(hb->data + hb->len, evt->data, evt->data_len);
+            hb->len += evt->data_len;
+            hb->data[hb->len] = '\0';
+        }
+    }
+    return ESP_OK;
+}
+
+#define HTTP_BUF_SIZE  (16 * 1024)
+
+static int lua_http_request(lua_State *L, const char *method)
+{
+    const char *url = luaL_checkstring(L, 1);
+    const char *body = (lua_gettop(L) >= 2) ? luaL_checkstring(L, 2) : NULL;
+    const char *content_type = (lua_gettop(L) >= 3) ? luaL_optstring(L, 3, "text/plain") : NULL;
+
+    http_buf_t hb = {0};
+    hb.data = heap_caps_calloc(1, HTTP_BUF_SIZE, MALLOC_CAP_SPIRAM);
+    if (!hb.data) {
+        return luaL_error(L, "out of memory");
+    }
+    hb.cap = HTTP_BUF_SIZE;
+
+    esp_http_client_method_t client_method = HTTP_METHOD_GET;
+    if (strcmp(method, "POST") == 0) client_method = HTTP_METHOD_POST;
+    else if (strcmp(method, "PUT") == 0) client_method = HTTP_METHOD_PUT;
+    else if (strcmp(method, "DELETE") == 0) client_method = HTTP_METHOD_DELETE;
+
+    esp_http_client_config_t config = {
+        .url = url,
+        .event_handler = http_event_handler,
+        .user_data = &hb,
+        .timeout_ms = 15000,
+        .buffer_size = 4096,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        free(hb.data);
+        return luaL_error(L, "failed to init HTTP client");
+    }
+
+    if (body) {
+        esp_http_client_set_method(client, client_method);
+        esp_http_client_set_header(client, "Content-Type", content_type);
+        esp_http_client_set_post_field(client, body, strlen(body));
+    } else if (strcmp(method, "DELETE") == 0) {
+        esp_http_client_set_method(client, HTTP_METHOD_DELETE);
+    }
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+
+    if (err != ESP_OK) {
+        free(hb.data);
+        return luaL_error(L, "HTTP request failed: %s", esp_err_to_name(err));
+    }
+
+    lua_pushstring(L, hb.data);
+    lua_pushinteger(L, status);
+    free(hb.data);
+    return 2;
+}
+
+static int lua_http_get(lua_State *L)
+{
+    return lua_http_request(L, "GET");
+}
+
+static int lua_http_post(lua_State *L)
+{
+    return lua_http_request(L, "POST");
+}
+
+static int lua_http_put(lua_State *L)
+{
+    return lua_http_request(L, "PUT");
+}
+
+static int lua_http_delete(lua_State *L)
+{
+    return lua_http_request(L, "DELETE");
+}
 
 /* Output buffer size for Lua results */
 #define LUA_OUTPUT_SIZE 4096
@@ -73,6 +176,12 @@ static lua_State *create_lua_state(void)
 
     /* Register print wrapper */
     lua_register(L, "print", lua_print_wrapper);
+
+    /* Register HTTP wrappers */
+    lua_register(L, "http_get", lua_http_get);
+    lua_register(L, "http_post", lua_http_post);
+    lua_register(L, "http_put", lua_http_put);
+    lua_register(L, "http_delete", lua_http_delete);
 
     /* Set package.path to include common locations */
     const char *path_setup = "package.path = package.path .. ';/spiffs/lua/?.lua;/spiffs/?.lua;./?.lua'";
