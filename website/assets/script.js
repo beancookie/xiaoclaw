@@ -235,6 +235,7 @@
             'hero.psram': 'PSRAM',
             'hero.boards': 'Supported Boards',
             'hero.scroll': 'Scroll to explore',
+            'hero.desc': 'Local AI Agent firmware running on ESP32-S3, integrating offline voice wake-up with cloud TTS, supporting local LLM inference, tool calling, long-term memory storage and autonomous task execution.',
             'features.title': 'Features',
             'features.desc': 'Two powerful layers working in harmony',
             'features.voice_title': 'Voice I/O Layer',
@@ -276,7 +277,7 @@
             'built.desc': 'XiaoClaw combines the best of both worlds',
             'built.xiaozhi_desc': 'Voice interaction — audio, playback, wake word, display, network',
             'built.mimiclaw_desc': 'ESP32 AI Agent — LLM reasoning, tool calling, memory, autonomous tasks',
-            'footer.copyright': 'MIT License. Built with ESP-IDF and ❤️',
+            'footer.copyright': 'MIT License. Built with ESP-IDF and Claude Code',
             'footer.github': 'GitHub',
             'footer.docs': 'Docs'
         },
@@ -292,6 +293,7 @@
             'hero.psram': '内存',
             'hero.boards': '支持板型',
             'hero.scroll': '向下滚动',
+            'hero.desc': '运行于 ESP32-S3 的本地 AI Agent 固件，集成离线语音唤醒与云端 TTS 服务，支持本地大模型推理、工具调用、长期记忆存储与自主任务执行。',
             'features.title': '功能特性',
             'features.desc': '两大核心层，协同工作',
             'features.voice_title': '语音 I/O 层',
@@ -333,7 +335,7 @@
             'built.desc': 'XiaoClaw 结合了两者的优点',
             'built.xiaozhi_desc': '语音交互 — 音频采集、回放、唤醒词、显示屏、网络通信',
             'built.mimiclaw_desc': 'ESP32 AI Agent — LLM 推理、工具调用、记忆管理、自主任务执行',
-            'footer.copyright': 'MIT 协议. 基于 ESP-IDF 和 ❤️ 构建',
+            'footer.copyright': 'MIT 协议. 基于 ESP-IDF 和 Claude Code 构建',
             'footer.github': 'GitHub',
             'footer.docs': '文档'
         }
