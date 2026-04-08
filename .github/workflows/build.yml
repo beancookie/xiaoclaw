@@ -1,14 +1,7 @@
 name: Build Boards
 
 on:
-  push:
-    branches:
-      - main
-      - ci/* # for ci test
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch: # Manual trigger only
 
 permissions:
   contents: read
