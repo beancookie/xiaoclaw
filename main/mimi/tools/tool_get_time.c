@@ -41,19 +41,16 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
 
     time_t t = mktime(&tm);
 
-    /* Beijing Time is UTC+8 */
-    setenv("TZ", "UTC+8", 1);
+    /* Use timezone from MIMI_TIMEZONE (POSIX format, e.g. UTC-8 = UTC+8) */
+    setenv("TZ", MIMI_TIMEZONE, 1);
     tzset();
 
     if (t < 0) return false;
 
-    /* ESP32 settimeofday expects local epoch, add 8h offset for Beijing */
-    t += 8 * 3600;
-
     struct timeval tv = { .tv_sec = t };
     settimeofday(&tv, NULL);
 
-    /* Format in Beijing time */
+    /* Format in local time */
     struct tm local;
     localtime_r(&t, &local);
     strftime(out, out_size, "%Y-%m-%d %H:%M:%S %Z (%A)", &local);

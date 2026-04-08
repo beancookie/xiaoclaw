@@ -1,3 +1,8 @@
+---
+name: weather
+description: Get current weather and forecasts using web search
+always: false
+---
 # Weather
 
 Get current weather and forecasts using web_search.
