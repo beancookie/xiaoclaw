@@ -27,11 +27,11 @@ All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
 ```mermaid
 graph TB
-    ranksep=50
-    nodesep=30
+    
+    
 
     subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
-        rank=same
+        
         subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
             direction TB
             A["👂 Wake Word"]
@@ -182,23 +182,23 @@ The bridge layer connects the voice I/O layer with the agent brain:
 
 ```mermaid
 flowchart TB
-    ranksep=40
-    nodesep=25
+    
+    
 
     subgraph Voice["<b>🔊 Voice Input Layer</b>"]
-        rank=same
+        
         A["🎤 User Voice"] --> B["👂 Wake Word"]
         B --> C["📝 ASR Server"]
         C --> D["📄 Text Output"]
     end
 
     subgraph Bridge["<b>🌉 Bridge Layer</b>"]
-        rank=same
+        
         E["📥 Receive"] --> F["⚙️ Route"] --> G["📤 Send"]
     end
 
     subgraph Agent["<b>🤖 Agent Brain</b>"]
-        rank=same
+        
         H["🧠 LLM Inference"]
         I["🔧 Tool Calling"]
         J["📋 Response"]
@@ -209,7 +209,7 @@ flowchart TB
     end
 
     subgraph TTS["<b>🔊 Voice Output Layer</b>"]
-        rank=same
+        
         L["📝 TTS Synth"] --> M["🔊 Playback"] --> N["🎵 Speaker"]
     end
 
@@ -291,16 +291,16 @@ XiaoClaw supports connecting to remote MCP servers to dynamically discover and c
 
 ```mermaid
 flowchart TB
-    ranksep=50
-    nodesep=30
+    
+    
 
     subgraph Config["<b>📋 1️⃣ Config Phase</b>"]
-        rank=same
+        
         A["📄 mcp-servers.md"] --> B["📜 Server List"]
     end
 
     subgraph Init["<b>🚀 2️⃣ Init Phase</b><br/><sub>tool_mcp_client_init()</sub>"]
-        rank=same
+        
         C["📝 Register Tools"]
         C1["mcp_connect"]
         C2["mcp_disconnect"]
@@ -309,7 +309,7 @@ flowchart TB
     end
 
     subgraph Connect["<b>🔗 3️⃣ Establish Connection</b><br/><sub>LLM calls mcp_connect</sub>"]
-        rank=same
+        
         D["Get Config"]
         E["esp_mcp_create()"]
         F["esp_mcp_mgr_init()"]
@@ -322,7 +322,7 @@ flowchart TB
     end
 
     subgraph LLM_Call["<b>📡 4️⃣ Remote Call</b><br/><sub>LLM requests tools</sub>"]
-        rank=same
+        
         K["🤖 LLM Request"]
         L["mcp.server_name.tool"]
         M["mcp_tool_execute()"]

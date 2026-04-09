@@ -27,11 +27,11 @@
 
 ```mermaid
 graph TB
-    ranksep=50
-    nodesep=30
+    
+    
 
     subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
-        rank=same
+        
         subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
             direction TB
             A["👂 Wake Word"]
@@ -185,23 +185,23 @@ Bridge 层连接语音 I/O 层与 Agent 大脑：
 
 ```mermaid
 flowchart TB
-    ranksep=40
-    nodesep=25
+    
+    
 
     subgraph Voice["<b>🔊 语音输入层</b>"]
-        rank=same
+        
         A["🎤 用户语音"] --> B["👂 唤醒词检测"]
         B --> C["📝 ASR 服务器"]
         C --> D["📄 文本输出"]
     end
 
     subgraph Bridge["<b>🌉 Bridge 层</b>"]
-        rank=same
+        
         E["📥 接收"] --> F["⚙️ 路由分发"] --> G["📤 发送"]
     end
 
     subgraph Agent["<b>🤖 Agent 大脑</b>"]
-        rank=same
+        
         H["🧠 LLM 推理"]
         I["🔧 工具调用"]
         J["📋 响应生成"]
@@ -212,7 +212,7 @@ flowchart TB
     end
 
     subgraph TTS["<b>🔊 语音输出层</b>"]
-        rank=same
+        
         L["📝 TTS 合成"] --> M["🔊 播放"] --> N["🎵 扬声器"]
     end
 
@@ -294,16 +294,16 @@ XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。服务
 
 ```mermaid
 flowchart TB
-    ranksep=50
-    nodesep=30
+    
+    
 
     subgraph Config["<b>📋 1️⃣ 配置阶段</b>"]
-        rank=same
+        
         A["📄 mcp-servers.md"] --> B["📜 服务器列表"]
     end
 
     subgraph Init["<b>🚀 2️⃣ 初始化阶段</b><br/><sub>tool_mcp_client_init()</sub>"]
-        rank=same
+        
         C["📝 注册工具"]
         C1["mcp_connect"]
         C2["mcp_disconnect"]
@@ -312,7 +312,7 @@ flowchart TB
     end
 
     subgraph Connect["<b>🔗 3️⃣ 建立连接</b><br/><sub>LLM 调用 mcp_connect</sub>"]
-        rank=same
+        
         D["获取配置"]
         E["esp_mcp_create()"]
         F["esp_mcp_mgr_init()"]
@@ -325,7 +325,7 @@ flowchart TB
     end
 
     subgraph LLM_Call["<b>📡 4️⃣ 远程调用</b><br/><sub>LLM 请求工具</sub>"]
-        rank=same
+        
         K["🤖 LLM 请求"]
         L["mcp.server_name.tool"]
         M["mcp_tool_execute()"]
