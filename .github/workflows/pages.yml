@@ -21,6 +21,8 @@ jobs:
 
       - name: Deploy to gh-pages
         run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
           mv website /tmp/website-backup
           git checkout --orphan gh-pages
           rm -rf *
