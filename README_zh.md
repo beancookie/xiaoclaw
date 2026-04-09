@@ -27,11 +27,11 @@
 
 ```mermaid
 graph TB
-    
-    
+
+
 
     subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
-        
+
         subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
             direction TB
             A["👂 Wake Word"]
@@ -185,23 +185,23 @@ Bridge 层连接语音 I/O 层与 Agent 大脑：
 
 ```mermaid
 flowchart TB
-    
-    
+
+
 
     subgraph Voice["<b>🔊 语音输入层</b>"]
-        
+
         A["🎤 用户语音"] --> B["👂 唤醒词检测"]
         B --> C["📝 ASR 服务器"]
         C --> D["📄 文本输出"]
     end
 
     subgraph Bridge["<b>🌉 Bridge 层</b>"]
-        
+
         E["📥 接收"] --> F["⚙️ 路由分发"] --> G["📤 发送"]
     end
 
     subgraph Agent["<b>🤖 Agent 大脑</b>"]
-        
+
         H["🧠 LLM 推理"]
         I["🔧 工具调用"]
         J["📋 响应生成"]
@@ -212,7 +212,7 @@ flowchart TB
     end
 
     subgraph TTS["<b>🔊 语音输出层</b>"]
-        
+
         L["📝 TTS 合成"] --> M["🔊 播放"] --> N["🎵 扬声器"]
     end
 
@@ -243,16 +243,16 @@ flowchart TB
 
 ### 内存布局
 
-| 分区    | 大小   | 用途              |
-| ------- | ------ | ---------------- |
-| nvs     | 32KB   | 非易失性存储      |
-| otadata | 8KB    | OTA 数据          |
-| phy_init | 4KB   | 物理初始化数据    |
-| ota_0   | 5MB    | 主固件            |
-| ota_1   | 5MB    | OTA 备份          |
-| assets  | 7MB    | 模型资源（唤醒词等）|
-| model   | 1MB    | AI 模型存储       |
-| spiffs  | ~14MB  | 记忆、会话、技能   |
+| 分区     | 大小  | 用途                 |
+| -------- | ----- | -------------------- |
+| nvs      | 32KB  | 非易失性存储         |
+| otadata  | 8KB   | OTA 数据             |
+| phy_init | 4KB   | 物理初始化数据       |
+| ota_0    | 5MB   | 主固件               |
+| ota_1    | 5MB   | OTA 备份             |
+| assets   | 7MB   | 模型资源（唤醒词等） |
+| model    | 1MB   | AI 模型存储          |
+| spiffs   | ~14MB | 记忆、会话、技能     |
 
 ### 任务布局
 
@@ -267,24 +267,24 @@ flowchart TB
 
 Agent 可以使用多种工具：
 
-| 工具               | 描述                 |
-| ------------------ | -------------------- |
-| `web_search`       | 搜索网络获取最新信息 |
-| `get_current_time` | 获取当前日期/时间    |
-| `gpio_write`       | 控制 GPIO 引脚       |
-| `gpio_read`        | 读取 GPIO 状态       |
-| `gpio_read_all`    | 读取所有允许的 GPIO  |
-| `lua_eval`         | 直接执行 Lua 代码     |
+| 工具               | 描述                    |
+| ------------------ | ----------------------- |
+| `web_search`       | 搜索网络获取最新信息    |
+| `get_current_time` | 获取当前日期/时间       |
+| `gpio_write`       | 控制 GPIO 引脚          |
+| `gpio_read`        | 读取 GPIO 状态          |
+| `gpio_read_all`    | 读取所有允许的 GPIO     |
+| `lua_eval`         | 直接执行 Lua 代码       |
 | `lua_run`          | 从 SPIFFS 执行 Lua 脚本 |
-| `mcp_connect`      | 连接 MCP 服务器      |
-| `mcp_disconnect`   | 断开 MCP 服务器连接  |
-| `cron_add`         | 创建定时任务         |
-| `cron_list`        | 列出定时任务         |
-| `cron_remove`      | 删除定时任务         |
-| `read_file`        | 从 SPIFFS 读取文件   |
-| `write_file`       | 写入文件到 SPIFFS    |
-| `edit_file`        | 编辑文件（查找替换） |
-| `list_dir`         | 列出目录中的文件     |
+| `mcp_connect`      | 连接 MCP 服务器         |
+| `mcp_disconnect`   | 断开 MCP 服务器连接     |
+| `cron_add`         | 创建定时任务            |
+| `cron_list`        | 列出定时任务            |
+| `cron_remove`      | 删除定时任务            |
+| `read_file`        | 从 SPIFFS 读取文件      |
+| `write_file`       | 写入文件到 SPIFFS       |
+| `edit_file`        | 编辑文件（查找替换）    |
+| `list_dir`         | 列出目录中的文件        |
 
 **注意：** GPIO 工具遵循 `gpio_policy.h` 中定义的板级策略。
 
@@ -292,81 +292,13 @@ Agent 可以使用多种工具：
 
 XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。服务器配置存储在 `mcp-servers.md` skill 文件中。
 
-```mermaid
-flowchart TB
-    
-    
-
-    subgraph Config["<b>📋 1️⃣ 配置阶段</b>"]
-        
-        A["📄 mcp-servers.md"] --> B["📜 服务器列表"]
-    end
-
-    subgraph Init["<b>🚀 2️⃣ 初始化阶段</b><br/><sub>tool_mcp_client_init()</sub>"]
-        
-        C["📝 注册工具"]
-        C1["mcp_connect"]
-        C2["mcp_disconnect"]
-        C --> C1
-        C --> C2
-    end
-
-    subgraph Connect["<b>🔗 3️⃣ 建立连接</b><br/><sub>LLM 调用 mcp_connect</sub>"]
-        
-        D["获取配置"]
-        E["esp_mcp_create()"]
-        F["esp_mcp_mgr_init()"]
-        G["mcp_initialize()"]
-        H["mcp_list_tools()"]
-        I["注册 N 个工具"]
-        J["重建工具 JSON"]
-
-        D --> E --> F --> G --> H --> I --> J
-    end
-
-    subgraph LLM_Call["<b>📡 4️⃣ 远程调用</b><br/><sub>LLM 请求工具</sub>"]
-        
-        K["🤖 LLM 请求"]
-        L["mcp.server_name.tool"]
-        M["mcp_tool_execute()"]
-        N["esp_mcp_mgr_post()"]
-        O["⏳ 等待响应"]
-        P["📦 JSON 结果"]
-
-        K --> L --> M --> N --> O --> P
-    end
-
-    Config --> Init --> Connect --> LLM_Call
-
-    style Config fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
-    style Init fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,radius:15px
-    style Connect fill:#ffe0b2,stroke:#f57c00,stroke-width:4px,radius:15px
-    style LLM_Call fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,radius:15px
-    style A fill:#1565c0,stroke:#0d47a1,color:#fff
-    style B fill:#1976d2,stroke:#1565c0,color:#fff
-    style C fill:#388e3c,stroke:#1b5e20,color:#fff
-    style C1 fill:#43a047,stroke:#2e7d32,color:#fff
-    style C2 fill:#43a047,stroke:#2e7d32,color:#fff
-    style D fill:#f57c00,stroke:#e65100,color:#fff
-    style E fill:#fb8c00,stroke:#f57c00,color:#fff
-    style F fill:#ffa726,stroke:#fb8c00,color:#fff
-    style G fill:#ff9800,stroke:#f57c00,color:#fff
-    style H fill:#ffa726,stroke:#fb8c00,color:#fff
-    style I fill:#ffcc80,stroke:#f57c00,color:#fff
-    style J fill:#ffe0b2,stroke:#f57c00,color:#fff
-    style K fill:#7b1fa2,stroke:#4a148c,color:#fff
-    style L fill:#8e24aa,stroke:#6a1b9a,color:#fff
-    style M fill:#9c27b0,stroke:#7b1fa2,color:#fff
-    style N fill:#ab47bc,stroke:#8e24aa,color:#fff
-    style O fill:#ba68c8,stroke:#9c27b0,color:#fff
-    style P fill:#ce93d8,stroke:#ab47bc,color:#fff
-```
-
 **配置文件：** `/spiffs/skills/mcp-servers.md`
+
 ```markdown
 # MCP Servers
 
 ## my_server
+
 - host: 192.168.1.100
 - port: 8000
 - endpoint: mcp
@@ -379,6 +311,7 @@ flowchart TB
 | `mcp_disconnect` | 断开当前服务器连接 |
 
 **Python MCP 服务器示例：** `scripts/mcp_server.py`
+
 ```bash
 pip install "mcp[cli]"
 python scripts/mcp_server.py --port 8000
@@ -400,6 +333,7 @@ XiaoClaw 支持 Lua 脚本，可用于自定义逻辑和 HTTP 请求。脚本存
 | `http_delete(url)` | HTTP DELETE 请求 |
 
 **示例脚本：** `/spiffs/lua/hello.lua`
+
 ```lua
 local greeting = "Hello from Lua!"
 local timestamp = os.time()
@@ -407,6 +341,7 @@ return string.format("%s (timestamp: %d)", greeting, timestamp)
 ```
 
 **HTTP 示例：** `/spiffs/lua/http_example.lua`
+
 ```lua
 local response, status = http_get("https://example.com")
 print("Status:", status)
@@ -419,16 +354,16 @@ print("Response:", response)
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据，支持会话合并压缩：
 
-| 路径                        | 用途                    |
-| --------------------------- | ---------------------- |
-| `/spiffs/config/SOUL.md`   | AI 人格定义            |
-| `/spiffs/config/USER.md`   | 用户信息和偏好         |
-| `/spiffs/memory/MEMORY.md` | 长期记忆               |
-| `/spiffs/HEARTBEAT.md`     | 自主任务列表（运行时） |
-| `/spiffs/cron.json`        | 定时任务（运行时）      |
-| `/spiffs/sessions/tg_*.jsonl` | 对话历史 (JSONL 格式) |
-| `/spiffs/sessions/tg_*.meta`  | 会话元数据（游标、已合并数） |
-| `/spiffs/archive/tg_*.archive` | 归档的旧消息      |
+| 路径                           | 用途                         |
+| ------------------------------ | ---------------------------- |
+| `/spiffs/config/SOUL.md`       | AI 人格定义                  |
+| `/spiffs/config/USER.md`       | 用户信息和偏好               |
+| `/spiffs/memory/MEMORY.md`     | 长期记忆                     |
+| `/spiffs/HEARTBEAT.md`         | 自主任务列表（运行时）       |
+| `/spiffs/cron.json`            | 定时任务（运行时）           |
+| `/spiffs/sessions/tg_*.jsonl`  | 对话历史 (JSONL 格式)        |
+| `/spiffs/sessions/tg_*.meta`   | 会话元数据（游标、已合并数） |
+| `/spiffs/archive/tg_*.archive` | 归档的旧消息                 |
 
 ### 会话管理
 
@@ -452,6 +387,7 @@ Skills 从 `/spiffs/skills/` 目录加载，每个技能是一个目录，包含
 ```
 
 **Frontmatter 格式：**
+
 ```yaml
 ---
 name: weather
@@ -469,6 +405,7 @@ always: false
 - **`requires.env`**: 所需的环境变量（可选）
 
 **技能文件格式：**
+
 - `SKILL.md` - 包含技能描述、使用说明和示例
 - 工具定义格式：`Tool: tool_name\nInput: {json}`
 
