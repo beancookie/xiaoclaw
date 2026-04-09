@@ -2,28 +2,26 @@
 
 /* MimiClaw Global Configuration */
 
-/* Build-time secrets (highest priority, override NVS) */
-#if __has_include("mimi_secrets.h")
-#include "mimi_secrets.h"
-#endif
-
+/* Build-time secrets from Kconfig (set via idf.py menuconfig) */
 #ifndef MIMI_SECRET_WIFI_SSID
-#define MIMI_SECRET_WIFI_SSID       ""
+#define MIMI_SECRET_WIFI_SSID       CONFIG_MIMI_SECRET_WIFI_SSID
 #endif
 #ifndef MIMI_SECRET_WIFI_PASS
-#define MIMI_SECRET_WIFI_PASS       ""
+#define MIMI_SECRET_WIFI_PASS       CONFIG_MIMI_SECRET_WIFI_PASS
 #endif
+#ifndef MIMI_SECRET_API_KEY
+#define MIMI_SECRET_API_KEY         CONFIG_MIMI_SECRET_API_KEY
+#endif
+#ifndef MIMI_SECRET_MODEL_PROVIDER
+#define MIMI_SECRET_MODEL_PROVIDER  CONFIG_MIMI_SECRET_MODEL_PROVIDER
+#endif
+
+/* Other secrets (not exposed via Kconfig, use mimi_secrets.h or NVS) */
 #ifndef MIMI_SECRET_TG_TOKEN
 #define MIMI_SECRET_TG_TOKEN        ""
 #endif
-#ifndef MIMI_SECRET_API_KEY
-#define MIMI_SECRET_API_KEY         ""
-#endif
 #ifndef MIMI_SECRET_MODEL
 #define MIMI_SECRET_MODEL           ""
-#endif
-#ifndef MIMI_SECRET_MODEL_PROVIDER
-#define MIMI_SECRET_MODEL_PROVIDER  "anthropic"
 #endif
 #ifndef MIMI_SECRET_PROXY_HOST
 #define MIMI_SECRET_PROXY_HOST      ""
