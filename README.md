@@ -27,11 +27,11 @@ All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
 ```mermaid
 graph TB
-    
-    
+
+
 
     subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
-        
+
         subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
             direction TB
             A["👂 Wake Word"]
@@ -91,6 +91,7 @@ graph TB
 ## Features
 
 ### Voice I/O Layer (xiaozhi)
+
 - Offline wake word detection ([ESP-SR](https://github.com/espressif/esp-sr))
 - Streaming ASR + TTS via server connection
 - OPUS audio codec
@@ -100,6 +101,7 @@ graph TB
 - WebSocket / MQTT protocol support
 
 ### Agent Brain Layer (mimiclaw)
+
 - LLM API integration (Anthropic Claude / OpenAI GPT)
 - Modular ReAct agent loop with `AgentRunner` execution engine
 - Hook system for iteration/tool callbacks (`before_iteration`, `after_iteration`, `on_tool_result`, `before_tool_execute`)
@@ -122,6 +124,7 @@ graph TB
 ### Supported Boards
 
 XiaoClaw inherits board support from xiaozhi-esp32, including:
+
 - ESP32-S3-BOX3
 - M5Stack CoreS3 / AtomS3R
 - LiChuang ESP32-S3 Development Board
@@ -182,23 +185,23 @@ The bridge layer connects the voice I/O layer with the agent brain:
 
 ```mermaid
 flowchart TB
-    
-    
+
+
 
     subgraph Voice["<b>🔊 Voice Input Layer</b>"]
-        
+
         A["🎤 User Voice"] --> B["👂 Wake Word"]
         B --> C["📝 ASR Server"]
         C --> D["📄 Text Output"]
     end
 
     subgraph Bridge["<b>🌉 Bridge Layer</b>"]
-        
+
         E["📥 Receive"] --> F["⚙️ Route"] --> G["📤 Send"]
     end
 
     subgraph Agent["<b>🤖 Agent Brain</b>"]
-        
+
         H["🧠 LLM Inference"]
         I["🔧 Tool Calling"]
         J["📋 Response"]
@@ -209,7 +212,7 @@ flowchart TB
     end
 
     subgraph TTS["<b>🔊 Voice Output Layer</b>"]
-        
+
         L["📝 TTS Synth"] --> M["🔊 Playback"] --> N["🎵 Speaker"]
     end
 
@@ -240,48 +243,48 @@ flowchart TB
 
 ### Memory Layout
 
-| Partition | Size | Purpose |
-|-----------|------|---------|
-| nvs | 32KB | Non-volatile storage |
-| otadata | 8KB | OTA data |
-| phy_init | 4KB | Physical init data |
-| ota_0 | 5MB | Main firmware |
-| ota_1 | 5MB | OTA backup |
-| assets | 7MB | Model assets (wake word, etc.) |
-| model | 1MB | AI model storage |
-| spiffs | ~14MB | Memory, sessions, skills |
+| Partition | Size  | Purpose                        |
+| --------- | ----- | ------------------------------ |
+| nvs       | 32KB  | Non-volatile storage           |
+| otadata   | 8KB   | OTA data                       |
+| phy_init  | 4KB   | Physical init data             |
+| ota_0     | 5MB   | Main firmware                  |
+| ota_1     | 5MB   | OTA backup                     |
+| assets    | 7MB   | Model assets (wake word, etc.) |
+| model     | 1MB   | AI model storage               |
+| spiffs    | ~14MB | Memory, sessions, skills       |
 
 ### Task Layout
 
-| Task | Core | Priority | Function |
-|------|------|----------|----------|
-| audio_* | 0 | 8 | Audio I/O |
-| main_loop | 0 | 5 | Application main |
-| bridge | 0 | 5 | Bridge communication |
-| agent_loop | 1 | 6 | LLM processing |
+| Task       | Core | Priority | Function             |
+| ---------- | ---- | -------- | -------------------- |
+| audio\_\*  | 0    | 8        | Audio I/O            |
+| main_loop  | 0    | 5        | Application main     |
+| bridge     | 0    | 5        | Bridge communication |
+| agent_loop | 1    | 6        | LLM processing       |
 
 ## Tools
 
 The agent can use various tools:
 
-| Tool | Description |
-|------|-------------|
-| `web_search` | Search the web for current information |
-| `get_current_time` | Get current date/time |
-| `gpio_write` | Control GPIO pins |
-| `gpio_read` | Read GPIO state |
-| `gpio_read_all` | Read all allowed GPIO pins |
-| `lua_eval` | Execute a Lua code string directly |
-| `lua_run` | Execute a Lua script from SPIFFS |
-| `mcp_connect` | Connect to an MCP server |
-| `mcp_disconnect` | Disconnect from MCP server |
-| `cron_add` | Schedule a task |
-| `cron_list` | List scheduled tasks |
-| `cron_remove` | Remove a scheduled task |
-| `read_file` | Read file from SPIFFS |
-| `write_file` | Write file to SPIFFS |
-| `edit_file` | Edit file (find-and-replace) |
-| `list_dir` | List files in directory |
+| Tool               | Description                            |
+| ------------------ | -------------------------------------- |
+| `web_search`       | Search the web for current information |
+| `get_current_time` | Get current date/time                  |
+| `gpio_write`       | Control GPIO pins                      |
+| `gpio_read`        | Read GPIO state                        |
+| `gpio_read_all`    | Read all allowed GPIO pins             |
+| `lua_eval`         | Execute a Lua code string directly     |
+| `lua_run`          | Execute a Lua script from SPIFFS       |
+| `mcp_connect`      | Connect to an MCP server               |
+| `mcp_disconnect`   | Disconnect from MCP server             |
+| `cron_add`         | Schedule a task                        |
+| `cron_list`        | List scheduled tasks                   |
+| `cron_remove`      | Remove a scheduled task                |
+| `read_file`        | Read file from SPIFFS                  |
+| `write_file`       | Write file to SPIFFS                   |
+| `edit_file`        | Edit file (find-and-replace)           |
+| `list_dir`         | List files in directory                |
 
 **Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
 
@@ -289,81 +292,13 @@ The agent can use various tools:
 
 XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools. Server configurations are stored in `mcp-servers.md` skill file.
 
-```mermaid
-flowchart TB
-    
-    
-
-    subgraph Config["<b>📋 1️⃣ Config Phase</b>"]
-        
-        A["📄 mcp-servers.md"] --> B["📜 Server List"]
-    end
-
-    subgraph Init["<b>🚀 2️⃣ Init Phase</b><br/><sub>tool_mcp_client_init()</sub>"]
-        
-        C["📝 Register Tools"]
-        C1["mcp_connect"]
-        C2["mcp_disconnect"]
-        C --> C1
-        C --> C2
-    end
-
-    subgraph Connect["<b>🔗 3️⃣ Establish Connection</b><br/><sub>LLM calls mcp_connect</sub>"]
-        
-        D["Get Config"]
-        E["esp_mcp_create()"]
-        F["esp_mcp_mgr_init()"]
-        G["mcp_initialize()"]
-        H["mcp_list_tools()"]
-        I["Register N Tools"]
-        J["Rebuild Tool JSON"]
-
-        D --> E --> F --> G --> H --> I --> J
-    end
-
-    subgraph LLM_Call["<b>📡 4️⃣ Remote Call</b><br/><sub>LLM requests tools</sub>"]
-        
-        K["🤖 LLM Request"]
-        L["mcp.server_name.tool"]
-        M["mcp_tool_execute()"]
-        N["esp_mcp_mgr_post()"]
-        O["⏳ Wait Response"]
-        P["📦 JSON Result"]
-
-        K --> L --> M --> N --> O --> P
-    end
-
-    Config --> Init --> Connect --> LLM_Call
-
-    style Config fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
-    style Init fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,radius:15px
-    style Connect fill:#ffe0b2,stroke:#f57c00,stroke-width:4px,radius:15px
-    style LLM_Call fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,radius:15px
-    style A fill:#1565c0,stroke:#0d47a1,color:#fff
-    style B fill:#1976d2,stroke:#1565c0,color:#fff
-    style C fill:#388e3c,stroke:#1b5e20,color:#fff
-    style C1 fill:#43a047,stroke:#2e7d32,color:#fff
-    style C2 fill:#43a047,stroke:#2e7d32,color:#fff
-    style D fill:#f57c00,stroke:#e65100,color:#fff
-    style E fill:#fb8c00,stroke:#f57c00,color:#fff
-    style F fill:#ffa726,stroke:#fb8c00,color:#fff
-    style G fill:#ff9800,stroke:#f57c00,color:#fff
-    style H fill:#ffa726,stroke:#fb8c00,color:#fff
-    style I fill:#ffcc80,stroke:#f57c00,color:#fff
-    style J fill:#ffe0b2,stroke:#f57c00,color:#fff
-    style K fill:#7b1fa2,stroke:#4a148c,color:#fff
-    style L fill:#8e24aa,stroke:#6a1b9a,color:#fff
-    style M fill:#9c27b0,stroke:#7b1fa2,color:#fff
-    style N fill:#ab47bc,stroke:#8e24aa,color:#fff
-    style O fill:#ba68c8,stroke:#9c27b0,color:#fff
-    style P fill:#ce93d8,stroke:#ab47bc,color:#fff
-```
-
 **Configuration file:** `/spiffs/skills/mcp-servers.md`
+
 ```markdown
 # MCP Servers
 
 ## my_server
+
 - host: 192.168.1.100
 - port: 8000
 - endpoint: mcp
@@ -376,6 +311,7 @@ flowchart TB
 | `mcp_disconnect` | Disconnect from current server |
 
 **Python MCP Server Example:** `scripts/mcp_server.py`
+
 ```bash
 pip install "mcp[cli]"
 python scripts/mcp_server.py --port 8000
@@ -397,6 +333,7 @@ XiaoClaw supports Lua scripting for custom logic and HTTP requests. Scripts are 
 | `http_delete(url)` | HTTP DELETE request |
 
 **Example script:** `/spiffs/lua/hello.lua`
+
 ```lua
 local greeting = "Hello from Lua!"
 local timestamp = os.time()
@@ -404,6 +341,7 @@ return string.format("%s (timestamp: %d)", greeting, timestamp)
 ```
 
 **Example HTTP script:** `/spiffs/lua/http_example.lua`
+
 ```lua
 local response, status = http_get("https://example.com")
 print("Status:", status)
@@ -416,16 +354,16 @@ Scripts can return values which are serialized as JSON and returned to the agent
 
 XiaoClaw stores data in plain text files on SPIFFS with session consolidation support:
 
-| Path | Purpose |
-|------|---------|
-| `/spiffs/config/SOUL.md` | AI personality definition |
-| `/spiffs/config/USER.md` | User information and preferences |
-| `/spiffs/memory/MEMORY.md` | Long-term memory |
-| `/spiffs/HEARTBEAT.md` | Autonomous task list (runtime) |
-| `/spiffs/cron.json` | Scheduled jobs (runtime) |
-| `/spiffs/sessions/tg_*.jsonl` | Conversation history (JSONL format) |
-| `/spiffs/sessions/tg_*.meta` | Session metadata (cursor, consolidated count) |
-| `/spiffs/archive/tg_*.archive` | Archived old messages |
+| Path                           | Purpose                                       |
+| ------------------------------ | --------------------------------------------- |
+| `/spiffs/config/SOUL.md`       | AI personality definition                     |
+| `/spiffs/config/USER.md`       | User information and preferences              |
+| `/spiffs/memory/MEMORY.md`     | Long-term memory                              |
+| `/spiffs/HEARTBEAT.md`         | Autonomous task list (runtime)                |
+| `/spiffs/cron.json`            | Scheduled jobs (runtime)                      |
+| `/spiffs/sessions/tg_*.jsonl`  | Conversation history (JSONL format)           |
+| `/spiffs/sessions/tg_*.meta`   | Session metadata (cursor, consolidated count) |
+| `/spiffs/archive/tg_*.archive` | Archived old messages                         |
 
 ### Session Management
 
@@ -449,6 +387,7 @@ Skills are loaded from `/spiffs/skills/` directory with YAML frontmatter support
 ```
 
 **Frontmatter format:**
+
 ```yaml
 ---
 name: weather
@@ -466,6 +405,7 @@ always: false
 - **`requires.env`**: Environment variables needed (optional)
 
 **Skill file format:**
+
 - `SKILL.md` - Contains skill description, usage instructions, and examples
 - Tool definitions in the format: `Tool: tool_name\nInput: {json}`
 
