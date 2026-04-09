@@ -63,32 +63,40 @@ body {
     z-index: 1000;
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--bg-card);
-    padding: 8px 16px;
-    border-radius: 24px;
-    border: 1px solid var(--border-color);
-    backdrop-filter: blur(10px);
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .lang-btn {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: color 0.3s;
-    padding: 4px 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.lang-btn:hover,
+.lang-btn:hover:not(.active) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .lang-btn.active {
-    color: var(--accent-cyan);
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    box-shadow: 0 2px 10px rgba(0, 210, 255, 0.3);
 }
 
 .lang-divider {
-    color: var(--text-muted);
+    display: none;
 }
 
 /* ========================================
