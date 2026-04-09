@@ -21,9 +21,10 @@ jobs:
 
       - name: Deploy to gh-pages
         run: |
+          cp -r website /tmp/website-backup
           git checkout --orphan gh-pages
           git rm -rf .
-          cp -r website/* .
+          cp -r /tmp/website-backup/* .
           git add .
           git commit -m "Deploy to GitHub Pages"
           git push origin gh-pages --force
