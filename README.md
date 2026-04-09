@@ -27,30 +27,65 @@ All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
 ```mermaid
 graph TB
-    subgraph Firmware["XiaoClaw Firmware"]
-        subgraph VoiceIO["Voice I/O (xiaozhi)"]
-            A[("Wake Word")]
-            B[("ASR (Server)")]
-            C[("TTS Playback")]
-            D[("Display/LCD")]
-            E[("WiFi/Network")]
+    ranksep=50
+    nodesep=30
+
+    subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
+        rank=same
+        subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
+            direction TB
+            A["👂 Wake Word"]
+            B["📝 ASR Server"]
+            C["🔊 TTS Playback"]
+            D["📺 Display"]
+            E["📡 WiFi"]
+            A --> B --> C
+            B -.-> D
+            B -.-> E
         end
 
-        subgraph Agent["Agent Brain (mimiclaw)"]
-            F["LLM API (Claude/GPT)"]
-            G["Tool Calling (ReAct)"]
-            H["Long-term Memory"]
-            I["Session Management"]
-            J["Cron Scheduler"]
-            K["Web Search"]
+        subgraph Bridge["<b>🌉 Bridge Layer</b>"]
+            direction TB
+            BR["📥 Input"] --> BC["⚙️ Route"] --> BG["📤 Output"]
         end
 
-        VoiceIO <-->|"Bridge Layer"| Agent
+        subgraph Agent["<b>🧠 Agent Brain</b><br/><sub>mimiclaw</sub>"]
+            direction TB
+            F["🤖 LLM API"]
+            G["🔧 Tool Calling"]
+            H["💾 Memory"]
+            I["📋 Session"]
+            J["⏰ Cron"]
+            K["🌐 Search"]
+            F --> G
+            F --> H
+            F --> I
+            F --> J
+            F --> K
+        end
     end
 
-    style VoiceIO fill:#e1f5fe,stroke:#01579b
-    style Agent fill:#f3e5f5,stroke:#4a148c
-    style Firmware fill:#fafafa,stroke:#424242
+    VoiceIO -->|"Text"| Bridge -->|"Command"| Agent
+    Agent -.->|"Response"| Bridge
+
+    style Firmware fill:#f8f9fa,stroke:#495057,stroke-width:4px,radius:20px
+    style VoiceIO fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Bridge fill:#fff8e1,stroke:#f57c00,stroke-width:4px,radius:15px
+    style Agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style B fill:#1565c0,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style C fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style D fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style E fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style F fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style G fill:#9c27b0,stroke:#6a1b9a,stroke-width:2px,color:#fff
+    style H fill:#ab47bc,stroke:#7b1fa2,stroke-width:2px,color:#fff
+    style I fill:#ba68c8,stroke:#8e24aa,stroke-width:2px,color:#fff
+    style J fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style K fill:#9575cd,stroke:#7b1fa2,stroke-width:2px,color:#fff
+    style BR fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style BC fill:#ffa726,stroke:#fb8c00,stroke-width:2px,color:#fff
+    style BG fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
 ```
 
 ## Features
@@ -146,33 +181,75 @@ Create `main/mimi/mimi_secrets.h` from the example:
 The bridge layer connects the voice I/O layer with the agent brain:
 
 ```mermaid
-flowchart LR
-    A["User Voice"] --> B["Wake Word"]
-    B --> C["ASR (Server)"]
-    C --> D["Text"]
-    D --> E["Bridge Layer"]
-    E --> F["Agent Loop (LLM)"]
-    F --> G["Bridge Layer"]
-    G --> H["TTS Playback"]
-    H --> I["Speaker"]
+flowchart TB
+    ranksep=40
+    nodesep=25
 
-    style A fill:#e1f5fe
-    style B fill:#e1f5fe
-    style C fill:#e1f5fe
-    style D fill:#e1f5fe
-    style I fill:#e1f5fe
-    style E fill:#fff3e0
-    style G fill:#fff3e0
-    style F fill:#f3e5f5
+    subgraph Voice["<b>🔊 Voice Input Layer</b>"]
+        rank=same
+        A["🎤 User Voice"] --> B["👂 Wake Word"]
+        B --> C["📝 ASR Server"]
+        C --> D["📄 Text Output"]
+    end
+
+    subgraph Bridge["<b>🌉 Bridge Layer</b>"]
+        rank=same
+        E["📥 Receive"] --> F["⚙️ Route"] --> G["📤 Send"]
+    end
+
+    subgraph Agent["<b>🤖 Agent Brain</b>"]
+        rank=same
+        H["🧠 LLM Inference"]
+        I["🔧 Tool Calling"]
+        J["📋 Response"]
+        K["💾 Memory"]
+        H --> I
+        H --> K
+        I --> J
+    end
+
+    subgraph TTS["<b>🔊 Voice Output Layer</b>"]
+        rank=same
+        L["📝 TTS Synth"] --> M["🔊 Playback"] --> N["🎵 Speaker"]
+    end
+
+    D -->|"Text"| E
+    G -->|"Command"| H
+    J -->|"Text"| G
+    G -->|"Text"| L
+
+    style Voice fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Bridge fill:#fff8e1,stroke:#f57c00,stroke-width:4px,radius:15px
+    style Agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style TTS fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,color:#fff
+    style B fill:#1565c0,stroke:#0d47a1,color:#fff
+    style C fill:#1976d2,stroke:#0d47a1,color:#fff
+    style D fill:#42a5f5,stroke:#1565c0,color:#fff
+    style E fill:#f57c00,stroke:#e65100,color:#fff
+    style F fill:#ff9800,stroke:#f57c00,color:#fff
+    style G fill:#f57c00,stroke:#e65100,color:#fff
+    style H fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style I fill:#9c27b0,stroke:#6a1b9a,color:#fff
+    style J fill:#ab47bc,stroke:#7b1fa2,color:#fff
+    style K fill:#ba68c8,stroke:#8e24aa,color:#fff
+    style L fill:#388e3c,stroke:#1b5e20,color:#fff
+    style M fill:#43a047,stroke:#2e7d32,color:#fff
+    style N fill:#66bb6a,stroke:#388e3c,color:#fff
 ```
 
 ### Memory Layout
 
 | Partition | Size | Purpose |
 |-----------|------|---------|
-| ota_0 | 4MB | Main firmware |
-| ota_1 | 4MB | OTA backup |
-| spiffs | ~27MB | Memory, sessions, skills |
+| nvs | 32KB | Non-volatile storage |
+| otadata | 8KB | OTA data |
+| phy_init | 4KB | Physical init data |
+| ota_0 | 5MB | Main firmware |
+| ota_1 | 5MB | OTA backup |
+| assets | 7MB | Model assets (wake word, etc.) |
+| model | 1MB | AI model storage |
+| spiffs | ~14MB | Memory, sessions, skills |
 
 ### Task Layout
 
@@ -214,35 +291,72 @@ XiaoClaw supports connecting to remote MCP servers to dynamically discover and c
 
 ```mermaid
 flowchart TB
-    subgraph Config["Configuration"]
-        A["mcp-servers.md<br/>skill file"] --> B["List of available<br/>MCP servers"]
+    ranksep=50
+    nodesep=30
+
+    subgraph Config["<b>📋 1️⃣ Config Phase</b>"]
+        rank=same
+        A["📄 mcp-servers.md"] --> B["📜 Server List"]
     end
 
-    subgraph Init["tool_mcp_client_init()"]
-        C["Register mcp_connect<br/>and mcp_disconnect tools"]
+    subgraph Init["<b>🚀 2️⃣ Init Phase</b><br/><sub>tool_mcp_client_init()</sub>"]
+        rank=same
+        C["📝 Register Tools"]
+        C1["mcp_connect"]
+        C2["mcp_disconnect"]
+        C --> C1
+        C --> C2
     end
 
-    subgraph Connect["LLM calls mcp_connect"]
-        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
-        E --> F["esp_mcp_mgr_init()"]
-        F --> G["mcp_initialize()"]
-        G --> H["mcp_list_tools()"]
-        H --> I["tool_registry_add() × N"]
-        I --> J["tool_registry_rebuild_json()"]
+    subgraph Connect["<b>🔗 3️⃣ Establish Connection</b><br/><sub>LLM calls mcp_connect</sub>"]
+        rank=same
+        D["Get Config"]
+        E["esp_mcp_create()"]
+        F["esp_mcp_mgr_init()"]
+        G["mcp_initialize()"]
+        H["mcp_list_tools()"]
+        I["Register N Tools"]
+        J["Rebuild Tool JSON"]
+
+        D --> E --> F --> G --> H --> I --> J
     end
 
-    subgraph LLM_Call["Remote Tool Calling"]
-        K["LLM requests tools"] --> L["mcp.server_name.tool"]
-        L --> M["mcp_tool_execute()"]
-        M --> N["esp_mcp_mgr_post()"]
-        N --> O["Wait for response"]
-        O --> P["Return JSON result to LLM"]
+    subgraph LLM_Call["<b>📡 4️⃣ Remote Call</b><br/><sub>LLM requests tools</sub>"]
+        rank=same
+        K["🤖 LLM Request"]
+        L["mcp.server_name.tool"]
+        M["mcp_tool_execute()"]
+        N["esp_mcp_mgr_post()"]
+        O["⏳ Wait Response"]
+        P["📦 JSON Result"]
+
+        K --> L --> M --> N --> O --> P
     end
 
-    style Config fill:#e3f2fd,stroke:#1565c0
-    style Init fill:#e8f5e9,stroke:#2e7d32
-    style Connect fill:#fff3e0,stroke:#ef6c00
-    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
+    Config --> Init --> Connect --> LLM_Call
+
+    style Config fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Init fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style Connect fill:#ffe0b2,stroke:#f57c00,stroke-width:4px,radius:15px
+    style LLM_Call fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1565c0,stroke:#0d47a1,color:#fff
+    style B fill:#1976d2,stroke:#1565c0,color:#fff
+    style C fill:#388e3c,stroke:#1b5e20,color:#fff
+    style C1 fill:#43a047,stroke:#2e7d32,color:#fff
+    style C2 fill:#43a047,stroke:#2e7d32,color:#fff
+    style D fill:#f57c00,stroke:#e65100,color:#fff
+    style E fill:#fb8c00,stroke:#f57c00,color:#fff
+    style F fill:#ffa726,stroke:#fb8c00,color:#fff
+    style G fill:#ff9800,stroke:#f57c00,color:#fff
+    style H fill:#ffa726,stroke:#fb8c00,color:#fff
+    style I fill:#ffcc80,stroke:#f57c00,color:#fff
+    style J fill:#ffe0b2,stroke:#f57c00,color:#fff
+    style K fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style L fill:#8e24aa,stroke:#6a1b9a,color:#fff
+    style M fill:#9c27b0,stroke:#7b1fa2,color:#fff
+    style N fill:#ab47bc,stroke:#8e24aa,color:#fff
+    style O fill:#ba68c8,stroke:#9c27b0,color:#fff
+    style P fill:#ce93d8,stroke:#ab47bc,color:#fff
 ```
 
 **Configuration file:** `/spiffs/skills/mcp-servers.md`
@@ -269,45 +383,91 @@ python scripts/mcp_server.py --port 8000
 
 Remote tools are registered with the `{server_name}.` prefix (e.g., `my_server.get_device_status`), distinguishing them from local tools.
 
+### Lua Scripting
+
+XiaoClaw supports Lua scripting for custom logic and HTTP requests. Scripts are stored in `/spiffs/lua/` directory.
+
+**Built-in functions:**
+| Function | Description |
+|----------|-------------|
+| `print(...)` | Print output to log |
+| `http_get(url)` | HTTP GET request, returns `response, status` |
+| `http_post(url, body, content_type)` | HTTP POST request |
+| `http_put(url, body, content_type)` | HTTP PUT request |
+| `http_delete(url)` | HTTP DELETE request |
+
+**Example script:** `/spiffs/lua/hello.lua`
+```lua
+local greeting = "Hello from Lua!"
+local timestamp = os.time()
+return string.format("%s (timestamp: %d)", greeting, timestamp)
+```
+
+**Example HTTP script:** `/spiffs/lua/http_example.lua`
+```lua
+local response, status = http_get("https://example.com")
+print("Status:", status)
+print("Response:", response)
+```
+
+Scripts can return values which are serialized as JSON and returned to the agent.
+
 ## Memory System
 
 XiaoClaw stores data in plain text files on SPIFFS with session consolidation support:
 
 | Path | Purpose |
 |------|---------|
-| `/spiffs/SOUL.md` | AI personality definition |
-| `/spiffs/USER.md` | User information and preferences |
-| `/spiffs/MEMORY.md` | Long-term memory |
-| `/spiffs/HEARTBEAT.md` | Autonomous task list |
-| `/spiffs/cron.json` | Scheduled jobs |
+| `/spiffs/config/SOUL.md` | AI personality definition |
+| `/spiffs/config/USER.md` | User information and preferences |
+| `/spiffs/memory/MEMORY.md` | Long-term memory |
+| `/spiffs/HEARTBEAT.md` | Autonomous task list (runtime) |
+| `/spiffs/cron.json` | Scheduled jobs (runtime) |
 | `/spiffs/sessions/tg_*.jsonl` | Conversation history (JSONL format) |
 | `/spiffs/sessions/tg_*.meta` | Session metadata (cursor, consolidated count) |
 | `/spiffs/archive/tg_*.archive` | Archived old messages |
 
 ### Session Management
 
-- **Cursor-based tracking**: Each session tracks read position via cursor
-- **Consolidation**: When session exceeds `max_history` messages, oldest messages are archived
-- **LRU cache**: Active sessions cached in memory for fast access
+- **Cursor-based tracking**: Each session tracks read position via cursor for efficient history traversal
+- **Consolidation**: When session exceeds `max_history` (default: 50) messages, oldest `consolidate_batch` (default: 20) messages are archived to `/spiffs/archive/`
+- **LRU cache**: Active sessions cached in memory (max 8 sessions) for fast access
 - **Checkpoint recovery**: Agent can resume from last checkpoint on crash
 
 ### Skills System
 
-Skills are loaded from `/spiffs/skills/` directory with YAML frontmatter support:
+Skills are loaded from `/spiffs/skills/` directory with YAML frontmatter support. Each skill is a directory containing a `SKILL.md` file:
 
+```
+/spiffs/skills/
+├── weather/
+│   └── SKILL.md
+├── get-time/
+│   └── SKILL.md
+└── lua-scripts/
+    └── SKILL.md
+```
+
+**Frontmatter format:**
 ```yaml
 ---
 name: weather
-description: Get current weather information
+description: Get current weather and forecasts
 always: false
 ---
 # Weather Skill
-Use the `weather` tool to...
+...
 ```
 
+- **`name`**: Skill identifier used by the agent
+- **`description`**: Brief description of what the skill does
 - **`always: true`**: Skill content always injected into system prompt
-- **`requires.bins`**: CLI tools required by the skill
-- **`requires.env`**: Environment variables needed
+- **`requires.bins`**: CLI tools required by the skill (optional)
+- **`requires.env`**: Environment variables needed (optional)
+
+**Skill file format:**
+- `SKILL.md` - Contains skill description, usage instructions, and examples
+- Tool definitions in the format: `Tool: tool_name\nInput: {json}`
 
 ## Development
 
@@ -325,7 +485,6 @@ xiaoclaw/
 │   │   │   └── checkpoint.c   # Crash recovery checkpoint
 │   │   ├── bus/          # Message bus
 │   │   ├── channels/     # Telegram, Feishu bot integrations
-│   │   ├── cli/          # Serial CLI
 │   │   ├── cron/         # Cron scheduler service
 │   │   ├── gateway/      # WebSocket server
 │   │   ├── heartbeat/    # Autonomous task heartbeat
@@ -334,17 +493,19 @@ xiaoclaw/
 │   │   │   ├── memory_store.c    # Long-term memory
 │   │   │   ├── session_manager.c # Session with cursor/consolidation
 │   │   │   └── consolidator.c     # Automatic history compression
-│   │   ├── onboard/      # WiFi onboarding
 │   │   ├── ota/          # OTA updates
 │   │   ├── proxy/        # HTTP proxy
 │   │   ├── skills/       # Skill loader with frontmatter
 │   │   ├── tools/        # Tool registry with concurrency support
-│   │   └── wifi/         # WiFi manager
 │   ├── audio/            # Voice I/O (from xiaozhi)
 │   ├── bridge/           # Bridge layer
 │   ├── display/
 │   ├── protocols/
 │   ├── boards/
+│   ├── led/              # LED control
+│   ├── lua/              # Lua script support
+│   ├── memory/           # Memory management
+│   ├── skills/           # Skills system
 │   ├── assets.cc/h       # Assets management
 │   ├── application.cc/h  # Main application
 │   ├── device_state.h   # Device state
@@ -355,20 +516,13 @@ xiaoclaw/
 │   ├── ota.cc/h          # OTA updates
 │   ├── settings.cc/h     # Settings management
 │   └── system_info.cc/h  # System info
-├── spiffs_data/          # SPIFFS content
+├── spiffs_data/          # SPIFFS content (flashed to /spiffs partition)
+│   ├── config/           # SOUL.md, USER.md
+│   ├── lua/              # Lua scripts (hello.lua, http_example.lua)
+│   ├── memory/            # MEMORY.md
+│   └── skills/            # get-time/, lua-scripts/, mcp-servers/, skill-creator/, weather/
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3
-```
-
-### Debugging
-
-Use serial CLI commands (via UART port):
-
-```
-mimi> heap_info          # Memory status
-mimi> memory_read        # View long-term memory
-mimi> session_list       # List conversations
-mimi> config_show        # Show configuration
 ```
 
 ## Related Projects

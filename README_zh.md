@@ -27,30 +27,65 @@
 
 ```mermaid
 graph TB
-    subgraph Firmware["XiaoClaw Firmware"]
-        subgraph VoiceIO["Voice I/O (xiaozhi)"]
-            A[("Wake Word")]
-            B[("ASR (Server)")]
-            C[("TTS Playback")]
-            D[("Display/LCD")]
-            E[("WiFi/Network")]
+    ranksep=50
+    nodesep=30
+
+    subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
+        rank=same
+        subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
+            direction TB
+            A["👂 Wake Word"]
+            B["📝 ASR Server"]
+            C["🔊 TTS Playback"]
+            D["📺 Display"]
+            E["📡 WiFi"]
+            A --> B --> C
+            B -.-> D
+            B -.-> E
         end
 
-        subgraph Agent["Agent Brain (mimiclaw)"]
-            F["LLM API (Claude/GPT)"]
-            G["Tool Calling (ReAct)"]
-            H["Long-term Memory"]
-            I["Session Management"]
-            J["Cron Scheduler"]
-            K["Web Search"]
+        subgraph Bridge["<b>🌉 Bridge Layer</b>"]
+            direction TB
+            BR["📥 Input"] --> BC["⚙️ Route"] --> BG["📤 Output"]
         end
 
-        VoiceIO <-->|"Bridge Layer"| Agent
+        subgraph Agent["<b>🧠 Agent Brain</b><br/><sub>mimiclaw</sub>"]
+            direction TB
+            F["🤖 LLM API"]
+            G["🔧 Tool Calling"]
+            H["💾 Memory"]
+            I["📋 Session"]
+            J["⏰ Cron"]
+            K["🌐 Search"]
+            F --> G
+            F --> H
+            F --> I
+            F --> J
+            F --> K
+        end
     end
 
-    style VoiceIO fill:#e1f5fe,stroke:#01579b
-    style Agent fill:#f3e5f5,stroke:#4a148c
-    style Firmware fill:#fafafa,stroke:#424242
+    VoiceIO -->|"Text"| Bridge -->|"Command"| Agent
+    Agent -.->|"Response"| Bridge
+
+    style Firmware fill:#f8f9fa,stroke:#495057,stroke-width:4px,radius:20px
+    style VoiceIO fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Bridge fill:#fff8e1,stroke:#f57c00,stroke-width:4px,radius:15px
+    style Agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style B fill:#1565c0,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style C fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style D fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style E fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style F fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style G fill:#9c27b0,stroke:#6a1b9a,stroke-width:2px,color:#fff
+    style H fill:#ab47bc,stroke:#7b1fa2,stroke-width:2px,color:#fff
+    style I fill:#ba68c8,stroke:#8e24aa,stroke-width:2px,color:#fff
+    style J fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style K fill:#9575cd,stroke:#7b1fa2,stroke-width:2px,color:#fff
+    style BR fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style BC fill:#ffa726,stroke:#fb8c00,stroke-width:2px,color:#fff
+    style BG fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
 ```
 
 ## 功能特性
@@ -149,33 +184,75 @@ esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 Bridge 层连接语音 I/O 层与 Agent 大脑：
 
 ```mermaid
-flowchart LR
-    A["用户语音"] --> B["唤醒词"]
-    B --> C["ASR (服务器)"]
-    C --> D["文本"]
-    D --> E["Bridge 层"]
-    E --> F["Agent 循环 (LLM)"]
-    F --> G["Bridge 层"]
-    G --> H["TTS 播放"]
-    H --> I["扬声器"]
+flowchart TB
+    ranksep=40
+    nodesep=25
 
-    style A fill:#e1f5fe
-    style B fill:#e1f5fe
-    style C fill:#e1f5fe
-    style D fill:#e1f5fe
-    style I fill:#e1f5fe
-    style E fill:#fff3e0
-    style G fill:#fff3e0
-    style F fill:#f3e5f5
+    subgraph Voice["<b>🔊 语音输入层</b>"]
+        rank=same
+        A["🎤 用户语音"] --> B["👂 唤醒词检测"]
+        B --> C["📝 ASR 服务器"]
+        C --> D["📄 文本输出"]
+    end
+
+    subgraph Bridge["<b>🌉 Bridge 层</b>"]
+        rank=same
+        E["📥 接收"] --> F["⚙️ 路由分发"] --> G["📤 发送"]
+    end
+
+    subgraph Agent["<b>🤖 Agent 大脑</b>"]
+        rank=same
+        H["🧠 LLM 推理"]
+        I["🔧 工具调用"]
+        J["📋 响应生成"]
+        K["💾 记忆读取"]
+        H --> I
+        H --> K
+        I --> J
+    end
+
+    subgraph TTS["<b>🔊 语音输出层</b>"]
+        rank=same
+        L["📝 TTS 合成"] --> M["🔊 播放"] --> N["🎵 扬声器"]
+    end
+
+    D -->|文本| E
+    G -->|指令| H
+    J -->|文本| G
+    G -->|文本| L
+
+    style Voice fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Bridge fill:#fff8e1,stroke:#f57c00,stroke-width:4px,radius:15px
+    style Agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style TTS fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,color:#fff
+    style B fill:#1565c0,stroke:#0d47a1,color:#fff
+    style C fill:#1976d2,stroke:#0d47a1,color:#fff
+    style D fill:#42a5f5,stroke:#1565c0,color:#fff
+    style E fill:#f57c00,stroke:#e65100,color:#fff
+    style F fill:#ff9800,stroke:#f57c00,color:#fff
+    style G fill:#f57c00,stroke:#e65100,color:#fff
+    style H fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style I fill:#9c27b0,stroke:#6a1b9a,color:#fff
+    style J fill:#ab47bc,stroke:#7b1fa2,color:#fff
+    style K fill:#ba68c8,stroke:#8e24aa,color:#fff
+    style L fill:#388e3c,stroke:#1b5e20,color:#fff
+    style M fill:#43a047,stroke:#2e7d32,color:#fff
+    style N fill:#66bb6a,stroke:#388e3c,color:#fff
 ```
 
 ### 内存布局
 
-| 分区   | 大小  | 用途             |
-| ------ | ----- | ---------------- |
-| ota_0  | 4MB   | 主固件           |
-| ota_1  | 4MB   | OTA 备份         |
-| spiffs | ~27MB | 记忆、会话、技能 |
+| 分区    | 大小   | 用途              |
+| ------- | ------ | ---------------- |
+| nvs     | 32KB   | 非易失性存储      |
+| otadata | 8KB    | OTA 数据          |
+| phy_init | 4KB   | 物理初始化数据    |
+| ota_0   | 5MB    | 主固件            |
+| ota_1   | 5MB    | OTA 备份          |
+| assets  | 7MB    | 模型资源（唤醒词等）|
+| model   | 1MB    | AI 模型存储       |
+| spiffs  | ~14MB  | 记忆、会话、技能   |
 
 ### 任务布局
 
@@ -217,35 +294,72 @@ XiaoClaw 支持连接远程 MCP 服务器，动态发现并调用工具。服务
 
 ```mermaid
 flowchart TB
-    subgraph Config["配置"]
-        A["mcp-servers.md<br/>skill 文件"] --> B["可用 MCP 服务器列表"]
+    ranksep=50
+    nodesep=30
+
+    subgraph Config["<b>📋 1️⃣ 配置阶段</b>"]
+        rank=same
+        A["📄 mcp-servers.md"] --> B["📜 服务器列表"]
     end
 
-    subgraph Init["tool_mcp_client_init()"]
-        C["注册 mcp_connect<br/>和 mcp_disconnect 工具"]
+    subgraph Init["<b>🚀 2️⃣ 初始化阶段</b><br/><sub>tool_mcp_client_init()</sub>"]
+        rank=same
+        C["📝 注册工具"]
+        C1["mcp_connect"]
+        C2["mcp_disconnect"]
+        C --> C1
+        C --> C2
     end
 
-    subgraph Connect["LLM 调用 mcp_connect"]
-        D["skill_loader_get_mcp_server_config()"] --> E["esp_mcp_create()"]
-        E --> F["esp_mcp_mgr_init()"]
-        F --> G["mcp_initialize()"]
-        G --> H["mcp_list_tools()"]
-        H --> I["tool_registry_add() × N"]
-        I --> J["tool_registry_rebuild_json()"]
+    subgraph Connect["<b>🔗 3️⃣ 建立连接</b><br/><sub>LLM 调用 mcp_connect</sub>"]
+        rank=same
+        D["获取配置"]
+        E["esp_mcp_create()"]
+        F["esp_mcp_mgr_init()"]
+        G["mcp_initialize()"]
+        H["mcp_list_tools()"]
+        I["注册 N 个工具"]
+        J["重建工具 JSON"]
+
+        D --> E --> F --> G --> H --> I --> J
     end
 
-    subgraph LLM_Call["远程工具调用"]
-        K["LLM 请求工具"] --> L["mcp.server_name.tool"]
-        L --> M["mcp_tool_execute()"]
-        M --> N["esp_mcp_mgr_post()"]
-        N --> O["等待响应"]
-        O --> P["返回 JSON 结果给 LLM"]
+    subgraph LLM_Call["<b>📡 4️⃣ 远程调用</b><br/><sub>LLM 请求工具</sub>"]
+        rank=same
+        K["🤖 LLM 请求"]
+        L["mcp.server_name.tool"]
+        M["mcp_tool_execute()"]
+        N["esp_mcp_mgr_post()"]
+        O["⏳ 等待响应"]
+        P["📦 JSON 结果"]
+
+        K --> L --> M --> N --> O --> P
     end
 
-    style Config fill:#e3f2fd,stroke:#1565c0
-    style Init fill:#e8f5e9,stroke:#2e7d32
-    style Connect fill:#fff3e0,stroke:#ef6c00
-    style LLM_Call fill:#f3e5f5,stroke:#7b1fa2
+    Config --> Init --> Connect --> LLM_Call
+
+    style Config fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Init fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style Connect fill:#ffe0b2,stroke:#f57c00,stroke-width:4px,radius:15px
+    style LLM_Call fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1565c0,stroke:#0d47a1,color:#fff
+    style B fill:#1976d2,stroke:#1565c0,color:#fff
+    style C fill:#388e3c,stroke:#1b5e20,color:#fff
+    style C1 fill:#43a047,stroke:#2e7d32,color:#fff
+    style C2 fill:#43a047,stroke:#2e7d32,color:#fff
+    style D fill:#f57c00,stroke:#e65100,color:#fff
+    style E fill:#fb8c00,stroke:#f57c00,color:#fff
+    style F fill:#ffa726,stroke:#fb8c00,color:#fff
+    style G fill:#ff9800,stroke:#f57c00,color:#fff
+    style H fill:#ffa726,stroke:#fb8c00,color:#fff
+    style I fill:#ffcc80,stroke:#f57c00,color:#fff
+    style J fill:#ffe0b2,stroke:#f57c00,color:#fff
+    style K fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style L fill:#8e24aa,stroke:#6a1b9a,color:#fff
+    style M fill:#9c27b0,stroke:#7b1fa2,color:#fff
+    style N fill:#ab47bc,stroke:#8e24aa,color:#fff
+    style O fill:#ba68c8,stroke:#9c27b0,color:#fff
+    style P fill:#ce93d8,stroke:#ab47bc,color:#fff
 ```
 
 **配置文件：** `/spiffs/skills/mcp-servers.md`
@@ -272,45 +386,91 @@ python scripts/mcp_server.py --port 8000
 
 远程工具以 `{server_name}.` 前缀注册（如 `my_server.get_device_status`），与本地工具区分。
 
+### Lua 脚本
+
+XiaoClaw 支持 Lua 脚本，可用于自定义逻辑和 HTTP 请求。脚本存储在 `/spiffs/lua/` 目录。
+
+**内置函数：**
+| 函数 | 描述 |
+|------|------|
+| `print(...)` | 打印输出到日志 |
+| `http_get(url)` | HTTP GET 请求，返回 `response, status` |
+| `http_post(url, body, content_type)` | HTTP POST 请求 |
+| `http_put(url, body, content_type)` | HTTP PUT 请求 |
+| `http_delete(url)` | HTTP DELETE 请求 |
+
+**示例脚本：** `/spiffs/lua/hello.lua`
+```lua
+local greeting = "Hello from Lua!"
+local timestamp = os.time()
+return string.format("%s (timestamp: %d)", greeting, timestamp)
+```
+
+**HTTP 示例：** `/spiffs/lua/http_example.lua`
+```lua
+local response, status = http_get("https://example.com")
+print("Status:", status)
+print("Response:", response)
+```
+
+脚本可以返回值，会被序列化为 JSON 返回给 Agent。
+
 ## 记忆系统
 
 XiaoClaw 在 SPIFFS 上以纯文本文件存储数据，支持会话合并压缩：
 
-| 路径                     | 用途                   |
-| ------------------------ | ---------------------- |
-| `/spiffs/SOUL.md`        | AI 人格定义            |
-| `/spiffs/USER.md`        | 用户信息和偏好         |
-| `/spiffs/MEMORY.md`      | 长期记忆               |
-| `/spiffs/HEARTBEAT.md`   | 自主任务列表           |
-| `/spiffs/cron.json`      | 定时任务               |
+| 路径                        | 用途                    |
+| --------------------------- | ---------------------- |
+| `/spiffs/config/SOUL.md`   | AI 人格定义            |
+| `/spiffs/config/USER.md`   | 用户信息和偏好         |
+| `/spiffs/memory/MEMORY.md` | 长期记忆               |
+| `/spiffs/HEARTBEAT.md`     | 自主任务列表（运行时） |
+| `/spiffs/cron.json`        | 定时任务（运行时）      |
 | `/spiffs/sessions/tg_*.jsonl` | 对话历史 (JSONL 格式) |
-| `/spiffs/sessions/tg_*.meta`  | 会话元数据 (游标、已合并数) |
+| `/spiffs/sessions/tg_*.meta`  | 会话元数据（游标、已合并数） |
 | `/spiffs/archive/tg_*.archive` | 归档的旧消息      |
 
 ### 会话管理
 
-- **游标追踪**: 每个会话通过游标跟踪已读取位置
-- **合并压缩**: 当会话超过 `max_history` 消息时，最旧的消息会被归档
-- **LRU 缓存**: 活跃会话缓存在内存中快速访问
+- **游标追踪**: 每个会话通过游标跟踪已读取位置，高效遍历历史
+- **合并压缩**: 当会话超过 `max_history`（默认 50）条消息时，最旧 `consolidate_batch`（默认 20）条消息归档到 `/spiffs/archive/`
+- **LRU 缓存**: 活跃会话缓存在内存中（最多 8 个会话）快速访问
 - **检查点恢复**: Agent 崩溃后可从上一个检查点恢复
 
 ### Skills 系统
 
-Skills 从 `/spiffs/skills/` 目录加载，支持 YAML frontmatter：
+Skills 从 `/spiffs/skills/` 目录加载，每个技能是一个目录，包含 `SKILL.md` 文件：
 
+```
+/spiffs/skills/
+├── weather/
+│   └── SKILL.md
+├── get-time/
+│   └── SKILL.md
+└── lua-scripts/
+    └── SKILL.md
+```
+
+**Frontmatter 格式：**
 ```yaml
 ---
 name: weather
-description: 获取当前天气信息
+description: 获取天气信息和预报
 always: false
 ---
 # Weather Skill
-Use the `weather` tool to...
+...
 ```
 
-- **`always: true`**: Skill 内容始终注入 system prompt
-- **`requires.bins`**: Skill 所需的 CLI 工具
-- **`requires.env`**: 所需的环境变量
+- **`name`**: 技能标识符
+- **`description`**: 简短描述
+- **`always: true`**: 技能内容始终注入 system prompt
+- **`requires.bins`**: 技能所需的 CLI 工具（可选）
+- **`requires.env`**: 所需的环境变量（可选）
+
+**技能文件格式：**
+- `SKILL.md` - 包含技能描述、使用说明和示例
+- 工具定义格式：`Tool: tool_name\nInput: {json}`
 
 ## 开发
 
@@ -328,7 +488,6 @@ xiaoclaw/
 │   │   │   └── checkpoint.c   # 崩溃恢复检查点
 │   │   ├── bus/          # 消息总线
 │   │   ├── channels/     # Telegram、飞书机器人集成
-│   │   ├── cli/          # 串口 CLI
 │   │   ├── cron/         # Cron 调度器服务
 │   │   ├── gateway/      # WebSocket 服务器
 │   │   ├── heartbeat/    # 自主任务心跳
@@ -337,17 +496,19 @@ xiaoclaw/
 │   │   │   ├── memory_store.c    # 长期记忆
 │   │   │   ├── session_manager.c # 带游标/合并的会话
 │   │   │   └── consolidator.c     # 自动历史压缩
-│   │   ├── onboard/      # WiFi 入网配置
 │   │   ├── ota/          # OTA 更新
 │   │   ├── proxy/        # HTTP 代理
 │   │   ├── skills/       # 支持 frontmatter 的技能加载器
 │   │   ├── tools/        # 支持并发的工具注册表
-│   │   └── wifi/         # WiFi 管理器
 │   ├── audio/            # 语音 I/O（来自 xiaozhi）
 │   ├── bridge/           # Bridge 层
 │   ├── display/
 │   ├── protocols/
 │   ├── boards/
+│   ├── led/              # LED 控制
+│   ├── lua/              # Lua 脚本支持
+│   ├── memory/           # 内存管理
+│   ├── skills/           # 技能系统
 │   ├── assets.cc/h       # 资源管理
 │   ├── application.cc/h  # 主应用
 │   ├── device_state.h   # 设备状态
@@ -358,20 +519,13 @@ xiaoclaw/
 │   ├── ota.cc/h          # OTA 更新
 │   ├── settings.cc/h     # 设置管理
 │   └── system_info.cc/h  # 系统信息
-├── spiffs_data/          # SPIFFS 内容
+├── spiffs_data/          # SPIFFS 内容（烧录到 /spiffs 分区）
+│   ├── config/           # SOUL.md, USER.md
+│   ├── lua/              # Lua 脚本（hello.lua, http_example.lua）
+│   ├── memory/            # MEMORY.md
+│   └── skills/            # get-time/, lua-scripts/, mcp-servers/, skill-creator/, weather/
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3
-```
-
-### 调试
-
-使用串口 CLI 命令（通过 UART 端口）：
-
-```
-mimi> heap_info          # 内存状态
-mimi> memory_read        # 查看长期记忆
-mimi> session_list       # 列出对话
-mimi> config_show        # 显示配置
 ```
 
 ## 相关项目
