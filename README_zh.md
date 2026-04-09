@@ -27,36 +27,29 @@
 
 ```mermaid
 graph TB
-
-
-
-    subgraph Firmware["<b>🏗️ XiaoClaw Firmware</b>"]
-
-        subgraph VoiceIO["<b>🎤 Voice I/O Layer</b><br/><sub>xiaozhi</sub>"]
-            direction TB
-            A["👂 Wake Word"]
-            B["📝 ASR Server"]
-            C["🔊 TTS Playback"]
-            D["📺 Display"]
+    subgraph Firmware["<b>🏗️ XiaoClaw 固件</b>"]
+        subgraph VoiceIO["<b>🎤 语音 I/O 层</b><br/><sub>xiaozhi</sub>"]
+            A["👂 唤醒词"]
+            B["📝 ASR 服务器"]
+            C["🔊 TTS 播放"]
+            D["📺 显示屏"]
             E["📡 WiFi"]
             A --> B --> C
             B -.-> D
             B -.-> E
         end
 
-        subgraph Bridge["<b>🌉 Bridge Layer</b>"]
-            direction TB
-            BR["📥 Input"] --> BC["⚙️ Route"] --> BG["📤 Output"]
+        subgraph Bridge["<b>🌉 Bridge 层</b>"]
+            BR["📥 输入"] --> BC["⚙️ 路由"] --> BG["📤 输出"]
         end
 
-        subgraph Agent["<b>🧠 Agent Brain</b><br/><sub>mimiclaw</sub>"]
-            direction TB
+        subgraph Agent["<b>🧠 Agent 大脑</b><br/><sub>mimiclaw</sub>"]
             F["🤖 LLM API"]
-            G["🔧 Tool Calling"]
-            H["💾 Memory"]
-            I["📋 Session"]
-            J["⏰ Cron"]
-            K["🌐 Search"]
+            G["🔧 工具调用"]
+            H["💾 记忆"]
+            I["📋 会话"]
+            J["⏰ 定时"]
+            K["🌐 搜索"]
             F --> G
             F --> H
             F --> I
@@ -65,27 +58,27 @@ graph TB
         end
     end
 
-    VoiceIO -->|"Text"| Bridge -->|"Command"| Agent
-    Agent -.->|"Response"| Bridge
+    VoiceIO -->|"文本"| Bridge -->|"指令"| Agent
+    Agent -.->|"响应"| Bridge
 
     style Firmware fill:#f8f9fa,stroke:#495057,stroke-width:4px,radius:20px
     style VoiceIO fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
     style Bridge fill:#fff8e1,stroke:#f57c00,stroke-width:4px,radius:15px
     style Agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
-    style A fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
-    style B fill:#1565c0,stroke:#0d47a1,stroke-width:2px,color:#fff
-    style C fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
-    style D fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
-    style E fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
-    style F fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
-    style G fill:#9c27b0,stroke:#6a1b9a,stroke-width:2px,color:#fff
-    style H fill:#ab47bc,stroke:#7b1fa2,stroke-width:2px,color:#fff
-    style I fill:#ba68c8,stroke:#8e24aa,stroke-width:2px,color:#fff
-    style J fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
-    style K fill:#9575cd,stroke:#7b1fa2,stroke-width:2px,color:#fff
-    style BR fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
-    style BC fill:#ffa726,stroke:#fb8c00,stroke-width:2px,color:#fff
-    style BG fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style A fill:#1976d2,stroke:#0d47a1,color:#fff
+    style B fill:#1565c0,stroke:#0d47a1,color:#fff
+    style C fill:#1976d2,stroke:#0d47a1,color:#fff
+    style D fill:#42a5f5,stroke:#1565c0,color:#fff
+    style E fill:#42a5f5,stroke:#1565c0,color:#fff
+    style F fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style G fill:#9c27b0,stroke:#6a1b9a,color:#fff
+    style H fill:#ab47bc,stroke:#7b1fa2,color:#fff
+    style I fill:#ba68c8,stroke:#8e24aa,color:#fff
+    style J fill:#7b1fa2,stroke:#4a148c,color:#fff
+    style K fill:#9575cd,stroke:#7b1fa2,color:#fff
+    style BR fill:#ff9800,stroke:#f57c00,color:#fff
+    style BC fill:#ffa726,stroke:#fb8c00,color:#fff
+    style BG fill:#ff9800,stroke:#f57c00,color:#fff
 ```
 
 ## 功能特性
