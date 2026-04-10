@@ -985,6 +985,26 @@ menu "Secret Configuration"
         default "anthropic"
         help
             LLM model provider: "anthropic" or "openai"
+
+    config MIMI_SECRET_MODEL
+        string "Model Name"
+        default ""
+        help
+            LLM model name (e.g., MiniMax-M2.5, claude-3-5-sonnet)
+
+    config MIMI_SECRET_ANTHROPIC_API_URL
+        string "Anthropic API URL"
+        default ""
+        help
+            Anthropic API base URL (e.g., https://api.anthropic.com)
+
+    config MIMI_SECRET_OPENAI_API_URL
+        string "OpenAI Compatible API URL"
+        default ""
+        help
+            OpenAI compatible API base URL (e.g., https://api.openai.com/v1)
+endmenu
+
 endmenu
 
 endmenu

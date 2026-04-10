@@ -168,13 +168,25 @@ esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 
 ### Configuration
 
-Create `main/mimi/mimi_secrets.h` from the example:
+Configure via `idf.py menuconfig` under **Xiaozhi Assistant → Secret Configuration**:
 
-```c
-#define MIMI_SECRET_WIFI_SSID       "YourWiFiName"
-#define MIMI_SECRET_WIFI_PASS       "YourWiFiPassword"
-#define MIMI_SECRET_API_KEY         "sk-ant-api03-xxxxx"
-#define MIMI_SECRET_MODEL_PROVIDER  "anthropic"  // or "openai"
+| Option | Description |
+|--------|-------------|
+| `CONFIG_MIMI_SECRET_WIFI_SSID` | WiFi network name |
+| `CONFIG_MIMI_SECRET_WIFI_PASS` | WiFi password |
+| `CONFIG_MIMI_SECRET_API_KEY` | LLM API key |
+| `CONFIG_MIMI_SECRET_MODEL_PROVIDER` | Model provider: `anthropic` or `openai` |
+| `CONFIG_MIMI_SECRET_MODEL` | Model name (e.g., `MiniMax-M2.5`, `claude-opus-4-5`) |
+| `CONFIG_MIMI_SECRET_OPENAI_API_URL` | OpenAI compatible API URL |
+| `CONFIG_MIMI_SECRET_ANTHROPIC_API_URL` | Anthropic API URL (optional) |
+
+**Example: Alibaba Cloud Coding+ (通义灵码)**:
+
+```
+CONFIG_MIMI_SECRET_MODEL_PROVIDER="openai"
+CONFIG_MIMI_SECRET_MODEL="MiniMax-M2.5"
+CONFIG_MIMI_SECRET_OPENAI_API_URL="https://coding.dashscope.aliyuncs.com/v1/chat/completions"
+CONFIG_MIMI_SECRET_API_KEY="your-api-key"
 ```
 
 ## Architecture
