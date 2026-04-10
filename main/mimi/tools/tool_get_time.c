@@ -39,18 +39,20 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
         .tm_mday = day, .tm_mon = mon, .tm_year = year - 1900,
     };
 
+    /* mktime interprets tm as local time. Since date_str is UTC (GMT),
+       temporarily use UTC0 so mktime doesn't apply offset. */
+    setenv("TZ", "UTC0", 1);
+    tzset();
     time_t t = mktime(&tm);
 
-    /* Use timezone from MIMI_TIMEZONE (POSIX format, e.g. UTC-8 = UTC+8) */
-    setenv("TZ", MIMI_TIMEZONE, 1);
-    tzset();
-
+    /* Set system clock (UTC time) */
     if (t < 0) return false;
-
     struct timeval tv = { .tv_sec = t };
     settimeofday(&tv, NULL);
 
     /* Format in local time */
+    setenv("TZ", MIMI_TIMEZONE, 1);
+    tzset();
     struct tm local;
     localtime_r(&t, &local);
     strftime(out, out_size, "%Y-%m-%d %H:%M:%S %Z (%A)", &local);
