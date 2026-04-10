@@ -83,8 +83,8 @@
 #define MIMI_MAX_TOOL_CALLS          4
 #define MIMI_AGENT_SEND_WORKING_STATUS 1
 
-/* Timezone (POSIX TZ format) */
-#define MIMI_TIMEZONE                "UTC-8"
+/* Timezone (use Asia/Shanghai for China Standard Time) */
+#define MIMI_TIMEZONE                "Asia/Shanghai"
 
 /* LLM */
 #define MIMI_LLM_DEFAULT_MODEL       "claude-opus-4-5"
