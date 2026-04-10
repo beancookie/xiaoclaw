@@ -230,8 +230,16 @@ idf.py set-target esp32s3</code></pre>
                     <div class="step-number">2</div>
                     <div class="step-content">
                         <h3 class="step-title" data-i18n="quickstart.step2_title">Configure Secrets</h3>
-                        <p class="step-desc" data-i18n="quickstart.step2_desc">Set up your WiFi and API keys via menuconfig</p>
+                        <p class="step-desc" data-i18n="quickstart.step2_desc">Set up WiFi, API keys via menuconfig under Xiaozhi Assistant → Secret Configuration</p>
                         <pre class="step-code"><code>idf.py menuconfig</code></pre>
+                        <div class="config-table">
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_WIFI_SSID</code></div>
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_WIFI_PASS</code></div>
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_API_KEY</code></div>
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_MODEL_PROVIDER</code> ("anthropic" or "openai")</div>
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_MODEL</code></div>
+                            <div class="config-item"><code>CONFIG_MIMI_SECRET_OPENAI_API_URL</code></div>
+                        </div>
                     </div>
                 </div>
                 <div class="step">
