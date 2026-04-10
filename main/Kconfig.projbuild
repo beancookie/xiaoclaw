@@ -956,6 +956,35 @@ menu "MCP Client Configuration"
         depends on MIMI_MCP_CLIENT_ENABLE
         help
             Timeout for individual tool calls to the remote MCP server.
+
+menu "Secret Configuration"
+    help
+        Configure build-time secrets. These can also be set via environment
+        variables or in your build configuration.
+
+    config MIMI_SECRET_WIFI_SSID
+        string "WiFi SSID"
+        default ""
+        help
+            WiFi network name (SSID)
+
+    config MIMI_SECRET_WIFI_PASS
+        string "WiFi Password"
+        default ""
+        help
+            WiFi network password
+
+    config MIMI_SECRET_API_KEY
+        string "API Key"
+        default ""
+        help
+            API key for LLM service (e.g., sk-ant-api03-xxxxx)
+
+    config MIMI_SECRET_MODEL_PROVIDER
+        string "Model Provider"
+        default "anthropic"
+        help
+            LLM model provider: "anthropic" or "openai"
 endmenu
 
 endmenu
