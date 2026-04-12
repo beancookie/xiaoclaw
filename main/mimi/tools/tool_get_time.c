@@ -37,6 +37,7 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
     struct tm tm = {
         .tm_sec = sec, .tm_min = min, .tm_hour = hour,
         .tm_mday = day, .tm_mon = mon, .tm_year = year - 1900,
+        .tm_isdst = 0,  /* Explicitly set to 0 (no DST) to avoid mktime() auto-detect */
     };
 
     /* mktime interprets tm as local time. Since date_str is UTC (GMT),

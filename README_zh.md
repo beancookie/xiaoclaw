@@ -255,9 +255,9 @@ flowchart TB
 | phy_init | 4KB   | 物理初始化数据       |
 | ota_0    | 5MB   | 主固件               |
 | ota_1    | 5MB   | OTA 备份             |
-| assets   | 7MB   | 模型资源（唤醒词等） |
-| model    | 1MB   | AI 模型存储          |
-| spiffs   | ~14MB | 记忆、会话、技能     |
+| assets   | 5MB   | 模型资源（唤醒词等） |
+| model    | 5MB   | AI 模型存储          |
+| spiffs   | ~12MB | 记忆、会话、技能     |
 
 ### 任务布局
 
