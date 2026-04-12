@@ -50,12 +50,12 @@ static bool parse_and_set_time(const char *date_str, char *out, size_t out_size)
     struct timeval tv = { .tv_sec = t };
     settimeofday(&tv, NULL);
 
-    /* Format in local time */
+    /* Format in local time (CST/UTC+8) */
     setenv("TZ", MIMI_TIMEZONE, 1);
     tzset();
     struct tm local;
     localtime_r(&t, &local);
-    strftime(out, out_size, "%Y-%m-%d %H:%M:%S %Z (%A)", &local);
+    strftime(out, out_size, "%Y-%m-%d %H:%M:%S CST", &local);
 
     return true;
 }

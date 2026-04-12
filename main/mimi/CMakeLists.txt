@@ -23,6 +23,7 @@ idf_component_register(
         "tools/tool_cron.c"
         "tools/tool_web_search.c"
         "tools/tool_get_time.c"
+        "tools/tool_unix_now.c"
         "tools/tool_files.c"
         "tools/tool_gpio.c"
         "tools/gpio_policy.c"

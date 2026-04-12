@@ -66,19 +66,23 @@ esp_err_t tool_cron_add_execute(const char *input_json, char *output, size_t out
         job.delete_after_run = false;
     } else if (strcmp(schedule_type, "at") == 0) {
         job.kind = CRON_KIND_AT;
+        cJSON *remind_in = cJSON_GetObjectItem(root, "remind_in_seconds");
         cJSON *at_epoch = cJSON_GetObjectItem(root, "at_epoch");
-        if (!at_epoch || !cJSON_IsNumber(at_epoch)) {
-            snprintf(output, output_size, "Error: 'at' schedule requires 'at_epoch' (unix timestamp)");
-            cJSON_Delete(root);
-            return ESP_ERR_INVALID_ARG;
-        }
-        job.at_epoch = (int64_t)at_epoch->valuedouble;
-
-        /* Check if already in the past */
         time_t now = time(NULL);
-        if (job.at_epoch <= now) {
-            snprintf(output, output_size, "Error: at_epoch %lld is in the past (now=%lld)",
-                     (long long)job.at_epoch, (long long)now);
+
+        if (remind_in && cJSON_IsNumber(remind_in) && remind_in->valuedouble > 0) {
+            /* Relative time: seconds from now */
+            job.at_epoch = now + (int64_t)remind_in->valuedouble;
+        } else if (at_epoch && cJSON_IsNumber(at_epoch)) {
+            /* Absolute time: unix timestamp */
+            job.at_epoch = (int64_t)at_epoch->valuedouble;
+            if (job.at_epoch <= now) {
+                snprintf(output, output_size, "Error: at_epoch is in the past");
+                cJSON_Delete(root);
+                return ESP_ERR_INVALID_ARG;
+            }
+        } else {
+            snprintf(output, output_size, "Error: 'at' requires 'remind_in_seconds' or 'at_epoch'");
             cJSON_Delete(root);
             return ESP_ERR_INVALID_ARG;
         }
