@@ -839,7 +839,7 @@ void Application::HandleWakeWordDetectedEvent() {
             // Re-enable wake word detection as it was stopped by the detection itself
             audio_service_.EnableWakeWordDetection(true);
         } else {
-            // Play popup sound and start listening again
+            // Stop speaking and start listening again
             play_popup_on_listening_ = true;
             SetListeningMode(GetDefaultListeningMode());
         }
@@ -1072,13 +1072,21 @@ void Application::WakeWordInvoke(const std::string& wake_word) {
         ContinueWakeWordInvoke(wake_word);
     } else if (state == kDeviceStateSpeaking) {
         Schedule([this]() {
-            AbortSpeaking(kAbortReasonNone);
+            AbortSpeaking(kAbortReasonWakeWordDetected);
+            // Clear send queue to avoid sending residues to server
+            while (audio_service_.PopPacketFromSendQueue());
+            // Clear playback queues to stop TTS immediately
+            audio_service_.ClearPlaybackQueues();
+            // Stop speaking and start listening again
+            play_popup_on_listening_ = true;
+            SetListeningMode(GetDefaultListeningMode());
         });
-    } else if (state == kDeviceStateListening) {   
+    } else if (state == kDeviceStateListening) {
         Schedule([this]() {
             if (protocol_) {
                 protocol_->CloseAudioChannel();
             }
+            SetDeviceState(kDeviceStateIdle);
         });
     }
 }
