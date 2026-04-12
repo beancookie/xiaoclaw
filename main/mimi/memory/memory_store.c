@@ -12,8 +12,6 @@ static const char *TAG = "memory";
 
 static void get_date_str(char *buf, size_t size, int days_ago)
 {
-    setenv("TZ", MIMI_TIMEZONE, 1);
-    tzset();
     time_t now;
     time(&now);
     now -= days_ago * 86400;
@@ -24,6 +22,11 @@ static void get_date_str(char *buf, size_t size, int days_ago)
 
 esp_err_t memory_store_init(void)
 {
+    /* Initialize timezone once at startup - TZ environment variable
+       is process-wide and tzset() is expensive, so we only call it once */
+    setenv("TZ", MIMI_TIMEZONE, 1);
+    tzset();
+
     /* SPIFFS is flat — no real directory creation needed.
        Just verify we can open the base path. */
     ESP_LOGI(TAG, "Memory store initialized at %s", MIMI_SPIFFS_BASE);

@@ -242,7 +242,7 @@ static void cron_process_due_jobs(void)
 {
     time_t now = time(NULL);
 
-    bool changed = false;
+    bool deleted = false;
 
     for (int i = 0; i < s_job_count; i++) {
         cron_job_t *job = &s_jobs[i];
@@ -274,26 +274,26 @@ static void cron_process_due_jobs(void)
         if (job->kind == CRON_KIND_AT) {
             /* One-shot: disable or delete */
             if (job->delete_after_run) {
-                /* Remove by shifting array */
+                /* Remove by shifting array - this requires SPIFFS update */
                 ESP_LOGI(TAG, "Deleting one-shot job: %s", job->name);
                 for (int j = i; j < s_job_count - 1; j++) {
                     s_jobs[j] = s_jobs[j + 1];
                 }
                 s_job_count--;
                 i--; /* Re-check this index */
+                deleted = true;
             } else {
                 job->enabled = false;
                 job->next_run = 0;
             }
         } else {
-            /* Recurring: compute next run */
+            /* Recurring: compute next run - in-memory only, no SPIFFS write */
             job->next_run = now + job->interval_s;
         }
-
-        changed = true;
     }
 
-    if (changed) {
+    /* Only save to SPIFFS when a job was deleted (add/remove already save) */
+    if (deleted) {
         cron_save_jobs();
     }
 }
