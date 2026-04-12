@@ -36,8 +36,6 @@ static const char *TAG = "mcp_client";
 typedef struct {
     SemaphoreHandle_t resp_sem;
     atomic_int pending_responses;
-    int last_error_code;
-    char *resp_json;
 } resp_sync_ctx_t;
 
 /**
@@ -71,6 +69,9 @@ static char s_local_names[MAX_MCP_TOOLS][128];
 static char s_remote_names[MAX_MCP_TOOLS][64];
 static int s_mcp_tool_count = 0;
 
+/* Current tool index for dispatch */
+static int s_current_tool_index = 0;
+
 /**
  * @brief MCP response callback (called from MCP manager task)
  */
@@ -83,14 +84,35 @@ static esp_err_t mcp_resp_cb(int error_code, const char *ep_name,
         return ESP_ERR_INVALID_ARG;
     }
 
-    ctx->last_error_code = error_code;
-    if (resp_json) {
-        ctx->resp_json = strdup(resp_json);
-    }
-
     atomic_fetch_sub(&ctx->pending_responses, 1);
     if (ctx->resp_sem) {
         xSemaphoreGive(ctx->resp_sem);
+    }
+
+    // Parse failure: resp_json is NULL, error_code is esp_err_t
+    if (resp_json == NULL) {
+        ESP_LOGE(TAG, "[Parse Failure] Endpoint: %s, Error: %s",
+                 ep_name ? ep_name : "NULL", esp_err_to_name(error_code));
+        return ESP_OK;
+    }
+
+    // Protocol-level error: error_code is negative JSON-RPC error code
+    if (error_code < 0) {
+        ESP_LOGE(TAG, "[Protocol Error] Endpoint: %s, Code: %d, Message: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
+        return ESP_OK;
+    }
+
+    // Application-level response
+    if (error_code == 0) {
+        ESP_LOGI(TAG, "[Success] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else if (error_code == 1) {
+        ESP_LOGW(TAG, "[Application Error] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else {
+        ESP_LOGW(TAG, "[Unexpected] Endpoint: %s, Error code: %d, Response: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
     }
 
     return ESP_OK;
@@ -122,9 +144,6 @@ static void free_sync_ctx(resp_sync_ctx_t *ctx)
         if (ctx->resp_sem) {
             vSemaphoreDelete(ctx->resp_sem);
         }
-        if (ctx->resp_json) {
-            free(ctx->resp_json);
-        }
         free(ctx);
     }
 }
@@ -150,20 +169,135 @@ static esp_err_t wait_for_response(resp_sync_ctx_t *ctx, int timeout_ms)
     return ESP_OK;
 }
 
+
 /**
- * @brief Execute wrapper for MCP tools (generic, uses tool_index)
+ * @brief Static buffer for capturing tool call responses
+ * @note Used because the simplified callback doesn't store resp_json.
+ *       The semaphore pattern ensures only one request is in-flight at a time.
  */
-static esp_err_t mcp_tool_execute(const char *input_json, char *output,
-                                   size_t output_size, int tool_index)
+static char s_tool_resp_buf[2048];
+
+/**
+ * @brief Static buffer for capturing list_tools response
+ */
+static char s_list_resp_buf[4096];
+
+/**
+ * @brief Callback for tool calls that need response capture
+ */
+static esp_err_t mcp_tool_resp_cb(int error_code, const char *ep_name,
+                                   const char *resp_json, void *user_ctx)
+{
+    resp_sync_ctx_t *ctx = (resp_sync_ctx_t *)user_ctx;
+    if (!ctx) {
+        ESP_LOGW(TAG, "Tool response callback: user_ctx is NULL");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    atomic_fetch_sub(&ctx->pending_responses, 1);
+
+    /* Capture response for tool calls */
+    if (resp_json) {
+        strncpy(s_tool_resp_buf, resp_json, sizeof(s_tool_resp_buf) - 1);
+        s_tool_resp_buf[sizeof(s_tool_resp_buf) - 1] = '\0';
+    } else {
+        s_tool_resp_buf[0] = '\0';
+    }
+
+    /* Log based on error_code (same分级 as mcp_resp_cb) */
+    if (resp_json == NULL) {
+        ESP_LOGE(TAG, "[Parse Failure] Endpoint: %s, Error: %s",
+                 ep_name ? ep_name : "NULL", esp_err_to_name(error_code));
+    } else if (error_code < 0) {
+        ESP_LOGE(TAG, "[Protocol Error] Endpoint: %s, Code: %d, Message: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
+    } else if (error_code == 0) {
+        ESP_LOGI(TAG, "[Success] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else if (error_code == 1) {
+        ESP_LOGW(TAG, "[Application Error] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else {
+        ESP_LOGW(TAG, "[Unexpected] Endpoint: %s, Error code: %d, Response: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
+    }
+
+    if (ctx->resp_sem) {
+        xSemaphoreGive(ctx->resp_sem);
+    }
+
+    return ESP_OK;
+}
+
+/**
+ * @brief Callback for list_tools that captures response
+ */
+static esp_err_t mcp_list_resp_cb(int error_code, const char *ep_name,
+                                   const char *resp_json, void *user_ctx)
+{
+    resp_sync_ctx_t *ctx = (resp_sync_ctx_t *)user_ctx;
+    if (!ctx) {
+        ESP_LOGW(TAG, "List response callback: user_ctx is NULL");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    atomic_fetch_sub(&ctx->pending_responses, 1);
+
+    /* Capture response for list_tools */
+    if (resp_json) {
+        strncpy(s_list_resp_buf, resp_json, sizeof(s_list_resp_buf) - 1);
+        s_list_resp_buf[sizeof(s_list_resp_buf) - 1] = '\0';
+    } else {
+        s_list_resp_buf[0] = '\0';
+    }
+
+    /* Log based on error_code */
+    if (resp_json == NULL) {
+        ESP_LOGE(TAG, "[Parse Failure] Endpoint: %s, Error: %s",
+                 ep_name ? ep_name : "NULL", esp_err_to_name(error_code));
+    } else if (error_code < 0) {
+        ESP_LOGE(TAG, "[Protocol Error] Endpoint: %s, Code: %d, Message: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
+    } else if (error_code == 0) {
+        ESP_LOGI(TAG, "[Success] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else if (error_code == 1) {
+        ESP_LOGW(TAG, "[Application Error] Endpoint: %s, Response: %s",
+                 ep_name ? ep_name : "NULL", resp_json);
+    } else {
+        ESP_LOGW(TAG, "[Unexpected] Endpoint: %s, Error code: %d, Response: %s",
+                 ep_name ? ep_name : "NULL", error_code, resp_json);
+    }
+
+    if (ctx->resp_sem) {
+        xSemaphoreGive(ctx->resp_sem);
+    }
+
+    return ESP_OK;
+}
+
+/**
+ * @brief Execute MCP tool by name
+ */
+static esp_err_t mcp_tool_execute(const char *tool_name, const char *input_json,
+                                   char *output, size_t output_size)
 {
     if (!s_connected || !s_mgr) {
         snprintf(output, output_size, "{\"error\": \"MCP client not initialized\"}");
         return ESP_ERR_INVALID_STATE;
     }
 
-    if (tool_index < 0 || tool_index >= s_mcp_tool_count) {
-        snprintf(output, output_size, "{\"error\": \"invalid tool index\"}");
-        return ESP_ERR_INVALID_ARG;
+    int tool_index = -1;
+    for (int i = 0; i < s_mcp_tool_count; i++) {
+        if (strcmp(s_remote_names[i], tool_name) == 0) {
+            tool_index = i;
+            break;
+        }
+    }
+
+    if (tool_index < 0) {
+        snprintf(output, output_size, "{\"error\": \"unknown tool: %s\"}", tool_name);
+        return ESP_ERR_NOT_FOUND;
     }
 
     resp_sync_ctx_t *ctx = create_sync_ctx();
@@ -174,9 +308,9 @@ static esp_err_t mcp_tool_execute(const char *input_json, char *output,
 
     esp_mcp_mgr_req_t req = {
         .ep_name = s_server_config.endpoint,
-        .cb = mcp_resp_cb,
+        .cb = mcp_tool_resp_cb,
         .user_ctx = ctx,
-        .u.call.tool_name = s_remote_names[tool_index],
+        .u.call.tool_name = tool_name,
         .u.call.args_json = input_json ? input_json : "{}",
     };
 
@@ -187,11 +321,8 @@ static esp_err_t mcp_tool_execute(const char *input_json, char *output,
 
     if (ret == ESP_ERR_TIMEOUT) {
         snprintf(output, output_size, "{\"error\": \"timeout\"}");
-    } else if (ctx->last_error_code < 0) {
-        snprintf(output, output_size, "{\"error\": \"protocol error: %d\", \"message\": \"%s\"}",
-                 ctx->last_error_code, ctx->resp_json ? ctx->resp_json : "");
-    } else if (ctx->resp_json) {
-        strncpy(output, ctx->resp_json, output_size - 1);
+    } else if (s_tool_resp_buf[0] != '\0') {
+        strncpy(output, s_tool_resp_buf, output_size - 1);
         output[output_size - 1] = '\0';
     }
 
@@ -199,11 +330,31 @@ static esp_err_t mcp_tool_execute(const char *input_json, char *output,
     return ret;
 }
 
-/* Generate execute functions for each slot (max 16) */
+/**
+ * @brief Unified execute function for all MCP tools
+ */
+static esp_err_t mcp_tool_exec(const char *input, char *output, size_t size)
+{
+    if (!s_connected || !s_mgr) {
+        snprintf(output, size, "{\"error\": \"MCP client not initialized\"}");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (s_current_tool_index < 0 || s_current_tool_index >= s_mcp_tool_count) {
+        snprintf(output, size, "{\"error\": \"invalid tool index\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const char *tool_name = s_remote_names[s_current_tool_index];
+    return mcp_tool_execute(tool_name, input, output, size);
+}
+
+/* Generate execute function for each slot, each captures its index */
 #define DEFINE_MCP_EXEC(N) \
     static esp_err_t mcp_tool_exec_##N(const char *input, char *output, size_t size) \
     { \
-        return mcp_tool_execute(input, output, size, N); \
+        s_current_tool_index = N; \
+        return mcp_tool_exec(input, output, size); \
     }
 
 DEFINE_MCP_EXEC(0)
@@ -343,8 +494,6 @@ static esp_err_t mcp_initialize(void)
     esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "MCP initialize failed: %d", ret);
-    } else if (ctx->resp_json) {
-        ESP_LOGI(TAG, "MCP initialize response: %s", ctx->resp_json);
     }
 
     free_sync_ctx(ctx);
@@ -363,7 +512,7 @@ static esp_err_t mcp_list_tools(void)
 
     esp_mcp_mgr_req_t req = {
         .ep_name = s_server_config.endpoint,
-        .cb = mcp_resp_cb,
+        .cb = mcp_list_resp_cb,
         .user_ctx = ctx,
         .u.list.cursor = NULL,
     };
@@ -379,8 +528,8 @@ static esp_err_t mcp_list_tools(void)
     esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "MCP tools/list failed: %d", ret);
-    } else if (ctx->resp_json) {
-        ret = handle_tools_list(ctx->resp_json);
+    } else if (s_list_resp_buf[0] != '\0') {
+        ret = handle_tools_list(s_list_resp_buf);
     }
 
     free_sync_ctx(ctx);
@@ -490,8 +639,6 @@ static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t o
     esp_err_t err = skill_loader_get_mcp_server_config(server_name,
                                                          host, sizeof(host),
                                                          &port, endpoint, sizeof(endpoint));
-    cJSON_Delete(root);
-
     if (err != ESP_OK) {
         snprintf(output, output_size, "{\"error\": \"server '%s' not found in mcp-servers.md\"}", server_name);
         return err;
@@ -547,6 +694,8 @@ esp_err_t tool_mcp_client_init(void)
         .description = "Connect to an MCP server. Input: {\"server_name\": \"xxx\"}. Server must be defined in mcp-servers.md skill file.",
         .input_schema_json = "{\"type\":\"object\",\"properties\":{\"server_name\":{\"type\":\"string\"}},\"required\":[\"server_name\"]}",
         .execute = mcp_tool_connect,
+        .concurrency_safe = false,  /* modifies network state */
+        .prepare = NULL,
     };
     ESP_ERROR_CHECK(tool_registry_add(&connect_tool));
 
@@ -556,6 +705,8 @@ esp_err_t tool_mcp_client_init(void)
         .description = "Disconnect from the currently connected MCP server.",
         .input_schema_json = "{\"type\":\"object\",\"properties\":{}}",
         .execute = mcp_tool_disconnect,
+        .concurrency_safe = false,  /* modifies network state */
+        .prepare = NULL,
     };
     ESP_ERROR_CHECK(tool_registry_add(&disconnect_tool));
 
