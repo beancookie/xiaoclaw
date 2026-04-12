@@ -348,8 +348,14 @@ esp_err_t cron_service_start(void)
         if (job->enabled && job->next_run <= 0) {
             if (job->kind == CRON_KIND_EVERY) {
                 job->next_run = now + job->interval_s;
-            } else if (job->kind == CRON_KIND_AT && job->at_epoch > now) {
-                job->next_run = job->at_epoch;
+            } else if (job->kind == CRON_KIND_AT) {
+                if (job->at_epoch > now) {
+                    job->next_run = job->at_epoch;
+                } else {
+                    /* at_epoch already passed — fire immediately once */
+                    job->next_run = now;
+                    job->enabled = false;
+                }
             }
         }
     }

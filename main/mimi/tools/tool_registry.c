@@ -2,6 +2,7 @@
 #include "mimi_config.h"
 #include "tools/tool_web_search.h"
 #include "tools/tool_get_time.h"
+#include "tools/tool_unix_now.h"
 #include "tools/tool_files.h"
 #include "tools/tool_cron.h"
 #include "tools/tool_gpio.h"
@@ -110,6 +111,22 @@ esp_err_t tool_registry_init(void)
         register_tool(&gt);
     }
 
+    /* Register unix_now - returns unix timestamp for cron calculations */
+    {
+        static mimi_tool_t un = {
+            .name = "unix_now",
+            .description = "Get the current unix timestamp in seconds. Use this when you need to calculate absolute times for cron_add with at_epoch.",
+            .input_schema_json =
+                "{\"type\":\"object\","
+                "\"properties\":{},"
+                "\"required\":[]}",
+            .execute = tool_unix_now_execute,
+            .concurrency_safe = true,
+            .prepare = NULL,
+        };
+        register_tool(&un);
+    }
+
     /* Register read_file - safe read, can batch */
     {
         static mimi_tool_t rf = {
@@ -181,17 +198,18 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t ca = {
             .name = "cron_add",
-            .description = "Schedule a recurring or one-shot task. The message will trigger an agent turn when the job fires.",
+            .description = "Schedule a timed reminder or recurring task. For one-shot: use 'remind_in_seconds' (e.g. 180 for 3 minutes). For recurring: use 'every' with 'interval_s' (e.g. 3600 for hourly). The message will trigger an agent turn when the job fires.",
             .input_schema_json =
                 "{\"type\":\"object\","
                 "\"properties\":{"
                 "\"name\":{\"type\":\"string\",\"description\":\"Short name for the job\"},"
-                "\"schedule_type\":{\"type\":\"string\",\"description\":\"'every' for recurring interval or 'at' for one-shot at a unix timestamp\"},"
-                "\"interval_s\":{\"type\":\"integer\",\"description\":\"Interval in seconds (required for 'every')\"},"
-                "\"at_epoch\":{\"type\":\"integer\",\"description\":\"Unix timestamp to fire at (required for 'at')\"},"
+                "\"schedule_type\":{\"type\":\"string\",\"description\":\"'every' for recurring interval or 'at' for one-shot\"},"
+                "\"interval_s\":{\"type\":\"integer\",\"description\":\"Interval in seconds for 'every' (e.g. 3600 for hourly)\"},"
+                "\"remind_in_seconds\":{\"type\":\"integer\",\"description\":\"Seconds from now to fire for 'at' (e.g. 180 for 3 minutes)\"},"
+                "\"at_epoch\":{\"type\":\"integer\",\"description\":\"Unix timestamp to fire at for 'at' (optional, use remind_in_seconds instead)\"},"
                 "\"message\":{\"type\":\"string\",\"description\":\"Message to inject when the job fires, triggering an agent turn\"},"
-                "\"channel\":{\"type\":\"string\",\"description\":\"Optional reply channel (e.g. 'telegram'). If omitted, current turn channel is used when available\"},"
-                "\"chat_id\":{\"type\":\"string\",\"description\":\"Optional reply chat_id. Required when channel='telegram'. If omitted during a Telegram turn, current chat_id is used\"}"
+                "\"channel\":{\"type\":\"string\",\"description\":\"Optional reply channel (e.g. 'telegram'). If omitted, current turn channel is used\"},"
+                "\"chat_id\":{\"type\":\"string\",\"description\":\"Optional reply chat_id. Required when channel='telegram'\"}"
                 "},"
                 "\"required\":[\"name\",\"schedule_type\",\"message\"]}",
             .execute = tool_cron_add_execute,

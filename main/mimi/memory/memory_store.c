@@ -2,6 +2,7 @@
 #include "mimi_config.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -11,6 +12,8 @@ static const char *TAG = "memory";
 
 static void get_date_str(char *buf, size_t size, int days_ago)
 {
+    setenv("TZ", MIMI_TIMEZONE, 1);
+    tzset();
     time_t now;
     time(&now);
     now -= days_ago * 86400;

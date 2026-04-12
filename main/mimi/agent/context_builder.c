@@ -4,6 +4,7 @@
 #include "skills/skill_loader.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "esp_log.h"
@@ -35,10 +36,12 @@ static size_t append_file(char *buf, size_t size, size_t offset, const char *pat
 
 static void get_current_time_str(char *buf, size_t size)
 {
+    setenv("TZ", MIMI_TIMEZONE, 1);
+    tzset();
     time_t now = time(NULL);
     struct tm timeinfo;
     localtime_r(&now, &timeinfo);
-    strftime(buf, size, "%Y-%m-%d %H:%M:%S %Z", &timeinfo);
+    strftime(buf, size, "%Y-%m-%d %H:%M:%S CST", &timeinfo);
 }
 
 /* ─── Identity Section ───────────────────────────────────────────────────── */
