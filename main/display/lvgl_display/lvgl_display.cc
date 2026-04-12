@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <font_awesome.h>
 
 #include "lvgl_display.h"
@@ -136,6 +137,7 @@ void LvglDisplay::UpdateStatusBar(bool update_all) {
     if (app.GetDeviceState() == kDeviceStateIdle) {
         if (last_status_update_time_ + std::chrono::seconds(10) < std::chrono::system_clock::now()) {
             // Set status to clock "HH:MM"
+            tzset();  // Ensure timezone is set before calling localtime
             time_t now = time(NULL);
             struct tm* tm = localtime(&now);
             // Check if the we have already set the time

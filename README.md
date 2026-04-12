@@ -262,9 +262,9 @@ flowchart TB
 | phy_init  | 4KB   | Physical init data             |
 | ota_0     | 5MB   | Main firmware                  |
 | ota_1     | 5MB   | OTA backup                     |
-| assets    | 7MB   | Model assets (wake word, etc.) |
-| model     | 1MB   | AI model storage               |
-| spiffs    | ~14MB | Memory, sessions, skills       |
+| assets    | 5MB   | Model assets (wake word, etc.) |
+| model     | 5MB   | AI model storage               |
+| spiffs    | ~12MB | Memory, sessions, skills       |
 
 ### Task Layout
 

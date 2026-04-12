@@ -731,6 +731,8 @@ void Application::HandleToggleChatEvent() {
         SetListeningMode(mode);
     } else if (state == kDeviceStateSpeaking) {
         AbortSpeaking(kAbortReasonNone);
+        // Clear playback queues to stop TTS immediately
+        audio_service_.ClearPlaybackQueues();
     } else if (state == kDeviceStateListening) {
         protocol_->CloseAudioChannel();
     }
@@ -827,6 +829,8 @@ void Application::HandleWakeWordDetectedEvent() {
         AbortSpeaking(kAbortReasonWakeWordDetected);
         // Clear send queue to avoid sending residues to server
         while (audio_service_.PopPacketFromSendQueue());
+        // Clear playback queues to stop TTS immediately
+        audio_service_.ClearPlaybackQueues();
 
         if (state == kDeviceStateListening) {
             protocol_->SendStartListening(GetDefaultListeningMode());
@@ -907,12 +911,10 @@ void Application::HandleStateChangedEvent() {
 
             // Make sure the audio processor is running
             if (play_popup_on_listening_ || !audio_service_.IsAudioProcessorRunning()) {
-                // For auto mode, wait for playback queue to be empty before enabling voice processing
+                // Wait for playback queue to be empty before enabling voice processing
                 // This prevents audio truncation when STOP arrives late due to network jitter
-                if (listening_mode_ == kListeningModeAutoStop) {
-                    audio_service_.WaitForPlaybackQueueEmpty();
-                }
-                
+                audio_service_.WaitForPlaybackQueueEmpty();
+
                 // Send the start listening command
                 protocol_->SendStartListening(listening_mode_);
                 audio_service_.EnableVoiceProcessing(true);

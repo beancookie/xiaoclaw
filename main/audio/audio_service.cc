@@ -689,9 +689,16 @@ bool AudioService::IsIdle() {
 
 void AudioService::WaitForPlaybackQueueEmpty() {
     std::unique_lock<std::mutex> lock(audio_queue_mutex_);
-    audio_queue_cv_.wait(lock, [this]() { 
-        return service_stopped_ || (audio_decode_queue_.empty() && audio_playback_queue_.empty()); 
+    audio_queue_cv_.wait(lock, [this]() {
+        return service_stopped_ || (audio_decode_queue_.empty() && audio_playback_queue_.empty());
     });
+}
+
+void AudioService::ClearPlaybackQueues() {
+    std::lock_guard<std::mutex> lock(audio_queue_mutex_);
+    audio_decode_queue_.clear();
+    audio_playback_queue_.clear();
+    audio_queue_cv_.notify_all();
 }
 
 void AudioService::ResetDecoder() {
