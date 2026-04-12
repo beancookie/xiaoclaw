@@ -50,8 +50,6 @@ list(APPEND SOURCES
     "mimi/agent/checkpoint.c"
     "mimi/llm/llm_proxy.c"
     "mimi/tools/tool_registry.c"
-    "mimi/tools/tool_gpio.c"
-    "mimi/tools/gpio_policy.c"
     "mimi/tools/tool_web_search.c"
     "mimi/tools/tool_files.c"
     "mimi/tools/tool_get_time.c"

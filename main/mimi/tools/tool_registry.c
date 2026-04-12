@@ -5,7 +5,6 @@
 #include "tools/tool_unix_now.h"
 #include "tools/tool_files.h"
 #include "tools/tool_cron.h"
-#include "tools/tool_gpio.h"
 #include "tools/tool_lua.h"
 
 #include <string.h>
@@ -249,58 +248,6 @@ esp_err_t tool_registry_init(void)
             .prepare = NULL,
         };
         register_tool(&cr);
-    }
-
-    /* Register GPIO tools */
-    tool_gpio_init();
-
-    /* gpio_write - NOT safe, hardware access */
-    {
-        static mimi_tool_t gw = {
-            .name = "gpio_write",
-            .description = "Set a GPIO pin HIGH or LOW. Controls LEDs, relays, and other digital outputs.",
-            .input_schema_json =
-                "{\"type\":\"object\","
-                "\"properties\":{\"pin\":{\"type\":\"integer\",\"description\":\"GPIO pin number\"},"
-                "\"state\":{\"type\":\"integer\",\"description\":\"1 for HIGH, 0 for LOW\"}},"
-                "\"required\":[\"pin\",\"state\"]}",
-            .execute = tool_gpio_write_execute,
-            .concurrency_safe = false,  /* hardware access */
-            .prepare = NULL,
-        };
-        register_tool(&gw);
-    }
-
-    /* gpio_read - safe read */
-    {
-        static mimi_tool_t gr = {
-            .name = "gpio_read",
-            .description = "Read a GPIO pin state. Returns HIGH or LOW. Use for checking switches, sensors, and digital inputs.",
-            .input_schema_json =
-                "{\"type\":\"object\","
-                "\"properties\":{\"pin\":{\"type\":\"integer\",\"description\":\"GPIO pin number\"}},"
-                "\"required\":[\"pin\"]}",
-            .execute = tool_gpio_read_execute,
-            .concurrency_safe = true,
-            .prepare = NULL,
-        };
-        register_tool(&gr);
-    }
-
-    /* gpio_read_all - safe read */
-    {
-        static mimi_tool_t ga = {
-            .name = "gpio_read_all",
-            .description = "Read all allowed GPIO pin states in a single call. Returns each pin's HIGH/LOW state.",
-            .input_schema_json =
-                "{\"type\":\"object\","
-                "\"properties\":{},"
-                "\"required\":[]}",
-            .execute = tool_gpio_read_all_execute,
-            .concurrency_safe = true,
-            .prepare = NULL,
-        };
-        register_tool(&ga);
     }
 
     /* Register Lua tools */
