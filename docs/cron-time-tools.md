@@ -60,25 +60,15 @@ sequenceDiagram
 
 static void get_current_time_str(char *buf, size_t size)
 {
-    setenv("TZ", MIMI_TIMEZONE, 1);  // 设置时区为 UTC-8
-    tzset();
-    time_t now = time(NULL);         // 获取 Unix 时间戳
+    tzset();  // 确保时区已设置（防御性调用）
+    time_t now = time(NULL);
     struct tm timeinfo;
-    localtime_r(&now, &timeinfo);    // 转换为本地时间
+    localtime_r(&now, &timeinfo);
     strftime(buf, size, "%Y-%m-%d %H:%M:%S CST", &timeinfo);
 }
-
-// 每次 Agent turn 前调用，注入到上下文中
-size_t context_build_runtime_context(char *buf, size_t size, const char *channel, const char *chat_id)
-{
-    char time_str[64];
-    get_current_time_str(time_str, sizeof(time_str));
-
-    size_t off = snprintf(buf, size, "%s\n", RUNTIME_CONTEXT_TAG);
-    off += snprintf(buf + off, size - off, "Current Time: %s\n", time_str);
-    // ...
-}
 ```
+
+时区在系统启动时通过 `memory_store_init()` 一次性设置（`setenv("TZ", "Asia/Shanghai", 1)` + `tzset()`）。
 
 ### Agent 上下文中的时间
 
