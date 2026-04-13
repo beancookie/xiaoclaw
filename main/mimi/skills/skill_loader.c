@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <dirent.h>
 #include <ctype.h>
 #include "esp_log.h"
@@ -199,28 +200,43 @@ static void extract_description(const char *content, char *out, size_t out_size)
 
 static void scan_skills_dir(const char *base_path, char source)
 {
+    ESP_LOGI(TAG, "scan_skills_dir: scanning '%s'", base_path);
     DIR *dir = opendir(base_path);
-    if (!dir) return;
+    if (!dir) {
+        ESP_LOGE(TAG, "scan_skills_dir: failed to open '%s'", base_path);
+        return;
+    }
 
     struct dirent *ent;
     while ((ent = readdir(dir)) != NULL && s_skill_count < MAX_SKILLS) {
         /* Skip . and .. */
         if (ent->d_name[0] == '.') continue;
 
-        /* Check if it's a directory */
-        char skill_path[296];
-        snprintf(skill_path, sizeof(skill_path), "%s/%s", base_path, ent->d_name);
+        char dir_name[64] = {0};
+        char skill_path[128] = {0};
+        char skill_file[160] = {0};
 
-        DIR *skill_dir = opendir(skill_path);
-        if (!skill_dir) continue;
+        /* SPIFFS quirk: readdir may return "skill_name/SKILL.md" instead of "skill_name" */
+        /* Check if d_name contains '/' (indicating the quirk) */
+        const char *slash = strchr(ent->d_name, '/');
+        if (slash != NULL) {
+            /* Extract directory name before the '/' */
+            size_t copy_len = slash - ent->d_name;
+            if (copy_len >= sizeof(dir_name)) copy_len = sizeof(dir_name) - 1;
+            memcpy(dir_name, ent->d_name, copy_len);
+            dir_name[copy_len] = '\0';
+        } else {
+            /* Normal case: d_name is the directory name */
+            strncpy(dir_name, ent->d_name, sizeof(dir_name) - 1);
+        }
 
-        /* Look for SKILL.md */
-        char skill_file[320];
+        snprintf(skill_path, sizeof(skill_path), "%s/%s", base_path, dir_name);
         snprintf(skill_file, sizeof(skill_file), "%s/SKILL.md", skill_path);
 
+        /* Try to open SKILL.md directly */
         FILE *f = fopen(skill_file, "r");
         if (!f) {
-            closedir(skill_dir);
+            ESP_LOGW(TAG, "scan_skills_dir: no SKILL.md at '%s'", skill_file);
             continue;
         }
 
@@ -234,13 +250,9 @@ static void scan_skills_dir(const char *base_path, char source)
         skill_meta_t meta;
         parse_frontmatter(content, &meta);
 
-        /* Extract title if not in frontmatter */
-        char title[64];
-        if (meta.name[0]) {
-            strncpy(title, meta.name, sizeof(title) - 1);
-        } else {
-            extract_title(content, title, sizeof(title));
-            strncpy(meta.name, ent->d_name, sizeof(meta.name) - 1);
+        /* Use directory name as skill name if not in frontmatter */
+        if (!meta.name[0]) {
+            strncpy(meta.name, dir_name, sizeof(meta.name) - 1);
         }
 
         /* Extract description if not in frontmatter */
@@ -255,18 +267,18 @@ static void scan_skills_dir(const char *base_path, char source)
         strncpy(info->name, meta.name, sizeof(info->name) - 1);
         strncpy(info->description, meta.description, sizeof(info->description) - 1);
         info->always = meta.always;
-        info->available = true;  /* TODO: check requirements */
+        info->available = true;
         strncpy(info->path, skill_file, sizeof(info->path) - 1);
         info->source = source;
 
-        ESP_LOGD(TAG, "Found skill: %s (always=%d, desc=%s)",
-                 info->name, info->always, info->description);
+        ESP_LOGI(TAG, "scan_skills_dir: Found skill: %s (always=%d, path=%s)",
+                 info->name, info->always, info->path);
 
         s_skill_count++;
-        closedir(skill_dir);
     }
 
     closedir(dir);
+    ESP_LOGI(TAG, "scan_skills_dir: finished, found %d skills", s_skill_count);
 }
 
 /* ─── Public API ────────────────────────────────────────────────────────── */
@@ -282,7 +294,12 @@ esp_err_t skill_loader_init(void)
     snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_SPIFFS_BASE);
     scan_skills_dir(workspace_path, 'w');
 
-    ESP_LOGI(TAG, "Skills system ready (%d skills)", s_skill_count);
+    /* Log all loaded skills */
+    ESP_LOGI(TAG, "Skills system ready (%d skills):", s_skill_count);
+    for (int i = 0; i < s_skill_count; i++) {
+        ESP_LOGI(TAG, "  [%d] name=%s, path=%s, always=%d",
+                 i, s_skills[i].name, s_skills[i].path, s_skills[i].always);
+    }
     return ESP_OK;
 }
 
@@ -327,7 +344,9 @@ int skill_loader_list(skill_info_t *skills, int max)
 
 esp_err_t skill_loader_load(const char *name, char *buf, size_t size)
 {
+    ESP_LOGW(TAG, "skill_loader_load: looking for '%s' in %d skills", name, s_skill_count);
     for (int i = 0; i < s_skill_count; i++) {
+        ESP_LOGW(TAG, "  [%d] checking name='%s' (path='%s')", i, s_skills[i].name, s_skills[i].path);
         if (strcmp(s_skills[i].name, name) == 0) {
             FILE *f = fopen(s_skills[i].path, "r");
             if (!f) {
