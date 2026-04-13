@@ -611,6 +611,8 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
  */
 static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t output_size)
 {
+    ESP_LOGI(TAG, "mcp_tool_connect called: input=%s", input_json ? input_json : "NULL");
+
     if (!input_json || strlen(input_json) == 0) {
         snprintf(output, output_size, "{\"error\": \"server_name required\"}");
         return ESP_ERR_INVALID_ARG;
@@ -619,18 +621,22 @@ static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t o
     /* Parse server_name from input */
     cJSON *root = cJSON_Parse(input_json);
     if (!root) {
+        ESP_LOGW(TAG, "mcp_tool_connect: invalid JSON");
         snprintf(output, output_size, "{\"error\": \"invalid JSON\"}");
         return ESP_ERR_INVALID_ARG;
     }
 
     cJSON *server_name_json = cJSON_GetObjectItem(root, "server_name");
     if (!server_name_json || !cJSON_IsString(server_name_json)) {
+        ESP_LOGW(TAG, "mcp_tool_connect: server_name not found or not string");
         cJSON_Delete(root);
         snprintf(output, output_size, "{\"error\": \"server_name string required\"}");
         return ESP_ERR_INVALID_ARG;
     }
 
     const char *server_name = server_name_json->valuestring;
+    ESP_LOGI(TAG, "mcp_tool_connect: server_name=%s", server_name);
+
     char host[128] = {0};
     int port = 0;
     char endpoint[64] = {0};
@@ -640,17 +646,25 @@ static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t o
                                                          host, sizeof(host),
                                                          &port, endpoint, sizeof(endpoint));
     if (err != ESP_OK) {
+        ESP_LOGW(TAG, "mcp_tool_connect: skill_loader_get_mcp_server_config failed: %s", esp_err_to_name(err));
+        cJSON_Delete(root);
         snprintf(output, output_size, "{\"error\": \"server '%s' not found in mcp-servers.md\"}", server_name);
         return err;
     }
 
+    ESP_LOGI(TAG, "mcp_tool_connect: config loaded - host=%s, port=%d, endpoint=%s", host, port, endpoint);
+
     /* Connect */
     err = mcp_do_connect(server_name, host, port, endpoint);
     if (err != ESP_OK) {
+        ESP_LOGW(TAG, "mcp_tool_connect: mcp_do_connect failed: %s", esp_err_to_name(err));
+        cJSON_Delete(root);
         snprintf(output, output_size, "{\"error\": \"failed to connect: %d\"}", err);
         return err;
     }
 
+    ESP_LOGI(TAG, "mcp_tool_connect: success - connected to %s with %d tools", server_name, s_mcp_tool_count);
+    cJSON_Delete(root);
     snprintf(output, output_size,
              "{\"connected\": true, \"server\": \"%s\", \"host\": \"%s\", \"port\": %d, \"tools\": %d}",
              server_name, host, port, s_mcp_tool_count);
