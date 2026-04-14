@@ -183,6 +183,95 @@ static char s_tool_resp_buf[2048];
 static char s_list_resp_buf[4096];
 
 /**
+ * @brief Extract result content from JSON-RPC response
+ *
+ * Parses JSON-RPC response and extracts the content from result.content array.
+ * Returns the extracted text in output buffer.
+ *
+ * @param jsonrpc_resp Raw JSON-RPC response string
+ * @param output Buffer to store extracted result
+ * @param output_size Size of output buffer
+ * @return ESP_OK on success, ESP_FAIL on failure
+ */
+static esp_err_t extract_jsonrpc_result(const char *jsonrpc_resp,
+                                         char *output, size_t output_size)
+{
+    if (!jsonrpc_resp || !output || output_size == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_Parse(jsonrpc_resp);
+    if (!root) {
+        ESP_LOGE(TAG, "extract_jsonrpc_result: failed to parse JSON");
+        snprintf(output, output_size, "{\"error\": \"invalid JSON response\"}");
+        return ESP_FAIL;
+    }
+
+    /* Check for JSON-RPC error */
+    cJSON *error = cJSON_GetObjectItem(root, "error");
+    if (error && cJSON_IsObject(error)) {
+        cJSON *err_code = cJSON_GetObjectItem(error, "code");
+        cJSON *err_msg = cJSON_GetObjectItem(error, "message");
+        int code = err_code ? err_code->valueint : -1;
+        const char *msg = err_msg && cJSON_IsString(err_msg) ? err_msg->valuestring : "unknown";
+        ESP_LOGW(TAG, "extract_jsonrpc_result: JSON-RPC error %d: %s", code, msg);
+        snprintf(output, output_size, "{\"error\": \"MCP error %d: %s\"}", code, msg);
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+
+    /* Extract result.content */
+    cJSON *result = cJSON_GetObjectItem(root, "result");
+    if (!result || !cJSON_IsObject(result)) {
+        ESP_LOGE(TAG, "extract_jsonrpc_result: no result object");
+        snprintf(output, output_size, "{\"error\": \"no result in response\"}");
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+
+    cJSON *content = cJSON_GetObjectItem(result, "content");
+    if (!content || !cJSON_IsArray(content)) {
+        /* No content array, return the whole result as-is */
+        char *result_str = cJSON_PrintUnformatted(result);
+        if (result_str) {
+            strncpy(output, result_str, output_size - 1);
+            output[output_size - 1] = '\0';
+            free(result_str);
+        } else {
+            snprintf(output, output_size, "{\"error\": \"failed to format result\"}");
+        }
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+
+    /* Get first content item */
+    cJSON *first_item = cJSON_GetArrayItem(content, 0);
+    if (!first_item || !cJSON_IsObject(first_item)) {
+        snprintf(output, output_size, "{\"error\": \"empty content\"}");
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+
+    cJSON *text = cJSON_GetObjectItem(first_item, "text");
+    if (text && cJSON_IsString(text)) {
+        strncpy(output, text->valuestring, output_size - 1);
+        output[output_size - 1] = '\0';
+    } else {
+        char *item_str = cJSON_PrintUnformatted(first_item);
+        if (item_str) {
+            strncpy(output, item_str, output_size - 1);
+            output[output_size - 1] = '\0';
+            free(item_str);
+        } else {
+            snprintf(output, output_size, "{\"error\": \"failed to extract content\"}");
+        }
+    }
+
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+/**
  * @brief Callback for tool calls that need response capture
  */
 static esp_err_t mcp_tool_resp_cb(int error_code, const char *ep_name,
@@ -693,6 +782,194 @@ static esp_err_t mcp_tool_disconnect(const char *input_json, char *output, size_
     return ESP_OK;
 }
 
+/**
+ * @brief mcp_server.tools_call tool implementation
+ * Input: {"name": "echo", "arguments": {"message": "Hello"}}
+ *
+ * This allows calling arbitrary remote MCP tools by name.
+ * Unlike mcp_tool_execute(), this bypasses the local tool index check
+ * and forwards the call directly to the remote MCP server.
+ */
+static esp_err_t mcp_tools_call_exec(const char *input_json, char *output, size_t output_size)
+{
+    if (!s_connected || !s_mgr) {
+        snprintf(output, output_size, "{\"error\": \"MCP client not initialized\"}");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (!input_json || strlen(input_json) == 0) {
+        snprintf(output, output_size, "{\"error\": \"name and arguments required\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_Parse(input_json);
+    if (!root) {
+        snprintf(output, output_size, "{\"error\": \"invalid JSON\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *name_json = cJSON_GetObjectItem(root, "name");
+    cJSON *args_json = cJSON_GetObjectItem(root, "arguments");
+
+    if (!name_json || !cJSON_IsString(name_json)) {
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"name string required\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const char *tool_name = name_json->valuestring;
+    const char *args_str = "{}";
+    char *args_str_alloc = NULL;
+
+    if (args_json) {
+        if (cJSON_IsObject(args_json)) {
+            args_str_alloc = cJSON_PrintUnformatted(args_json);
+            if (args_str_alloc) {
+                args_str = args_str_alloc;
+            }
+            ESP_LOGI(TAG, "mcp_tools_call_exec: args is object, serialized to: %s", args_str);
+        } else if (cJSON_IsString(args_json)) {
+            args_str = args_json->valuestring;
+            ESP_LOGI(TAG, "mcp_tools_call_exec: args is string: %s", args_str);
+        } else {
+            ESP_LOGI(TAG, "mcp_tools_call_exec: args type=%d", args_json->type);
+        }
+    } else {
+        ESP_LOGI(TAG, "mcp_tools_call_exec: args is NULL");
+    }
+
+    ESP_LOGI(TAG, "mcp_tools_call_exec: final tool_name=%s, args_str=%s", tool_name, args_str);
+
+    /* Create sync context for direct call */
+    resp_sync_ctx_t *ctx = create_sync_ctx();
+    if (!ctx) {
+        if (args_str_alloc) free(args_str_alloc);
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"out of memory\"}");
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* Verify args_str is valid JSON object before calling */
+    cJSON *test_parse = cJSON_Parse(args_str);
+    if (!test_parse) {
+        ESP_LOGE(TAG, "mcp_tools_call_exec: args_str is not valid JSON: %s", args_str);
+        free_sync_ctx(ctx);
+        if (args_str_alloc) free(args_str_alloc);
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"invalid JSON in arguments: %s\"}", args_str);
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!cJSON_IsObject(test_parse)) {
+        ESP_LOGE(TAG, "mcp_tools_call_exec: args_str is not a JSON object: %s", args_str);
+        cJSON_Delete(test_parse);
+        free_sync_ctx(ctx);
+        if (args_str_alloc) free(args_str_alloc);
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"arguments must be a JSON object\"}");
+        return ESP_ERR_INVALID_ARG;
+    }
+    cJSON_Delete(test_parse);
+    ESP_LOGI(TAG, "mcp_tools_call_exec: args_str validated as JSON object");
+
+    /* Direct call bypassing local tool index check */
+    esp_mcp_mgr_req_t req = {
+        .ep_name = s_server_config.endpoint,
+        .cb = mcp_tool_resp_cb,
+        .user_ctx = ctx,
+        .u.call.tool_name = tool_name,
+        .u.call.args_json = args_str,
+    };
+
+    ESP_LOGI(TAG, "mcp_tools_call_exec: calling esp_mcp_mgr_post_tools_call");
+    atomic_fetch_add(&ctx->pending_responses, 1);
+    esp_err_t err = esp_mcp_mgr_post_tools_call(s_mgr, &req);
+    ESP_LOGI(TAG, "mcp_tools_call_exec: esp_mcp_mgr_post_tools_call returned %d", err);
+
+    if (err != ESP_OK) {
+        if (args_str_alloc) free(args_str_alloc);
+        free_sync_ctx(ctx);
+        cJSON_Delete(root);
+        snprintf(output, output_size, "{\"error\": \"post failed: %d\"}", err);
+        return err;
+    }
+
+    esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
+
+    if (ret == ESP_ERR_TIMEOUT) {
+        snprintf(output, output_size, "{\"error\": \"timeout\"}");
+    } else if (s_tool_resp_buf[0] != '\0') {
+        /* Extract result content from JSON-RPC response */
+        extract_jsonrpc_result(s_tool_resp_buf, output, output_size);
+    }
+
+    if (args_str_alloc) {
+        free(args_str_alloc);
+    }
+    free_sync_ctx(ctx);
+    cJSON_Delete(root);
+    return ret;
+}
+
+/**
+ * @brief mcp_server.tools_list tool implementation
+ * Input: {} or {"cursor": ""}
+ *
+ * Convenience tool that calls the remote MCP server's tools/list method.
+ */
+static esp_err_t mcp_tools_list_exec(const char *input_json, char *output, size_t output_size)
+{
+    if (!s_connected || !s_mgr) {
+        snprintf(output, output_size, "{\"error\": \"MCP client not initialized\"}");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    char *cursor = NULL;
+    if (input_json && strlen(input_json) > 0) {
+        cJSON *root = cJSON_Parse(input_json);
+        if (root) {
+            cJSON *cursor_json = cJSON_GetObjectItem(root, "cursor");
+            if (cursor_json && cJSON_IsString(cursor_json)) {
+                cursor = cursor_json->valuestring;
+            }
+            cJSON_Delete(root);
+        }
+    }
+
+    resp_sync_ctx_t *ctx = create_sync_ctx();
+    if (!ctx) {
+        snprintf(output, output_size, "{\"error\": \"out of memory\"}");
+        return ESP_ERR_NO_MEM;
+    }
+
+    esp_mcp_mgr_req_t req = {
+        .ep_name = s_server_config.endpoint,
+        .cb = mcp_tool_resp_cb,
+        .user_ctx = ctx,
+        .u.list.cursor = cursor,
+    };
+
+    atomic_fetch_add(&ctx->pending_responses, 1);
+    esp_err_t err = esp_mcp_mgr_post_tools_list(s_mgr, &req);
+
+    if (err != ESP_OK) {
+        free_sync_ctx(ctx);
+        snprintf(output, output_size, "{\"error\": \"post failed: %d\"}", err);
+        return err;
+    }
+
+    esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
+
+    if (ret == ESP_ERR_TIMEOUT) {
+        snprintf(output, output_size, "{\"error\": \"timeout\"}");
+    } else if (s_tool_resp_buf[0] != '\0') {
+        strncpy(output, s_tool_resp_buf, output_size - 1);
+        output[output_size - 1] = '\0';
+    }
+
+    free_sync_ctx(ctx);
+    return ret;
+}
+
 esp_err_t tool_mcp_client_init(void)
 {
     if (s_connected) {
@@ -700,7 +977,7 @@ esp_err_t tool_mcp_client_init(void)
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "Registering MCP dynamic tools (mcp_connect, mcp_disconnect)");
+    ESP_LOGI(TAG, "Registering MCP dynamic tools (mcp_connect, mcp_disconnect, mcp_server.tools_call, mcp_server.tools_list)");
 
     /* Register mcp_connect tool */
     mimi_tool_t connect_tool = {
@@ -723,6 +1000,29 @@ esp_err_t tool_mcp_client_init(void)
         .prepare = NULL,
     };
     ESP_ERROR_CHECK(tool_registry_add(&disconnect_tool));
+
+    /* Register mcp_server.tools_call tool */
+    mimi_tool_t tools_call_tool = {
+        .name = "mcp_server.tools_call",
+        .description = "Call a remote MCP tool by name. Input: {\"name\": \"tool_name\", \"arguments\": {}}. "
+                       "Use mcp_server.tools_list to list available tools.",
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}},\"required\":[\"name\"]}",
+        .execute = mcp_tools_call_exec,
+        .concurrency_safe = false,
+        .prepare = NULL,
+    };
+    ESP_ERROR_CHECK(tool_registry_add(&tools_call_tool));
+
+    /* Register mcp_server.tools_list tool */
+    mimi_tool_t tools_list_tool = {
+        .name = "mcp_server.tools_list",
+        .description = "List all available tools on the remote MCP server. Input: {}.",
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{\"cursor\":{\"type\":\"string\"}},\"required\":[]}",
+        .execute = mcp_tools_list_exec,
+        .concurrency_safe = true,
+        .prepare = NULL,
+    };
+    ESP_ERROR_CHECK(tool_registry_add(&tools_list_tool));
 
     tool_registry_rebuild_json();
 
