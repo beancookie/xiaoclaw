@@ -32,16 +32,16 @@ Input: {"server_name": "test_server"}
 
 ### Step 2: Discover Remote Tools
 
-After connection, use `tools/call` to call `tools/list`:
+After connection, use `mcp_server.tools_list` to list available tools:
 
 ```
-Tool: mcp_server.tools_call
-Input: {"name": "tools/list", "arguments": {}}
+Tool: mcp_server.tools_list
+Input: {}
 ```
 
 ### Step 3: Call a Remote Tool
 
-Use `tools/call` to call any discovered tool:
+Use `mcp_server.tools_call` to call any discovered tool:
 
 ```
 Tool: mcp_server.tools_call
@@ -59,4 +59,4 @@ Input: {}
 
 - Server must be running before connecting (192.168.31.28:8080)
 - Use `mcp_disconnect` when done
-- Tools are discovered dynamically via `tools/list`
+- Tools are discovered dynamically via `mcp_server.tools_list`
