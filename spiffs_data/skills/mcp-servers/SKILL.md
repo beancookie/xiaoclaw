@@ -9,7 +9,10 @@ Connect to MCP (Model Context Protocol) servers to use remote tools. MCP allows 
 
 ## Server Configuration
 
-**test_server**: 192.168.31.28:8080 (endpoint: mcp_server)
+## test_server
+- host: 192.168.31.28
+- port: 8080
+- endpoint: mcp_server
 
 ## Available MCP Tools
 
