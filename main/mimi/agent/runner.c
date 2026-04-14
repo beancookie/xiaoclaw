@@ -232,7 +232,9 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         }
 
         llm_response_t resp;
-        esp_err_t err = llm_chat_tools(spec->system_prompt, messages, spec->tools_json, &resp);
+        /* Re-fetch tools_json dynamically to pick up any tools registered during runtime (e.g., MCP tools after connect) */
+        const char *tools_json = tool_registry_get_tools_json();
+        esp_err_t err = llm_chat_tools(spec->system_prompt, messages, tools_json, &resp);
 
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "LLM call failed: %s", esp_err_to_name(err));
