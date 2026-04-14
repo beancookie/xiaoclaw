@@ -109,6 +109,17 @@ async def call_tool(request: JSONRPCRequest):
     """Call an MCP tool (tools/call or tools/list)"""
     logger.info(f"Received JSON-RPC request: method={request.method}, params={request.params}")
 
+    if request.method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": request.id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "serverInfo": {"name": "mcp_server", "version": "1.0.0"},
+            },
+        }
+
     if request.method == "tools/list":
         tools_list = []
         for name, tool in TOOL_REGISTRY.items():
@@ -117,7 +128,11 @@ async def call_tool(request: JSONRPCRequest):
                 "description": tool["description"],
                 "inputSchema": tool["inputSchema"],
             })
-        return {"tools": tools_list}
+        return {
+            "jsonrpc": "2.0",
+            "id": request.id,
+            "result": {"tools": tools_list},
+        }
 
     if request.method != "tools/call":
         return {
