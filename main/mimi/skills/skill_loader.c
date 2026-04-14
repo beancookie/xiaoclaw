@@ -21,10 +21,16 @@ static int s_skill_count = 0;
 
 static void trimWhitespace(const char *start, size_t len, char *out, size_t out_size)
 {
-    /* Find first non-whitespace */
     const char *p = start;
     size_t trimmed = len;
 
+    // Skip leading whitespace
+    while (trimmed > 0 && isspace((unsigned char)p[0])) {
+        p++;
+        trimmed--;
+    }
+
+    // Trim trailing whitespace
     while (trimmed > 0 && isspace((unsigned char)p[trimmed - 1])) {
         trimmed--;
     }
@@ -344,9 +350,9 @@ int skill_loader_list(skill_info_t *skills, int max)
 
 esp_err_t skill_loader_load(const char *name, char *buf, size_t size)
 {
-    ESP_LOGW(TAG, "skill_loader_load: looking for '%s' in %d skills", name, s_skill_count);
+    ESP_LOGI(TAG, "skill_loader_load: looking for '%s' in %d skills", name, s_skill_count);
     for (int i = 0; i < s_skill_count; i++) {
-        ESP_LOGW(TAG, "  [%d] checking name='%s' (path='%s')", i, s_skills[i].name, s_skills[i].path);
+        ESP_LOGI(TAG, "  [%d] checking name='%s' (path='%s')", i, s_skills[i].name, s_skills[i].path);
         if (strcmp(s_skills[i].name, name) == 0) {
             FILE *f = fopen(s_skills[i].path, "r");
             if (!f) {
