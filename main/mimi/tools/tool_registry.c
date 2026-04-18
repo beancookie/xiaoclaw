@@ -2,7 +2,6 @@
 #include "mimi_config.h"
 #include "tools/tool_web_search.h"
 #include "tools/tool_get_time.h"
-#include "tools/tool_unix_now.h"
 #include "tools/tool_files.h"
 #include "tools/tool_cron.h"
 #include "tools/tool_lua.h"
@@ -94,32 +93,32 @@ esp_err_t tool_registry_init(void)
         register_tool(&ws);
     }
 
-    /* Register get_current_time - pure read, safe */
+    /* Register get_datetime - pure read, safe */
     {
         static mimi_tool_t gt = {
-            .name = "get_current_time",
+            .name = "get_datetime",
             .description = "Get the current date and time. Also sets the system clock. Call this when you need to know what time or date it is.",
             .input_schema_json =
                 "{\"type\":\"object\","
                 "\"properties\":{},"
                 "\"required\":[]}",
-            .execute = tool_get_time_execute,
+            .execute = tool_get_datetime_execute,
             .concurrency_safe = true,
             .prepare = NULL,
         };
         register_tool(&gt);
     }
 
-    /* Register unix_now - returns unix timestamp for cron calculations */
+    /* Register get_unix_timestamp - returns unix timestamp for cron calculations */
     {
         static mimi_tool_t un = {
-            .name = "unix_now",
+            .name = "get_unix_timestamp",
             .description = "Get the current unix timestamp in seconds. Use this when you need to calculate absolute times for cron_add with at_epoch.",
             .input_schema_json =
                 "{\"type\":\"object\","
                 "\"properties\":{},"
                 "\"required\":[]}",
-            .execute = tool_unix_now_execute,
+            .execute = tool_get_unix_timestamp_execute,
             .concurrency_safe = true,
             .prepare = NULL,
         };
