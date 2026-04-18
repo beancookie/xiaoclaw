@@ -566,7 +566,7 @@ void Application::InitializeProtocol() {
                 if (ret == 0 && decoded_len > 0) {
                     decoded.resize(decoded_len);
                     audio_service_.PlayOpusData(decoded);
-                    ESP_LOGI(TAG, "Playing TTS audio: %zu bytes", decoded_len);
+                    ESP_LOGD(TAG, "Playing TTS audio: %zu bytes", decoded_len);
                 } else {
                     ESP_LOGE(TAG, "Failed to decode base64 audio, ret=%d", ret);
                 }

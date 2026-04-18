@@ -1,6 +1,11 @@
+---
+name: lua-scripts
+description: Execute Lua scripts for custom logic and HTTP requests
+always: false
+---
 # Lua Scripts
 
-Lua scripts are stored in `/spiffs/lua/` and can be executed using the `lua_run` tool.
+Execute Lua scripts stored on SPIFFS or run dynamic Lua code snippets.
 
 ## Available Scripts
 
@@ -9,47 +14,33 @@ Lua scripts are stored in `/spiffs/lua/` and can be executed using the `lua_run`
 | hello.lua | Simple Hello World example |
 | http_example.lua | HTTP GET/POST/PUT/DELETE examples |
 
-## How to Execute
+## When to Use
 
-### Use `lua_run` Tool
+Use Lua scripts when:
+- User asks to run a stored script
+- You need to perform HTTP requests beyond simple web search
+- You need custom logic or calculations
+- Testing quick Lua code snippets
 
-```
-Tool: lua_run
-Input: {"path": "/spiffs/lua/hello.lua"}
-```
+## Available Lua Tools
 
-### Available Lua Tools
+| Tool | Purpose |
+|------|---------|
+| lua_run | Execute a stored Lua script from SPIFFS at `/spiffs/lua/<name>.lua` |
+| lua_eval | Execute a Lua code string directly for quick snippets |
 
-When executing Lua scripts, the following functions are available:
+## Built-in Lua Functions
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| print() | Print output to console | any values |
-| http_get(url) | HTTP GET request | url (string) |
-| http_post(url, body, content_type) | HTTP POST request | url, body, content_type |
-| http_put(url, body, content_type) | HTTP PUT request | url, body, content_type |
-| http_delete(url) | HTTP DELETE request | url |
+When running Lua code, these functions are available:
 
-All HTTP functions return: `(response_body, status_code)`
+| Function | Description | Returns |
+|----------|-------------|---------|
+| print(...) | Output text | - |
+| http_get(url) | HTTP GET request | (body, status_code) |
+| http_post(url, body, content_type) | HTTP POST request | (body, status_code) |
+| http_put(url, body, content_type) | HTTP PUT request | (body, status_code) |
+| http_delete(url) | HTTP DELETE request | (body, status_code) |
 
-### Examples
+## Note on Tool Calling
 
-```
-Tool: lua_run
-Input: {"path": "/spiffs/lua/hello.lua"}
-```
-
-```
-Tool: lua_run
-Input: {"path": "/spiffs/lua/http_example.lua"}
-```
-
-## lua_run vs lua_eval
-
-- `lua_run`: Execute a script file from SPIFFS
-  - Input: `{"path": "/spiffs/lua/script.lua"}`
-
-- `lua_eval`: Execute Lua code string directly
-  - Input: `{"code": "print('Hello')"}`
-
-Use `lua_run` for stored scripts, use `lua_eval` for dynamic code.
+When you need to use lua_run or lua_eval, simply respond describing which tool you want to use and with what parameters. The system will automatically invoke the tool through the proper mechanism.

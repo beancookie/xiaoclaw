@@ -54,7 +54,6 @@ list(APPEND SOURCES
     "mimi/tools/tool_files.c"
     "mimi/tools/tool_get_time.c"
     "mimi/tools/tool_cron.c"
-    "mimi/tools/tool_unix_now.c"
     "mimi/tools/tool_mcp_client.c"
     "mimi/tools/tool_lua.c"
     "mimi/memory/memory_store.c"

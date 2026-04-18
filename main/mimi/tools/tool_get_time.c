@@ -157,7 +157,7 @@ static esp_err_t fetch_time_direct(char *out, size_t out_size)
     return ESP_OK;
 }
 
-esp_err_t tool_get_time_execute(const char *input_json, char *output, size_t output_size)
+esp_err_t tool_get_datetime_execute(const char *input_json, char *output, size_t output_size)
 {
     ESP_LOGI(TAG, "Fetching current time...");
 
@@ -176,4 +176,13 @@ esp_err_t tool_get_time_execute(const char *input_json, char *output, size_t out
     }
 
     return err;
+}
+
+esp_err_t tool_get_unix_timestamp_execute(const char *input_json, char *output, size_t output_size)
+{
+    (void)input_json;
+    time_t now = time(NULL);
+    snprintf(output, output_size, "%lld", (long long)now);
+    ESP_LOGI(TAG, "get_unix_timestamp: %s", output);
+    return ESP_OK;
 }
