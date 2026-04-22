@@ -1,4 +1,5 @@
 #include "skills/skill_loader.h"
+#include "skills/skill_meta.h"
 #include "mimi_config.h"
 
 #include <stdio.h>
@@ -46,15 +47,15 @@ typedef struct {
     char name[64];
     char description[128];
     bool always;
-} skill_meta_t;
+} SkillFrontmatter;
 
-static void init_meta(skill_meta_t *meta)
+static void init_meta(SkillFrontmatter *meta)
 {
     memset(meta, 0, sizeof(*meta));
     meta->always = false;
 }
 
-static void parse_frontmatter(const char *content, skill_meta_t *meta)
+static void parse_frontmatter(const char *content, SkillFrontmatter *meta)
 {
     init_meta(meta);
 
@@ -116,37 +117,6 @@ static void parse_frontmatter(const char *content, skill_meta_t *meta)
             line++;
         }
     }
-}
-
-/* ─── Helper: extract title from markdown ─────────────────────────────── */
-
-static void extract_title(const char *content, char *out, size_t out_size)
-{
-    /* Skip frontmatter if present */
-    const char *start = content;
-    if (strncmp(content, "---", 3) == 0) {
-        const char *end = strstr(content + 3, "---");
-        if (end) {
-            start = end + 3;
-            while (*start == '\n' || *start == '\r') start++;
-        }
-    }
-
-    /* Look for # Title */
-    while (*start) {
-        if (start[0] == '#' && start[1] == ' ') {
-            trimWhitespace(start + 2, strlen(start + 2), out, out_size);
-            return;
-        }
-        if (*start == '\n') {
-            start++;
-        } else {
-            break;
-        }
-    }
-
-    /* Fallback: use first line */
-    trimWhitespace(start, strlen(start), out, out_size);
 }
 
 /* ─── Helper: extract description from markdown ────────────────────────── */
@@ -219,8 +189,8 @@ static void scan_skills_dir(const char *base_path, char source)
         if (ent->d_name[0] == '.') continue;
 
         char dir_name[64] = {0};
-        char skill_path[128] = {0};
-        char skill_file[160] = {0};
+        char skill_path[512] = {0};
+        char skill_file[512] = {0};
 
         /* SPIFFS quirk: readdir may return "skill_name/SKILL.md" instead of "skill_name" */
         /* Check if d_name contains '/' (indicating the quirk) */
@@ -236,8 +206,8 @@ static void scan_skills_dir(const char *base_path, char source)
             strncpy(dir_name, ent->d_name, sizeof(dir_name) - 1);
         }
 
-        snprintf(skill_path, sizeof(skill_path), "%s/%s", base_path, dir_name);
-        snprintf(skill_file, sizeof(skill_file), "%s/SKILL.md", skill_path);
+        snprintf(skill_path, sizeof(skill_path), "%.*s/%.*s", (int)sizeof(skill_path) - 1, base_path, (int)sizeof(skill_path) - 1, dir_name);
+        snprintf(skill_file, sizeof(skill_file), "%.*s/SKILL.md", (int)sizeof(skill_file) - 10, skill_path);
 
         /* Try to open SKILL.md directly */
         FILE *f = fopen(skill_file, "r");
@@ -253,7 +223,7 @@ static void scan_skills_dir(const char *base_path, char source)
         fclose(f);
 
         /* Parse frontmatter */
-        skill_meta_t meta;
+        SkillFrontmatter meta;
         parse_frontmatter(content, &meta);
 
         /* Use directory name as skill name if not in frontmatter */
@@ -293,6 +263,9 @@ esp_err_t skill_loader_init(void)
 {
     ESP_LOGI(TAG, "Initializing skills system");
 
+    /* Initialize skill metadata system first (L1 index) */
+    skill_meta_init();
+
     s_skill_count = 0;
 
     /* Scan workspace skills */
@@ -300,11 +273,23 @@ esp_err_t skill_loader_init(void)
     snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_SPIFFS_BASE);
     scan_skills_dir(workspace_path, 'w');
 
+    /* Merge metadata from skill_index.json - DISABLED due to crash */
+    /* TODO: Fix skill_meta_init() crash issue */
+    for (int i = 0; i < s_skill_count; i++) {
+        skill_meta_t meta;
+        if (skill_meta_get(s_skills[i].name, &meta) == ESP_OK) {
+            s_skills[i].usage_count = meta.usage_count;
+            s_skills[i].success_rate = meta.success_rate;
+            s_skills[i].last_used = meta.last_used;
+        }
+    }
+
     /* Log all loaded skills */
     ESP_LOGI(TAG, "Skills system ready (%d skills):", s_skill_count);
     for (int i = 0; i < s_skill_count; i++) {
-        ESP_LOGI(TAG, "  [%d] name=%s, path=%s, always=%d",
-                 i, s_skills[i].name, s_skills[i].path, s_skills[i].always);
+        ESP_LOGI(TAG, "  [%d] name=%s, path=%s, always=%d, usage=%d",
+                 i, s_skills[i].name, s_skills[i].path, s_skills[i].always,
+                 s_skills[i].usage_count);
     }
     return ESP_OK;
 }
@@ -417,6 +402,11 @@ size_t skill_loader_get_always_content(char *buf, size_t size)
 
     buf[off] = '\0';
     return off;
+}
+
+size_t skill_loader_get_hot_skills_content(char *buf, size_t size)
+{
+    return skill_meta_get_hot_skills(buf, size);
 }
 
 bool skill_loader_check_requirements(const char *name)

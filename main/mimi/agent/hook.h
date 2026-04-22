@@ -21,6 +21,13 @@ typedef struct {
 
     /** Called after each tool execution */
     void (*after_tool_execute)(const char *tool_name, const char *result, bool success);
+
+    /* Closed-loop learning hooks (Hermes Agent) */
+    /** Evaluate task success based on final output and tool sequence */
+    bool (*evaluate_task_result)(const char *final_output, const char *tool_sequence_json);
+
+    /** Called when a task ends - update metadata, check crystallization */
+    void (*on_task_end)(const char *chat_id, const void *result);
 } AgentHooks;
 
 /**

@@ -1,0 +1,52 @@
+I (7978) skill_meta: Initializing skill metadata system
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x421fb266  PS      : 0x00060e33  A0      : 0x821fb1af  A1      : 0x3fcd1650  
+--- 0x421fb266: block_size at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/tlsf/tlsf_block_functions.h:87
+--- (inlined by) block_is_last at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/tlsf/tlsf_block_functions.h:98
+--- (inlined by) tlsf_walk_pool at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/tlsf/tlsf.c:212
+A2      : 0xc1d66d1c  A3      : 0x421fb1ec  A4      : 0x3fcd1690  A5      : 0x3fcd16ac  
+--- 0x421fb1ec: multi_heap_get_info_tlsf at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/multi_heap.c:399
+A6      : 0xc1d66d24  A7      : 0xc1d66d20  A8      : 0x820955d0  A9      : 0x3fcd1630  
+A10     : 0x00000001  A11     : 0x820955d0  A12     : 0x00000001  A13     : 0x3fcd1690  
+A14     : 0x42092c88  A15     : 0x0000abab  SAR     : 0x00000019  EXCCAUSE: 0x0000001c  
+--- 0x42092c88: spiffs_api_read at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs_api.c:26
+EXCVADDR: 0xc1d66d20  LBEG    : 0x400570e8  LEND    : 0x400570f3  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x421fb263:0x3fcd1650 0x421fb1ac:0x3fcd1670 0x4200660e:0x3fcd1690 0x42006659:0x3fcd16d0 0x4038fa8f:0x3fcd1710 0x4038da8a:0x3fcd1730 0x421205c9:0x3fcd1770 0x42092c9b:0x3fcd17a0 0x42096021:0x3fcd17d0 0x420940c6:0x3fcd1800 0x420955cd:0x3fcd1850 0x4209319f:0x3fcd1890 0x420927ef:0x3fcd18c0 0x421fbf06:0x3fcd1920 0x421c422e:0x3fcd1940 0x421c42c5:0x3fcd1970 0x4202776b:0x3fcd1990 0x42027acb:0x3fcd3ac0 0x4202692d:0x3fcd3ae0 0x4201f60c:0x3fcd51e0 0x42019637:0x3fcd5230 0x4201b2a2:0x3fcd5250 0x4201b2ff:0x3fcd5290 0x4201b329:0x3fcd52c0
+--- 0x421fb263: tlsf_walk_pool at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/tlsf/tlsf.c:212
+--- 0x421fb1ac: multi_heap_get_info_impl at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/multi_heap.c:427
+--- (inlined by) multi_heap_get_info_impl at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/multi_heap.c:416
+--- 0x4200660e: heap_caps_get_info at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/heap_caps.c:375
+--- 0x42006659: heap_caps_get_largest_free_block at C:/Espressif/frameworks/esp-idf-v5.5.3/components/heap/heap_caps.c:304
+--- 0x4038fa8f: get_buffer_malloc at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spi_flash/spi_flash_os_func_app.c:245
+--- 0x4038da8a: esp_flash_read at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spi_flash/esp_flash_api.c:960
+--- 0x421205c9: esp_partition_read at C:/Espressif/frameworks/esp-idf-v5.5.3/components/esp_partition/partition_target.c:38
+--- 0x42092c9b: spiffs_api_read at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs_api.c:27
+--- 0x42096021: spiffs_phys_rd at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs/src/spiffs_cache.c:161
+--- 0x420940c6: spiffs_obj_lu_find_entry_visitor at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs/src/spiffs_nucleus.c:166
+--- 0x420955cd: spiffs_object_find_object_index_header_by_name at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs/src/spiffs_nucleus.c:1711
+--- 0x4209319f: SPIFFS_open at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/spiffs/src/spiffs_hydrogen.c:230
+--- 0x420927ef: vfs_spiffs_open at C:/Espressif/frameworks/esp-idf-v5.5.3/components/spiffs/esp_spiffs.c:546
+--- 0x421fbf06: esp_vfs_open at C:/Espressif/frameworks/esp-idf-v5.5.3/components/vfs/vfs.c:950
+--- 0x421c422e: _fopen_r at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/newlib/newlib/libc/stdio/fopen.c:129
+--- 0x421c42c5: fopen at /builds/idf/crosstool-NG/.build/xtensa-esp-elf/src/newlib/newlib/libc/stdio/fopen.c:168
+--- 0x4202776b: load_from_file at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/skills/skill_meta.c:90
+--- (inlined by) skill_meta_init at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/skills/skill_meta.c:189
+--- 0x42027acb: skill_meta_init at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/skills/skill_meta.c:181
+--- 0x4202692d: skill_loader_init at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/skills/skill_loader.c:267
+--- 0x4201f60c: mimiclaw_init at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/mimi.c:109
+--- 0x42019637: Application::InitializeMimiclaw() at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/application.cc:1172
+--- 0x4201b2a2: Application::InitializeProtocol() at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/application.cc:635
+--- 0x4201b2ff: Application::ActivationTask() at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/application.cc:342
+--- 0x4201b329: Application::HandleNetworkConnectedEvent()::{lambda(void*)#1}::_FUN(void*) at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/application.cc:283
+--- (inlined by) _FUN at C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/application.cc:286
+
+
+
+
+ELF file SHA256: bf80388b2
+
+Rebooting...

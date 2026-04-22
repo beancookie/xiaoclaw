@@ -53,7 +53,7 @@ esp_err_t checkpoint_save(const char *chat_id, checkpoint_phase_t phase,
     cJSON_AddStringToObject(root, "phase", phase_to_string(phase));
     cJSON_AddNumberToObject(root, "iteration", iteration);
     cJSON_AddNumberToObject(root, "saved_at", time(NULL));
-    cJSON_AddItemReferenceToObject(root, "data", checkpoint);  /* Reference, not copy */
+    cJSON_AddItemReferenceToObject(root, "data", (cJSON *)checkpoint);  /* Reference, not copy */
 
     /* Write to file */
     FILE *f = fopen(path, "w");
