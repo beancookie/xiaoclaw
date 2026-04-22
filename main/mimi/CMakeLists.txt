@@ -11,9 +11,11 @@ idf_component_register(
         "agent/context_builder.c"
         "agent/hook.c"
         "agent/checkpoint.c"
+        "agent/learning_hooks.c"
         "memory/memory_store.c"
         "memory/session_manager.c"
         "memory/consolidator.c"
+        "memory/hierarchy.c"
         "gateway/ws_server.c"
         "cli/serial_cli.c"
         "proxy/http_proxy.c"
@@ -26,6 +28,8 @@ idf_component_register(
         "tools/tool_files.c"
         "tools/tool_mcp_client.c"
         "skills/skill_loader.c"
+        "skills/skill_meta.c"
+        "skills/skill_crystallize.c"
     INCLUDE_DIRS
         "."
     REQUIRES

@@ -1,7 +1,9 @@
 #include "context_builder.h"
 #include "mimi_config.h"
 #include "memory/memory_store.h"
+#include "memory/hierarchy.h"
 #include "skills/skill_loader.h"
+#include "skills/skill_meta.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,27 +125,35 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
 
 static size_t append_skills_section(char *buf, size_t size, size_t offset)
 {
-    /* Get skills summary (XML format) */
-    char skills_summary[2048];
-    size_t summary_len = skill_loader_build_summary(skills_summary, sizeof(skills_summary));
+    size_t off = 0;
 
-    /* Get "always" skills content (always loaded) */
-    char always_content[8192];
-    size_t always_len = skill_loader_get_always_content(always_content, sizeof(always_content));
-
-    size_t off = snprintf(buf + offset, size - offset,
-        "## Skills\n\n"
-        "Skills are specialized instruction files stored in " MIMI_SKILLS_PREFIX "<name>/SKILL.md.\n"
-        "When a task matches a skill, read the full skill file for detailed instructions.\n"
-        "You can create new skills using write_file.\n\n");
-
-    /* Add always skills content */
-    if (always_len > 0) {
+    /* L1: Skill index (always loaded - lightweight JSON navigation) */
+    char l1_index[2048];
+    size_t l1_len = skill_meta_get_all_json(l1_index, sizeof(l1_index));
+    if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Active Skills\n\n%s\n\n", always_content);
+            "## Skill Index (L1)\n\n%s\n\n", l1_index);
     }
 
-    /* Add skills summary */
+    /* L3: Hot auto-skills (only is_hot=true, full content) */
+    char l3_hot[4096];
+    size_t l3_len = skill_meta_get_hot_skills(l3_hot, sizeof(l3_hot));
+    if (l3_len > 0) {
+        off += snprintf(buf + offset + off, size - offset - off,
+            "## Active Auto-Skills (L3)\n\n%s\n\n", l3_hot);
+    }
+
+    /* Always skills (always loaded, full content) */
+    char always_content[8192];
+    size_t always_len = skill_loader_get_always_content(always_content, sizeof(always_content));
+    if (always_len > 0) {
+        off += snprintf(buf + offset + off, size - offset - off,
+            "## Always-Active Skills\n\n%s\n\n", always_content);
+    }
+
+    /* Skills summary (for reference) */
+    char skills_summary[2048];
+    size_t summary_len = skill_loader_build_summary(skills_summary, sizeof(skills_summary));
     if (summary_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
             "## Available Skills (read full instructions with read_file when needed)\n\n%s\n",

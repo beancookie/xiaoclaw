@@ -223,6 +223,12 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
     int iteration = 0;
     int tools_used_idx = 0;
 
+    /* Initialize tool_sequence_json with opening bracket */
+    result->tool_sequence_json[0] = '[';
+    result->tool_sequence_json[1] = '\0';
+    result->tool_sequence_len = 0;
+    result->task_success = false;
+
     while (iteration < max_iter) {
         /* Check context window and snip if needed */
         int context_tokens = estimate_cjson_tokens(messages) + estimate_token_count(spec->system_prompt);
@@ -230,6 +236,10 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         if (context_tokens > context_limit) {
             snip_history(messages, context_limit);
         }
+
+        /* Reset tool_sequence_json at start of each iteration */
+        result->tool_sequence_json[0] = '\0';
+        result->tool_sequence_len = 0;
 
         llm_response_t resp;
         /* Re-fetch tools_json dynamically to pick up any tools registered during runtime (e.g., MCP tools after connect) */
@@ -262,11 +272,25 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         cJSON *asst_content = agent_runner_build_assistant_content(&resp);
         append_assistant_message(messages, asst_content);
 
-        /* Track tools used */
+        /* Track tools used and build tool_sequence_json */
         for (int i = 0; i < resp.call_count && tools_used_idx < 32; i++) {
             strncpy(result->tools_used[tools_used_idx], resp.calls[i].name, 31);
             result->tools_used[tools_used_idx][31] = '\0';
             tools_used_idx++;
+
+            /* Append to tool_sequence_json */
+            char entry[512];
+            int entry_len = snprintf(entry, sizeof(entry),
+                "%s{\"tool\":\"%s\",\"input\":%s}",
+                (result->tool_sequence_len > 0) ? "," : "",
+                resp.calls[i].name,
+                resp.calls[i].input);
+
+            size_t cur_len = strlen(result->tool_sequence_json);
+            if (cur_len + entry_len < sizeof(result->tool_sequence_json)) {
+                strcat(result->tool_sequence_json, entry);
+                result->tool_sequence_len++;
+            }
         }
         result->tools_used_count = tools_used_idx;
 
@@ -283,6 +307,12 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         /* Execute tools and append results */
         cJSON *tool_results = build_tool_result_content(&resp, spec->current_msg, tool_output, max_tool_chars);
         append_tool_result_message(messages, tool_results);
+
+        /* Close tool_sequence_json array */
+        size_t cur_len = strlen(result->tool_sequence_json);
+        if (cur_len > 0 && cur_len < sizeof(result->tool_sequence_json) - 2) {
+            strcat(result->tool_sequence_json, "]");
+        }
 
         llm_response_free(&resp);
         iteration++;

@@ -29,3 +29,10 @@ esp_err_t memory_append_today(const char *note);
  * @param days  Number of days to look back (default 3)
  */
 esp_err_t memory_read_recent(char *buf, size_t size, int days);
+
+/**
+ * Get user facts/preferences (L2 memory layer).
+ * Tries facts.json first, then USER.md as fallback.
+ * @return ESP_OK on success, ESP_ERR_NOT_FOUND if no facts file
+ */
+esp_err_t memory_get_facts(char *buf, size_t size);

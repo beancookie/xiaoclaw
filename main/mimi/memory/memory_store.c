@@ -10,6 +10,9 @@
 
 static const char *TAG = "memory";
 
+/* Path for user facts (L2 memory) */
+#define FACTS_FILE MIMI_SPIFFS_MEMORY_DIR "/facts.json"
+
 static void get_date_str(char *buf, size_t size, int days_ago)
 {
     time_t now;
@@ -27,10 +30,28 @@ esp_err_t memory_store_init(void)
     setenv("TZ", MIMI_TIMEZONE, 1);
     tzset();
 
-    /* SPIFFS is flat — no real directory creation needed.
-       Just verify we can open the base path. */
-    ESP_LOGI(TAG, "Memory store initialized at %s", MIMI_SPIFFS_BASE);
-    return ESP_OK;
+    /* Retry SPIFFS availability check (in case it was still mounting) */
+    const int max_retries = 5;
+    const int retry_delay_ms = 100;
+    esp_err_t last_err = ESP_FAIL;
+
+    for (int attempt = 1; attempt <= max_retries; attempt++) {
+        /* Test with existing path check - use stat() to verify directory accessible */
+        struct stat st;
+        if (stat(MIMI_SPIFFS_MEMORY_DIR, &st) == 0 && S_ISDIR(st.st_mode)) {
+            ESP_LOGI(TAG, "Memory store initialized at %s (attempt %d)",
+                     MIMI_SPIFFS_BASE, attempt);
+            return ESP_OK;
+        }
+        last_err = ESP_FAIL;
+        if (attempt < max_retries) {
+            ESP_LOGW(TAG, "SPIFFS not ready, retry %d/%d...", attempt, max_retries);
+            vTaskDelay(pdMS_TO_TICKS(retry_delay_ms));
+        }
+    }
+
+    ESP_LOGE(TAG, "SPIFFS not available after %d attempts", max_retries);
+    return last_err;
 }
 
 esp_err_t memory_read_long_term(char *buf, size_t size)
@@ -109,5 +130,23 @@ esp_err_t memory_read_recent(char *buf, size_t size, int days)
         fclose(f);
     }
 
+    return ESP_OK;
+}
+
+esp_err_t memory_get_facts(char *buf, size_t size)
+{
+    FILE *f = fopen(FACTS_FILE, "r");
+    if (!f) {
+        /* Try USER.md as fallback */
+        f = fopen(MIMI_USER_FILE, "r");
+        if (!f) {
+            buf[0] = '\0';
+            return ESP_ERR_NOT_FOUND;
+        }
+    }
+
+    size_t n = fread(buf, 1, size - 1, f);
+    buf[n] = '\0';
+    fclose(f);
     return ESP_OK;
 }

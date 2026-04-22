@@ -2,6 +2,7 @@
 #include "agent/context_builder.h"
 #include "agent/runner.h"
 #include "agent/checkpoint.h"
+#include "agent/learning_hooks.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
 #include "memory/session_manager.h"
@@ -169,12 +170,19 @@ static void agent_loop_task(void *arg)
             .current_msg = &msg,
         };
 
-        AgentRunResult result;
-        err = agent_runner_run(&spec, &result);
+        AgentRunResult *result = heap_caps_malloc(sizeof(AgentRunResult), MALLOC_CAP_SPIRAM);
+        if (!result) {
+            ESP_LOGE(TAG, "Failed to allocate AgentRunResult");
+            free(msg.content);
+            continue;
+        }
+        memset(result, 0, sizeof(AgentRunResult));
+        err = agent_runner_run(&spec, result);
 
         /* 5. Handle result */
-        if (err != ESP_OK || !result.final_content || !result.final_content[0]) {
+        if (err != ESP_OK || !result->final_content || !result->final_content[0]) {
             /* Error response */
+            result->task_success = false;
             mimi_msg_t out = {0};
             strncpy(out.channel, msg.channel, sizeof(out.channel) - 1);
             strncpy(out.chat_id, msg.chat_id, sizeof(out.chat_id) - 1);
@@ -183,32 +191,40 @@ static void agent_loop_task(void *arg)
                 free(out.content);
             }
         } else {
+            /* Evaluate task success using learning hooks */
+            bool task_success = learning_hook_evaluate(result->final_content, result->tool_sequence_json);
+            result->task_success = task_success;
+
             /* Save to session */
             session_append(msg.chat_id, "user", msg.content);
-            session_append(msg.chat_id, "assistant", result.final_content);
+            session_append(msg.chat_id, "assistant", result->final_content);
 
             /* Push response to outbound */
             mimi_msg_t out = {0};
             strncpy(out.channel, msg.channel, sizeof(out.channel) - 1);
             strncpy(out.chat_id, msg.chat_id, sizeof(out.chat_id) - 1);
-            out.content = result.final_content;  /* transfer ownership */
+            out.content = result->final_content;  /* transfer ownership */
             ESP_LOGI(TAG, "Queue final response to %s:%s (%d bytes)",
                      out.channel, out.chat_id, (int)strlen(out.content));
             if (message_bus_push_outbound(&out) != ESP_OK) {
                 ESP_LOGW(TAG, "Outbound queue full, drop final response");
                 free(out.content);
             }
-            result.final_content = NULL;  /* prevent double-free */
+            result->final_content = NULL;  /* prevent double-free */
         }
+
+        /* Call learning hooks on task end */
+        learning_hook_on_task_end(msg.chat_id, result);
 
         /* Clear checkpoint on successful completion */
         checkpoint_clear(msg.chat_id);
 
         /* Cleanup */
         cJSON_Delete(messages);
-        if (result.messages) cJSON_Delete(result.messages);
-        if (result.final_content) free(result.final_content);
-        if (result.error) free(result.error);
+        if (result->messages) cJSON_Delete(result->messages);
+        if (result->final_content) free(result->final_content);
+        if (result->error) free(result->error);
+        free(result);
         free(msg.content);
 
         /* Log memory status */
