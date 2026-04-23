@@ -86,6 +86,20 @@ esp_err_t tool_registry_execute_prepared(const char *name, char *input_json,
 esp_err_t tool_registry_add(const mimi_tool_t *tool);
 
 /**
+ * Remove a tool from the registry by name.
+ *
+ * @param name Tool name to remove
+ * @return ESP_OK on success, ESP_ERR_NOT_FOUND if tool not found
+ */
+esp_err_t tool_registry_remove(const char *name);
+
+/**
+ * Clear all dynamically registered tools.
+ * Removes tools added via tool_registry_add() after initialization.
+ */
+void tool_registry_clear_dynamic(void);
+
+/**
  * Rebuild the tools JSON cache after adding tools dynamically.
  * Call this after tool_registry_add() when adding multiple tools.
  */

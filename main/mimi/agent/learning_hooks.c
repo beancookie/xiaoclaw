@@ -90,7 +90,7 @@ void learning_hook_on_task_end(const char *chat_id, const void *result)
             .last_task_success = true,
             .step_count = r->tool_sequence_len,
             .is_repetitive = false,  /* TODO: detect repetitive tasks */
-            .user_intent = NULL,      /* TODO: extract from messages */
+            .user_intent = r->user_intent,
             .tool_sequence_json = r->tool_sequence_json,
             .sequence_len = r->tool_sequence_len,
         };

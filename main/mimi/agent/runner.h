@@ -24,6 +24,7 @@ typedef struct {
     void (*checkpoint_callback)(void *session_key, const char *phase, cJSON *checkpoint);  /**< Called after each phase */
     void *checkpoint_session_key;        /**< Session key passed to checkpoint_callback */
     const mimi_msg_t *current_msg;      /**< Current message for context (channel, chat_id) */
+    const char *user_intent;            /**< User's original message text for learning hooks */
 } AgentRunSpec;
 
 /**
@@ -42,6 +43,7 @@ typedef struct {
     bool task_success;                  /**< true if task succeeded (evaluated by learning_hook_evaluate) */
     char tool_sequence_json[2048];      /**< JSON array of {tool, input} for the entire task */
     int tool_sequence_len;              /**< Number of tool calls in tool_sequence_json */
+    const char *user_intent;            /**< User's original message text */
 } AgentRunResult;
 
 /**

@@ -33,6 +33,8 @@
 #include "tools/tool_registry.h"
 #include "tools/tool_mcp_client.h"
 #include "skills/skill_loader.h"
+#include "skills/skill_meta.h"
+#include "skills/skill_crystallize.h"
 
 // Disabled for embedded mode (xiaozhi handles these):
 // #include "channels/telegram/telegram_bot.h"
@@ -45,6 +47,14 @@ static const char *TAG = "mimi";
 
 static esp_err_t init_spiffs(void)
 {
+    /* Check if SPIFFS already mounted (e.g., by xiaozhi host) */
+    size_t total = 0, used = 0;
+    if (esp_spiffs_info("spiffs", &total, &used) == ESP_OK) {
+        ESP_LOGI(TAG, "SPIFFS already mounted, reusing: total=%d, used=%d", (int)total, (int)used);
+        return ESP_OK;
+    }
+
+    /* Mount SPIFFS if not already mounted */
     esp_vfs_spiffs_conf_t conf = {
         .base_path = MIMI_SPIFFS_BASE,
         .partition_label = "spiffs",
@@ -58,9 +68,8 @@ static esp_err_t init_spiffs(void)
         return ret;
     }
 
-    size_t total = 0, used = 0;
     esp_spiffs_info("spiffs", &total, &used);
-    ESP_LOGI(TAG, "SPIFFS: total=%d, used=%d", (int)total, (int)used);
+    ESP_LOGI(TAG, "SPIFFS mounted: total=%d, used=%d", (int)total, (int)used);
 
     return ESP_OK;
 }
@@ -96,6 +105,7 @@ esp_err_t mimiclaw_init(void)
     ESP_ERROR_CHECK(message_bus_init());
     ESP_ERROR_CHECK(memory_store_init());
     ESP_ERROR_CHECK(skill_loader_init());
+    ESP_ERROR_CHECK(skill_crystallize_init());
     ESP_ERROR_CHECK(session_manager_init());
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());

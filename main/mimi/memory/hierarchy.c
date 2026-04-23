@@ -19,8 +19,10 @@ size_t memory_l1_get_skill_index(char *buf, size_t size)
 
 size_t memory_l2_get_facts(char *buf, size_t size)
 {
-    /* Try USER.md first, then facts.json */
-    FILE *f = fopen(MIMI_USER_FILE, "r");
+    /* Try facts.json first (per L2 design), then USER.md as fallback */
+    char facts_path[256];
+    snprintf(facts_path, sizeof(facts_path), "%s/memory/facts.json", MIMI_SPIFFS_BASE);
+    FILE *f = fopen(facts_path, "r");
     if (f) {
         size_t n = fread(buf, 1, size - 1, f);
         buf[n] = '\0';
@@ -28,10 +30,8 @@ size_t memory_l2_get_facts(char *buf, size_t size)
         return n;
     }
 
-    /* Try facts.json */
-    char facts_path[256];
-    snprintf(facts_path, sizeof(facts_path), "%s/memory/facts.json", MIMI_SPIFFS_BASE);
-    f = fopen(facts_path, "r");
+    /* Try USER.md as fallback */
+    f = fopen(MIMI_USER_FILE, "r");
     if (f) {
         size_t n = fread(buf, 1, size - 1, f);
         buf[n] = '\0';

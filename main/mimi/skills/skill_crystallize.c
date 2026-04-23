@@ -97,9 +97,10 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
         return false;
     }
 
-    /* Must be repetitive OR have many steps */
-    if (!ctx->is_repetitive && ctx->step_count <= 3) {
-        ESP_LOGI(TAG, "Crystallize skipped: not repetitive and step_count=%d", ctx->step_count);
+    /* For embedded devices with simple tasks, allow crystallization for step_count >= 2.
+     * This enables learning from multi-step tasks even if not strictly "repetitive". */
+    if (ctx->step_count < 2) {
+        ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need >= 2)", ctx->step_count);
         return false;
     }
 
@@ -109,8 +110,7 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
         return false;
     }
 
-    ESP_LOGI(TAG, "Crystallize conditions met: success=true, steps=%d, repetitive=%d",
-             ctx->step_count, ctx->is_repetitive);
+    ESP_LOGI(TAG, "Crystallize conditions met: success=true, steps=%d", ctx->step_count);
     return true;
 }
 
