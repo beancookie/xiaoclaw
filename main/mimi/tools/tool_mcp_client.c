@@ -47,10 +47,10 @@ typedef struct {
     char endpoint[64];
     int timeout_ms;
     char server_name[64];
-} mcp_server_config_t;
+} mcp_internal_config_t;
 
 /* Current connected server config */
-static mcp_server_config_t s_server_config = {
+static mcp_internal_config_t s_server_config = {
     .host = {0},
     .port = 8000,
     .endpoint = "mcp",
@@ -71,6 +71,14 @@ static int s_mcp_tool_count = 0;
 
 /* Current tool index for dispatch */
 static int s_current_tool_index = 0;
+
+/* First-class citizen mode: register tools with actual remote names */
+static bool s_first_class_mode = false;
+
+/* Track dynamically registered first-class tool names for removal */
+#define MAX_FIRST_CLASS_TOOLS 16
+static char s_first_class_tool_names[MAX_FIRST_CLASS_TOOLS][128];
+static int s_first_class_tool_count = 0;
 
 /**
  * @brief MCP response callback (called from MCP manager task)
@@ -504,10 +512,17 @@ static esp_err_t handle_tools_list(const char *resp_json)
             continue;
         }
 
-        /* Build local name with prefix */
+        /* Build local name - use actual remote name in first-class mode */
         char local_name[128];
-        snprintf(local_name, sizeof(local_name), "%s.%s",
-                 s_server_config.endpoint, name->valuestring);
+        if (s_first_class_mode) {
+            /* Use actual remote tool name as-is (e.g., "hue.set_color") */
+            strncpy(local_name, name->valuestring, sizeof(local_name) - 1);
+            local_name[sizeof(local_name) - 1] = '\0';
+        } else {
+            /* Use prefixed name (e.g., "mcp_server.echo") */
+            snprintf(local_name, sizeof(local_name), "%s.%s",
+                     s_server_config.endpoint, name->valuestring);
+        }
 
         /* Build schema JSON */
         char schema_json[512] = "{\"type\":\"object\",\"properties\":{}}";
@@ -537,6 +552,15 @@ static esp_err_t handle_tools_list(const char *resp_json)
         esp_err_t err = tool_registry_add(&tool);
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "Registered MCP tool: %s -> %s", local_name, name->valuestring);
+
+            /* Track first-class tool names for later removal */
+            if (s_first_class_mode && s_first_class_tool_count < MAX_FIRST_CLASS_TOOLS) {
+                strncpy(s_first_class_tool_names[s_first_class_tool_count], local_name,
+                        sizeof(s_first_class_tool_names[s_first_class_tool_count]) - 1);
+                s_first_class_tool_names[s_first_class_tool_count]
+                    [sizeof(s_first_class_tool_names[s_first_class_tool_count]) - 1] = '\0';
+                s_first_class_tool_count++;
+            }
         } else {
             ESP_LOGW(TAG, "Failed to register MCP tool %s: %d", local_name, err);
         }
@@ -547,7 +571,8 @@ static esp_err_t handle_tools_list(const char *resp_json)
     s_mcp_tool_count = count;
     cJSON_Delete(root);
 
-    ESP_LOGI(TAG, "MCP client: registered %d remote tools", count);
+    ESP_LOGI(TAG, "MCP client: registered %d remote tools (first_class=%s)", count,
+             s_first_class_mode ? "true" : "false");
     return ESP_OK;
 }
 
@@ -691,6 +716,192 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
 
     s_connected = true;
     ESP_LOGI(TAG, "MCP client connected to %s (%d tools)", server_name, s_mcp_tool_count);
+    return ESP_OK;
+}
+
+/**
+ * @brief Parse a line with "- key: value" format
+ */
+static bool parse_config_line(const char *line, char *key, char *value)
+{
+    /* Skip leading whitespace */
+    while (*line == ' ' || *line == '\t') line++;
+
+    /* Must start with '-' */
+    if (*line != '-') return false;
+
+    line++; /* skip '-' */
+    while (*line == ' ' || *line == '\t') line++;
+
+    /* Find colon */
+    char *colon = strchr(line, ':');
+    if (!colon) return false;
+
+    /* Extract key */
+    size_t key_len = colon - line;
+    if (key_len >= 64) return false;
+    strncpy(key, line, key_len);
+    key[key_len] = '\0';
+
+    /* Extract value (skip colon and whitespace) */
+    line = colon + 1;
+    while (*line == ' ' || *line == '\t') line++;
+
+    strncpy(value, line, 127);
+    value[127] = '\0';
+
+    /* Remove trailing whitespace */
+    size_t val_len = strlen(value);
+    while (val_len > 0 && (value[val_len - 1] == ' ' || value[val_len - 1] == '\t' || value[val_len - 1] == '\n' || value[val_len - 1] == '\r')) {
+        value[--val_len] = '\0';
+    }
+
+    return true;
+}
+
+/**
+ * @brief Load all MCP server configurations from SKILL.md
+ */
+esp_err_t mcp_load_all_server_configs(mcp_server_config_t configs[], int max_count, int *count)
+{
+    char content[8192];
+    esp_err_t err = skill_loader_load("mcp-servers", content, sizeof(content));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to load mcp-servers skill");
+        *count = 0;
+        return err;
+    }
+
+    *count = 0;
+    char *ptr = content;
+    char line[256];
+
+    while (*ptr && *count < max_count) {
+        /* Skip to next line */
+        char *newline = strchr(ptr, '\n');
+        if (newline) {
+            size_t len = newline - ptr;
+            if (len >= sizeof(line)) len = sizeof(line) - 1;
+            strncpy(line, ptr, len);
+            line[len] = '\0';
+            ptr = newline + 1;
+        } else {
+            strncpy(line, ptr, sizeof(line) - 1);
+            line[sizeof(line) - 1] = '\0';
+            ptr += strlen(ptr);
+        }
+
+        /* Check for section header: ## server_name */
+        if (strncmp(line, "## ", 3) == 0) {
+            mcp_server_config_t *cfg = &configs[*count];
+            memset(cfg, 0, sizeof(*cfg));
+
+            /* Extract server name */
+            strncpy(cfg->name, line + 3, sizeof(cfg->name) - 1);
+            cfg->auto_connect = false;  /* default */
+
+            ESP_LOGI(TAG, "Found MCP server section: %s", cfg->name);
+
+            /* Parse key-value pairs until next section or end */
+            bool in_server_section = true;
+
+            while (*ptr && in_server_section && *count < max_count) {
+                /* Find end of line */
+                char *newline = strchr(ptr, '\n');
+                size_t line_len;
+                if (newline) {
+                    line_len = newline - ptr;
+                } else {
+                    line_len = strlen(ptr);
+                }
+
+                if (line_len >= sizeof(line)) line_len = sizeof(line) - 1;
+                strncpy(line, ptr, line_len);
+                line[line_len] = '\0';
+
+                /* Check for next section */
+                if (strncmp(line, "## ", 3) == 0) {
+                    in_server_section = false;
+                    break;
+                }
+
+                /* Parse key-value */
+                char key[64], value[128];
+                if (parse_config_line(line, key, value)) {
+                    if (strcmp(key, "host") == 0) {
+                        strncpy(cfg->host, value, sizeof(cfg->host) - 1);
+                    } else if (strcmp(key, "port") == 0) {
+                        cfg->port = atoi(value);
+                    } else if (strcmp(key, "endpoint") == 0) {
+                        strncpy(cfg->endpoint, value, sizeof(cfg->endpoint) - 1);
+                    } else if (strcmp(key, "auto_connect") == 0) {
+                        cfg->auto_connect = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0);
+                    }
+                }
+
+                if (newline) {
+                    ptr = newline + 1;
+                } else {
+                    break;
+                }
+            }
+
+            /* Validate we have required fields */
+            if (cfg->host[0] != '\0' && cfg->port > 0) {
+                ESP_LOGI(TAG, "Loaded server config: %s at %s:%d/%s (auto_connect=%s)",
+                         cfg->name, cfg->host, cfg->port, cfg->endpoint,
+                         cfg->auto_connect ? "true" : "false");
+                (*count)++;
+            }
+
+            if (!in_server_section) {
+                continue;
+            }
+        }
+    }
+
+    ESP_LOGI(TAG, "Loaded %d MCP server configs", *count);
+    return ESP_OK;
+}
+
+/**
+ * @brief Connect to server and register remote tools as first-class citizens
+ *
+ * Remote tools are registered with their actual names (e.g., "hue.set_color")
+ * instead of prefixed names (e.g., "mcp_server.hue.set_color").
+ */
+esp_err_t mcp_connect_and_register(const char *server_name)
+{
+    char host[128] = {0};
+    int port = 0;
+    char endpoint[64] = {0};
+
+    /* Get config from skill_loader */
+    esp_err_t err = skill_loader_get_mcp_server_config(server_name,
+                                                         host, sizeof(host),
+                                                         &port, endpoint, sizeof(endpoint));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "mcp_connect_and_register: server '%s' not found", server_name);
+        return err;
+    }
+
+    ESP_LOGI(TAG, "mcp_connect_and_register: connecting to %s at %s:%d/%s",
+             server_name, host, port, endpoint);
+
+    /* Enable first-class mode */
+    s_first_class_mode = true;
+    s_first_class_tool_count = 0;
+
+    /* Connect (this will call mcp_list_tools which registers with actual names) */
+    err = mcp_do_connect(server_name, host, port, endpoint);
+    if (err != ESP_OK) {
+        s_first_class_mode = false;
+        return err;
+    }
+
+    s_first_class_mode = false;
+    ESP_LOGI(TAG, "mcp_connect_and_register: connected to %s with %d first-class tools",
+             server_name, s_first_class_tool_count);
     return ESP_OK;
 }
 
@@ -1026,6 +1237,19 @@ esp_err_t tool_mcp_client_init(void)
 
     tool_registry_rebuild_json();
 
+    /* Auto-connect to servers marked with auto_connect=true */
+    mcp_server_config_t configs[8];
+    int count = 0;
+    esp_err_t err = mcp_load_all_server_configs(configs, 8, &count);
+    if (err == ESP_OK) {
+        for (int i = 0; i < count; i++) {
+            if (configs[i].auto_connect) {
+                ESP_LOGI(TAG, "Auto-connecting to MCP server: %s", configs[i].name);
+                mcp_connect_and_register(configs[i].name);
+            }
+        }
+    }
+
     ESP_LOGI(TAG, "MCP dynamic tools registered");
     return ESP_OK;
 }
@@ -1047,6 +1271,14 @@ esp_err_t tool_mcp_client_deinit(void)
         s_mcp = NULL;
     }
 
+    /* Remove dynamically registered first-class tools from registry */
+    for (int i = 0; i < s_first_class_tool_count; i++) {
+        ESP_LOGI(TAG, "Removing dynamic MCP tool: %s", s_first_class_tool_names[i]);
+        tool_registry_remove(s_first_class_tool_names[i]);
+    }
+    memset(s_first_class_tool_names, 0, sizeof(s_first_class_tool_names));
+    s_first_class_tool_count = 0;
+
     /* Reset server config */
     memset(&s_server_config, 0, sizeof(s_server_config));
     s_server_config.port = 8000;
@@ -1055,6 +1287,9 @@ esp_err_t tool_mcp_client_deinit(void)
 
     s_connected = false;
     s_mcp_tool_count = 0;
+
+    /* Rebuild tools JSON to reflect removed tools */
+    tool_registry_rebuild_json();
 
     ESP_LOGI(TAG, "MCP client deinitialized");
     return ESP_OK;
