@@ -656,10 +656,8 @@ static esp_err_t mcp_list_tools(void)
 static esp_err_t mcp_do_connect(const char *server_name, const char *host, int port,
                                  const char *endpoint)
 {
-    /* Disconnect existing if any */
-    if (s_connected) {
-        tool_mcp_client_deinit();
-    }
+    /* Always cleanup any previous state */
+    tool_mcp_client_deinit();
 
     ESP_LOGI(TAG, "Connecting to MCP server: %s at %s:%d/%s",
              server_name, host, port, endpoint);
@@ -675,7 +673,11 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
     s_server_config.timeout_ms = DEFAULT_MCP_TIMEOUT_MS;
 
     /* Create MCP instance */
-    ESP_ERROR_CHECK(esp_mcp_create(&s_mcp));
+    esp_err_t err = esp_mcp_create(&s_mcp);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "MCP create failed: %s", esp_err_to_name(err));
+        return err;
+    }
 
     /* Build base URL */
     char base_url[256];
@@ -695,20 +697,27 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
     };
 
     s_mgr = 0;
-    ESP_ERROR_CHECK(esp_mcp_mgr_init(mgr_cfg, &s_mgr));
+    err = esp_mcp_mgr_init(mgr_cfg, &s_mgr);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "MCP manager init failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
     ESP_ERROR_CHECK(esp_mcp_mgr_start(s_mgr));
     ESP_ERROR_CHECK(esp_mcp_mgr_register_endpoint(s_mgr, endpoint, NULL));
 
     /* Send initialize */
     esp_err_t ret = mcp_initialize();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "MCP initialize warning, continuing...");
+        ESP_LOGW(TAG, "MCP initialize failed: %d", ret);
+        return ret;
     }
 
     /* Query remote tools */
     ret = mcp_list_tools();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "MCP tools/list warning, continuing...");
+        ESP_LOGW(TAG, "MCP tools/list failed: %d", ret);
+        return ret;
     }
 
     /* Rebuild tools JSON to include newly added MCP tools */
@@ -1256,10 +1265,6 @@ esp_err_t tool_mcp_client_init(void)
 
 esp_err_t tool_mcp_client_deinit(void)
 {
-    if (!s_connected) {
-        return ESP_OK;
-    }
-
     if (s_mgr) {
         esp_mcp_mgr_stop(s_mgr);
         esp_mcp_mgr_deinit(s_mgr);
