@@ -47,29 +47,26 @@ static const char *TAG = "mimi";
 
 static esp_err_t init_spiffs(void)
 {
-    /* Check if SPIFFS already mounted (e.g., by xiaozhi host) */
-    size_t total = 0, used = 0;
-    if (esp_spiffs_info("spiffs", &total, &used) == ESP_OK) {
-        ESP_LOGI(TAG, "SPIFFS already mounted, reusing: total=%d, used=%d", (int)total, (int)used);
-        return ESP_OK;
-    }
-
-    /* Mount SPIFFS if not already mounted */
+    /* Always register VFS to ensure /spiffs/ path is available.
+     * If xiaozhi host already mounted SPIFFS, esp_vfs_spiffs_register
+     * returns ESP_ERR_INVALID_STATE which is safe to ignore. */
     esp_vfs_spiffs_conf_t conf = {
         .base_path = MIMI_SPIFFS_BASE,
         .partition_label = "spiffs",
         .max_files = 10,
-        .format_if_mount_failed = true,
+        .format_if_mount_failed = false,  // Don't format - rely on existing mount
     };
 
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "SPIFFS register failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    esp_spiffs_info("spiffs", &total, &used);
-    ESP_LOGI(TAG, "SPIFFS mounted: total=%d, used=%d", (int)total, (int)used);
+    size_t total = 0, used = 0;
+    if (esp_spiffs_info("spiffs", &total, &used) == ESP_OK) {
+        ESP_LOGI(TAG, "SPIFFS ready: total=%d, used=%d", (int)total, (int)used);
+    }
 
     return ESP_OK;
 }

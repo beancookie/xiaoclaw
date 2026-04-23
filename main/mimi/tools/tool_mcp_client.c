@@ -1265,6 +1265,10 @@ esp_err_t tool_mcp_client_init(void)
 
 esp_err_t tool_mcp_client_deinit(void)
 {
+    if (!s_connected && !s_mcp && !s_mgr) {
+        return ESP_OK;
+    }
+
     if (s_mgr) {
         esp_mcp_mgr_stop(s_mgr);
         esp_mcp_mgr_deinit(s_mgr);
