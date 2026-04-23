@@ -15,6 +15,7 @@ Connect to MCP (Model Context Protocol) servers to use remote tools. MCP allows 
 - host: 192.168.1.3
 - port: 8080
 - endpoint: mcp_server
+- auto_connect: true
 - default_params:
   - tenant_id: 10542
 

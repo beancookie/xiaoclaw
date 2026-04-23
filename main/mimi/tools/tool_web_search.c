@@ -417,7 +417,7 @@ esp_err_t tool_web_search_execute(const char *input_json, char *output, size_t o
 {
     if (s_provider == SEARCH_PROVIDER_NONE) {
         snprintf(output, output_size,
-                 "Error: No search API key configured. Set MIMI_SECRET_TAVILY_KEY or MIMI_SECRET_SEARCH_KEY in mimi_secrets.h");
+                 "Error: No search API key configured. Set MIMI_SECRET_TAVILY_KEY or MIMI_SECRET_SEARCH_KEY via idf.py menuconfig");
         return ESP_ERR_INVALID_STATE;
     }
 

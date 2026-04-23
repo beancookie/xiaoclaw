@@ -273,8 +273,7 @@ esp_err_t skill_loader_init(void)
     snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_SPIFFS_BASE);
     scan_skills_dir(workspace_path, 'w');
 
-    /* Merge metadata from skill_index.json - DISABLED due to crash */
-    /* TODO: Fix skill_meta_init() crash issue */
+    /* Merge metadata from skill_index.json (usage_count, success_rate, last_used) */
     for (int i = 0; i < s_skill_count; i++) {
         skill_meta_t meta;
         if (skill_meta_get(s_skills[i].name, &meta) == ESP_OK) {

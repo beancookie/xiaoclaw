@@ -6,6 +6,7 @@
 #include "mimi_config.h"
 #include "bus/message_bus.h"
 #include "memory/session_manager.h"
+#include "memory/consolidator.h"
 #include "tools/tool_registry.h"
 
 #include <string.h>
@@ -25,6 +26,9 @@ esp_err_t agent_loop_init(void)
 {
     /* Initialize runner subsystem */
     agent_runner_init();
+
+    /* Initialize session consolidator */
+    consolidator_init(NULL);  /* Use default config */
 
     ESP_LOGI(TAG, "Agent loop initialized");
     return ESP_OK;
@@ -168,7 +172,11 @@ static void agent_loop_task(void *arg)
             .error_message = "Sorry, I encountered an error.",
             .concurrent_tools = false,
             .current_msg = &msg,
+            .user_intent = msg.content,
         };
+
+        /* Check and run consolidation before LLM call */
+        consolidator_check_and_run(msg.chat_id);
 
         AgentRunResult *result = heap_caps_malloc(sizeof(AgentRunResult), MALLOC_CAP_SPIRAM);
         if (!result) {

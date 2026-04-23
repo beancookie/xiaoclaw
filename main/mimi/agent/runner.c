@@ -237,10 +237,6 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
             snip_history(messages, context_limit);
         }
 
-        /* Reset tool_sequence_json at start of each iteration */
-        result->tool_sequence_json[0] = '\0';
-        result->tool_sequence_len = 0;
-
         llm_response_t resp;
         /* Re-fetch tools_json dynamically to pick up any tools registered during runtime (e.g., MCP tools after connect) */
         const char *tools_json = tool_registry_get_tools_json();
@@ -252,6 +248,13 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
             result->error = strdup(error_msg);
             final_text = strdup(error_msg);
             llm_response_free(&resp);
+            /* Close array before breaking */
+            if (result->tool_sequence_len > 0) {
+                size_t len = strlen(result->tool_sequence_json);
+                if (len > 0 && len < sizeof(result->tool_sequence_json) - 2) {
+                    strcat(result->tool_sequence_json, "]");
+                }
+            }
             break;
         }
 
@@ -263,6 +266,13 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
             }
             stop_reason = "completed";
             llm_response_free(&resp);
+            /* Close array before breaking */
+            if (result->tool_sequence_len > 0) {
+                size_t len = strlen(result->tool_sequence_json);
+                if (len > 0 && len < sizeof(result->tool_sequence_json) - 2) {
+                    strcat(result->tool_sequence_json, "]");
+                }
+            }
             break;
         }
 
@@ -308,14 +318,14 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         cJSON *tool_results = build_tool_result_content(&resp, spec->current_msg, tool_output, max_tool_chars);
         append_tool_result_message(messages, tool_results);
 
-        /* Close tool_sequence_json array */
-        size_t cur_len = strlen(result->tool_sequence_json);
-        if (cur_len > 0 && cur_len < sizeof(result->tool_sequence_json) - 2) {
-            strcat(result->tool_sequence_json, "]");
-        }
-
         llm_response_free(&resp);
         iteration++;
+    }
+
+    /* Close tool_sequence_json array once at the end */
+    size_t final_len = strlen(result->tool_sequence_json);
+    if (final_len > 0 && final_len < sizeof(result->tool_sequence_json) - 2) {
+        strcat(result->tool_sequence_json, "]");
     }
 
     if (iteration >= max_iter) {
@@ -332,6 +342,7 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
     result->stop_reason = stop_reason;
     result->usage_prompt_tokens = estimate_cjson_tokens(spec->initial_messages);
     result->usage_completion_tokens = final_text ? estimate_token_count(final_text) : 0;
+    result->user_intent = spec->user_intent;
 
     free(tool_output);
 

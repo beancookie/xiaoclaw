@@ -32,18 +32,6 @@ static void simple_hash(const char *str, char *out, size_t out_size)
 
 static esp_err_t save_to_file(void)
 {
-    /* Ensure directory exists */
-    FILE *test = fopen(SKILL_INDEX_PATH, "r");
-    if (!test) {
-        /* Try creating parent directory */
-        char dir[256];
-        snprintf(dir, sizeof(dir), "%s/memory", MIMI_SPIFFS_BASE);
-        FILE *d = fopen(dir, "w");
-        if (d) fclose(d);
-    } else {
-        fclose(test);
-    }
-
     FILE *f = fopen(SKILL_INDEX_PATH, "w");
     if (!f) {
         ESP_LOGE(TAG, "Failed to open %s for writing", SKILL_INDEX_PATH);
@@ -184,12 +172,13 @@ esp_err_t skill_meta_init(void)
 
     ESP_LOGI(TAG, "Initializing skill metadata system");
     s_skill_count = 0;
-    s_initialized = true;
 
     esp_err_t err = load_from_file();
     if (err != ESP_OK) {
         return err;
     }
+
+    s_initialized = true;
 
     /* Scan auto skills directory to merge any new skills */
     char auto_dir[256];
