@@ -92,30 +92,21 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
 static size_t append_memory_section(char *buf, size_t size, size_t offset)
 {
     char mem_buf[4096];
-    char recent_buf[4096];
     size_t off = 0;
 
     off = snprintf(buf + offset, size - offset,
         "## Memory\n\n"
         "You have persistent memory stored on local flash:\n"
-        "- Long-term memory: " MIMI_SPIFFS_MEMORY_DIR "/MEMORY.md\n"
-        "- Daily notes: " MIMI_SPIFFS_MEMORY_DIR "/daily/<YYYY-MM-DD>.md\n\n"
+        "- Long-term memory: " MIMI_SPIFFS_MEMORY_DIR "/MEMORY.md\n\n"
         "IMPORTANT: Actively use memory to remember things across conversations.\n"
         "- When you learn something new about the user (name, preferences, habits, context), write it to MEMORY.md.\n"
-        "- When something noteworthy happens in a conversation, append it to today's daily note.\n"
         "- Always read_file MEMORY.md before writing, so you can edit_file to update without losing existing content.\n"
-        "- Use get_datetime to know today's date before writing daily notes.\n"
         "- Keep MEMORY.md concise and organized — summarize, don't dump raw conversation.\n"
         "- You should proactively save memory without being asked. If the user tells you their name, preferences, or important facts, persist them immediately.\n\n");
 
     /* Long-term memory */
     if (memory_read_long_term(mem_buf, sizeof(mem_buf)) == ESP_OK && mem_buf[0]) {
         off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_buf);
-    }
-
-    /* Recent daily notes (last 3 days) */
-    if (memory_read_recent(recent_buf, sizeof(recent_buf), 3) == ESP_OK && recent_buf[0]) {
-        off += snprintf(buf + offset + off, size - offset - off, "## Recent Notes\n\n%s\n", recent_buf);
     }
 
     return off;
@@ -133,6 +124,14 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
     if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
             "## Skill Index (L1)\n\n%s\n\n", l1_index);
+    }
+
+    /* L2: User facts/preferences (if available) */
+    char l2_facts[1024];
+    size_t l2_len = memory_get_facts(l2_facts, sizeof(l2_facts));
+    if (l2_len > 0) {
+        off += snprintf(buf + offset + off, size - offset - off,
+            "## User Facts (L2)\n\n%s\n\n", l2_facts);
     }
 
     /* L3: Hot auto-skills (only is_hot=true, full content) */
