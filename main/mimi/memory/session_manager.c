@@ -28,14 +28,14 @@ static int s_session_cache_count = 0;
 
 void session_get_path(const char *chat_id, char *buf, size_t size)
 {
-    snprintf(buf, size, "%s/tg_%s.jsonl", MIMI_SPIFFS_SESSION_DIR, chat_id);
+    snprintf(buf, size, "%s/tg_%s.jsonl", MIMI_FATFS_SESSION_DIR, chat_id);
 }
 
 /* ─── Helper: get metadata file path ─────────────────────────────────── */
 
 void metadata_get_path(const char *chat_id, char *buf, size_t size)
 {
-    snprintf(buf, size, "%s/tg_%s.meta", MIMI_SPIFFS_SESSION_DIR, chat_id);
+    snprintf(buf, size, "%s/tg_%s.meta", MIMI_FATFS_SESSION_DIR, chat_id);
 }
 
 /* ─── Helper: find or create cache entry ─────────────────────────────── */
@@ -506,7 +506,7 @@ esp_err_t session_clear(const char *chat_id)
 
 void session_list(void)
 {
-    DIR *dir = opendir(MIMI_SPIFFS_SESSION_DIR);
+    DIR *dir = opendir(MIMI_FATFS_SESSION_DIR);
     if (!dir) {
         ESP_LOGW(TAG, "Cannot open session directory");
         return;

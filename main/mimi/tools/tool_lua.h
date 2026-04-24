@@ -4,7 +4,7 @@
 #include "esp_err.h"
 
 /**
- * @brief Execute a Lua script from SPIFFS file.
+ * @brief Execute a Lua script from FATFS file.
  *
  * @param input_json JSON string with "path" field pointing to Lua script
  * @param output Output buffer for result

@@ -21,7 +21,7 @@ size_t memory_l2_get_facts(char *buf, size_t size)
 {
     /* Try facts.json first (per L2 design), then USER.md as fallback */
     char facts_path[256];
-    snprintf(facts_path, sizeof(facts_path), "%s/memory/facts.json", MIMI_SPIFFS_BASE);
+    snprintf(facts_path, sizeof(facts_path), "%s/memory/facts.json", MIMI_FATFS_BASE);
     FILE *f = fopen(facts_path, "r");
     if (f) {
         size_t n = fread(buf, 1, size - 1, f);
@@ -54,21 +54,21 @@ esp_err_t memory_l4_archive_session(const char *chat_id)
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* Archive session to /spiffs/sessions/archive/<chat_id>.json */
+    /* Archive session to /fatfs/sessions/archive/<chat_id>.json */
     char archive_path[256];
     snprintf(archive_path, sizeof(archive_path), "%s/sessions/archive/%s.json",
-             MIMI_SPIFFS_BASE, chat_id);
+             MIMI_FATFS_BASE, chat_id);
 
     /* Create archive directory if needed */
     char dir_path[256];
-    snprintf(dir_path, sizeof(dir_path), "%s/sessions/archive", MIMI_SPIFFS_BASE);
+    snprintf(dir_path, sizeof(dir_path), "%s/sessions/archive", MIMI_FATFS_BASE);
     FILE *d = fopen(dir_path, "w");
     if (d) fclose(d);
 
     /* Read current session and write to archive */
     char session_path[256];
     snprintf(session_path, sizeof(session_path), "%s/sessions/%s.json",
-             MIMI_SPIFFS_BASE, chat_id);
+             MIMI_FATFS_BASE, chat_id);
 
     FILE *in = fopen(session_path, "r");
     if (!in) {

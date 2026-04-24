@@ -27,7 +27,7 @@ typedef struct {
 } cron_job_t;
 
 /**
- * Initialize the cron service. Loads jobs from SPIFFS.
+ * Initialize the cron service. Loads jobs from FATFS.
  */
 esp_err_t cron_service_init(void);
 

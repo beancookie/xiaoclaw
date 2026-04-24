@@ -56,7 +56,7 @@ static void extract_intent_prefix(const char *intent, char *out, size_t out_size
 
 static esp_err_t ensure_dir(const char *path)
 {
-    /* For SPIFFS, we just need to ensure the path is valid
+    /* For FATFS, we just need to ensure the path is valid
        Directories are created implicitly when writing files */
     char dir[256];
     char *p = dir + snprintf(dir, sizeof(dir), "%s", path);
@@ -136,7 +136,7 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
 
     /* Create skill directory */
     char skill_dir[256];
-    snprintf(skill_dir, sizeof(skill_dir), "%s/skills/auto/%s", MIMI_SPIFFS_BASE, name);
+    snprintf(skill_dir, sizeof(skill_dir), "%s/skills/auto/%s", MIMI_FATFS_BASE, name);
 
     ensure_dir(skill_dir);
 

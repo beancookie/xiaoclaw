@@ -64,7 +64,7 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
 {
     size_t off = snprintf(buf + offset, size - offset,
         "## Available Tools\n\n"
-        "Tool instructions are in skill files under /spiffs/skills/:\n");
+        "Tool instructions are in skill files under /fatfs/skills/:\n");
 
     skill_info_t skills[32];
     int count = skill_loader_list(skills, 32);
@@ -79,7 +79,7 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
     off += snprintf(buf + offset + off, size - offset - off,
         "\n"
         "Other tools:\n"
-        "- read_file: Read a file from SPIFFS.\n"
+        "- read_file: Read a file from FATFS.\n"
         "- write_file: Write/overwrite a file.\n"
         "- edit_file: Find-and-replace edit.\n"
         "- list_dir: List files in a directory.\n\n");
@@ -97,7 +97,7 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
     off = snprintf(buf + offset, size - offset,
         "## Memory\n\n"
         "You have persistent memory stored on local flash:\n"
-        "- Long-term memory: " MIMI_SPIFFS_MEMORY_DIR "/MEMORY.md\n\n"
+        "- Long-term memory: " MIMI_FATFS_MEMORY_DIR "/MEMORY.md\n\n"
         "IMPORTANT: Actively use memory to remember things across conversations.\n"
         "- When you learn something new about the user (name, preferences, habits, context), write it to MEMORY.md.\n"
         "- Always read_file MEMORY.md before writing, so you can edit_file to update without losing existing content.\n"

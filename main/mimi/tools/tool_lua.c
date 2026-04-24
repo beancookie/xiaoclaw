@@ -4,7 +4,7 @@
  *
  * This module provides tools for running Lua scripts:
  * - lua_eval: Execute a Lua code string directly
- * - lua_run: Execute a Lua script from SPIFFS file
+ * - lua_run: Execute a Lua script from FATFS file
  */
 
 #include "tool_lua.h"
@@ -184,7 +184,7 @@ static lua_State *create_lua_state(void)
     lua_register(L, "http_delete", lua_http_delete);
 
     /* Set package.path to include common locations */
-    const char *path_setup = "package.path = package.path .. ';/spiffs/lua/?.lua;/spiffs/?.lua;./?.lua'";
+    const char *path_setup = "package.path = package.path .. ';/fatfs/lua/?.lua;/fatfs/?.lua;./?.lua'";
     if (luaL_dostring(L, path_setup) != LUA_OK) {
         ESP_LOGW(TAG, "Failed to set package.path: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
@@ -317,9 +317,9 @@ esp_err_t tool_lua_run_execute(const char *input_json, char *output, size_t outp
     const char *path = path_item->valuestring;
     ESP_LOGI(TAG, "Running Lua script: %s", path);
 
-    /* Validate path - must start with /spiffs/ */
-    if (strncmp(path, MIMI_SPIFFS_BASE, strlen(MIMI_SPIFFS_BASE)) != 0) {
-        snprintf(output, output_size, "{\"error\": \"path must start with %s\"}", MIMI_SPIFFS_BASE);
+    /* Validate path - must start with /fatfs/ */
+    if (strncmp(path, MIMI_FATFS_BASE, strlen(MIMI_FATFS_BASE)) != 0) {
+        snprintf(output, output_size, "{\"error\": \"path must start with %s\"}", MIMI_FATFS_BASE);
         cJSON_Delete(root);
         return ESP_ERR_INVALID_ARG;
     }

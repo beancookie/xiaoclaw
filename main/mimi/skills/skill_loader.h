@@ -23,7 +23,7 @@ typedef struct {
 
 /**
  * Initialize skills system.
- * Scans SPIFFS for available skill markdown files.
+ * Scans FATFS for available skill markdown files.
  */
 esp_err_t skill_loader_init(void);
 
