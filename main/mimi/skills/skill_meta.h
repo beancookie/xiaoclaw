@@ -7,7 +7,7 @@
 
 /**
  * Skill metadata structure for tracking usage and success rates.
- * Stored persistently in /spiffs/memory/skill_index.json
+ * Stored persistently in /fatfs/memory/skill_index.json
  */
 typedef struct {
     char name[64];            // Skill name
@@ -30,7 +30,7 @@ typedef struct {
 /**
  * Path to the skill index JSON file (L1 memory layer).
  */
-#define SKILL_INDEX_PATH "/spiffs/memory/skill_index.json"
+#define SKILL_INDEX_PATH "/fatfs/memory/skill_index.json"
 
 /**
  * Maximum number of skills in the index.
@@ -39,7 +39,7 @@ typedef struct {
 
 /**
  * Initialize the skill metadata system.
- * Loads existing skill_index.json from SPIFFS if present.
+ * Loads existing skill_index.json from FATFS if present.
  *
  * @return ESP_OK on success
  */
@@ -57,7 +57,7 @@ esp_err_t skill_meta_get(const char *name, skill_meta_t *meta);
 /**
  * Record a skill usage (success or failure).
  * Updates usage_count, success_count, success_rate, last_used.
- * Saves to SPIFFS after update.
+ * Saves to FATFS after update.
  *
  * @param name    Skill name
  * @param success true if the task succeeded
@@ -103,7 +103,7 @@ size_t skill_meta_get_all_json(char *buf, size_t size);
 size_t skill_meta_get_hot_skills(char *buf, size_t size);
 
 /**
- * Save current metadata to SPIFFS.
+ * Save current metadata to FATFS.
  * Called automatically by record_usage and update, but can be
  * called manually to ensure persistence.
  *

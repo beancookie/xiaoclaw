@@ -12,7 +12,7 @@
 static const char *TAG = "consolidator";
 
 /* Archive subdirectory within session dir */
-#define ARCHIVE_DIR MIMI_SPIFFS_SESSION_DIR "/archive"
+#define ARCHIVE_DIR MIMI_FATFS_SESSION_DIR "/archive"
 #define ARCHIVE_FILE_PREFIX ARCHIVE_DIR "/tg_"
 
 /* Configuration */
@@ -26,7 +26,7 @@ static int s_sessions_consolidated = 0;
 
 static esp_err_t ensure_archive_dir(void)
 {
-    /* SPIFFS is flat, but we use a prefix for archive files */
+    /* FATFS is flat, but we use a prefix for archive files */
     /* Just verify the parent directory is accessible */
     return ESP_OK;
 }

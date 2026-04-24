@@ -161,10 +161,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t rf = {
             .name = "read_file",
-            .description = "Read a file from SPIFFS storage. Path must start with " MIMI_SPIFFS_BASE "/.",
+            .description = "Read a file from FATFS storage. Path must start with " MIMI_FATFS_BASE "/.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"}},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"}},"
                 "\"required\":[\"path\"]}",
             .execute = tool_read_file_execute,
             .concurrency_safe = true,
@@ -177,10 +177,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t wf = {
             .name = "write_file",
-            .description = "Write or overwrite a file on SPIFFS storage. Path must start with " MIMI_SPIFFS_BASE "/.",
+            .description = "Write or overwrite a file on FATFS storage. Path must start with " MIMI_FATFS_BASE "/.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"},"
                 "\"content\":{\"type\":\"string\",\"description\":\"File content to write\"}},"
                 "\"required\":[\"path\",\"content\"]}",
             .execute = tool_write_file_execute,
@@ -194,10 +194,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t ef = {
             .name = "edit_file",
-            .description = "Find and replace text in a file on SPIFFS. Replaces first occurrence of old_string with new_string.",
+            .description = "Find and replace text in a file on FATFS. Replaces first occurrence of old_string with new_string.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"},"
                 "\"old_string\":{\"type\":\"string\",\"description\":\"Text to find\"},"
                 "\"new_string\":{\"type\":\"string\",\"description\":\"Replacement text\"}},"
                 "\"required\":[\"path\",\"old_string\",\"new_string\"]}",
@@ -212,10 +212,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t ld = {
             .name = "list_dir",
-            .description = "List files on SPIFFS storage, optionally filtered by path prefix.",
+            .description = "List files on FATFS storage, optionally filtered by path prefix.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"prefix\":{\"type\":\"string\",\"description\":\"Optional path prefix filter, e.g. " MIMI_SPIFFS_BASE "/memory/\"}},"
+                "\"properties\":{\"prefix\":{\"type\":\"string\",\"description\":\"Optional path prefix filter, e.g. " MIMI_FATFS_BASE "/memory/\"}},"
                 "\"required\":[]}",
             .execute = tool_list_dir_execute,
             .concurrency_safe = true,
@@ -295,10 +295,10 @@ esp_err_t tool_registry_init(void)
 
     mimi_tool_t lr = {
         .name = "lua_run",
-        .description = "Execute a Lua script stored in SPIFFS. Path must start with " MIMI_SPIFFS_BASE "/lua/.",
+        .description = "Execute a Lua script stored in FATFS. Path must start with " MIMI_FATFS_BASE "/lua/.",
         .input_schema_json =
             "{\"type\":\"object\","
-            "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to Lua script starting with " MIMI_SPIFFS_BASE "/lua/\"}},"
+            "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to Lua script starting with " MIMI_FATFS_BASE "/lua/\"}},"
             "\"required\":[\"path\"]}",
         .execute = tool_lua_run_execute,
     };

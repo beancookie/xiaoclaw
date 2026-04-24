@@ -13,4 +13,4 @@ set(PROJECT_VER "2.2.4")
 project(xiaozhi)
 
 # Create FATFS partition image for initial data
-fatfs_create_partition_image(fatfs ${CMAKE_SOURCE_DIR}/spiffs_data FLASH_IN_PROJECT)
+fatfs_create_partition_image(fatfs ${CMAKE_SOURCE_DIR}/fatfs_data FLASH_IN_PROJECT)

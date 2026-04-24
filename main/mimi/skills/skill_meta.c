@@ -28,7 +28,7 @@ static void simple_hash(const char *str, char *out, size_t out_size)
     snprintf(out, out_size, "%04x", hash & 0xffff);
 }
 
-/* ─── Helper: save metadata to SPIFFS ─────────────────────────────────── */
+/* ─── Helper: save metadata to FATFS ─────────────────────────────────── */
 
 static esp_err_t save_to_file(void)
 {
@@ -71,7 +71,7 @@ static esp_err_t save_to_file(void)
     return ESP_OK;
 }
 
-/* ─── Helper: load metadata from SPIFFS ─────────────────────────────── */
+/* ─── Helper: load metadata from FATFS ─────────────────────────────── */
 
 static esp_err_t load_from_file(void)
 {
@@ -182,7 +182,7 @@ esp_err_t skill_meta_init(void)
 
     /* Scan auto skills directory to merge any new skills */
     char auto_dir[256];
-    snprintf(auto_dir, sizeof(auto_dir), "%s/skills/auto", MIMI_SPIFFS_BASE);
+    snprintf(auto_dir, sizeof(auto_dir), "%s/skills/auto", MIMI_FATFS_BASE);
 
     DIR *dir = opendir(auto_dir);
     if (dir) {

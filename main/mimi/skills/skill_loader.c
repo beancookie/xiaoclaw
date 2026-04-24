@@ -192,7 +192,7 @@ static void scan_skills_dir(const char *base_path, char source)
         char skill_path[512] = {0};
         char skill_file[512] = {0};
 
-        /* SPIFFS quirk: readdir may return "skill_name/SKILL.md" instead of "skill_name" */
+        /* FATFS quirk: readdir may return "skill_name/SKILL.md" instead of "skill_name" */
         /* Check if d_name contains '/' (indicating the quirk) */
         const char *slash = strchr(ent->d_name, '/');
         if (slash != NULL) {
@@ -270,7 +270,7 @@ esp_err_t skill_loader_init(void)
 
     /* Scan workspace skills */
     char workspace_path[256];
-    snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_SPIFFS_BASE);
+    snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_FATFS_BASE);
     scan_skills_dir(workspace_path, 'w');
 
     /* Merge metadata from skill_index.json (usage_count, success_rate, last_used) */

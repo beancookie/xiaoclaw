@@ -14,7 +14,7 @@
 static const char *TAG = "memory";
 
 /* Path for user facts (L2 memory) */
-#define FACTS_FILE MIMI_SPIFFS_MEMORY_DIR "/facts.json"
+#define FACTS_FILE MIMI_FATFS_MEMORY_DIR "/facts.json"
 
 static void get_date_str(char *buf, size_t size, int days_ago)
 {
@@ -35,12 +35,12 @@ esp_err_t memory_store_init(void)
 
     /* Check FATFS availability via stat on base directory */
     struct stat s;
-    if (stat(MIMI_SPIFFS_BASE, &s) == 0) {
-        ESP_LOGI(TAG, "Memory store ready (FATFS at %s)", MIMI_SPIFFS_BASE);
+    if (stat(MIMI_FATFS_BASE, &s) == 0) {
+        ESP_LOGI(TAG, "Memory store ready (FATFS at %s)", MIMI_FATFS_BASE);
         return ESP_OK;
     }
 
-    ESP_LOGE(TAG, "FATFS not available at %s", MIMI_SPIFFS_BASE);
+    ESP_LOGE(TAG, "FATFS not available at %s", MIMI_FATFS_BASE);
     return ESP_FAIL;
 }
 
