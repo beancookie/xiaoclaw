@@ -7,7 +7,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include "esp_log.h"
-#include "esp_spiffs.h"
+#include "esp_vfs_fat.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -33,14 +33,14 @@ esp_err_t memory_store_init(void)
     setenv("TZ", MIMI_TIMEZONE, 1);
     tzset();
 
-    /* Check SPIFFS availability via esp_spiffs_info (same as init_spiffs) */
-    size_t total = 0, used = 0;
-    if (esp_spiffs_info("spiffs", &total, &used) == ESP_OK) {
-        ESP_LOGI(TAG, "Memory store ready: total=%d, used=%d", (int)total, (int)used);
+    /* Check FATFS availability via stat on base directory */
+    struct stat s;
+    if (stat(MIMI_SPIFFS_BASE, &s) == 0) {
+        ESP_LOGI(TAG, "Memory store ready (FATFS at %s)", MIMI_SPIFFS_BASE);
         return ESP_OK;
     }
 
-    ESP_LOGE(TAG, "SPIFFS not available");
+    ESP_LOGE(TAG, "FATFS not available at %s", MIMI_SPIFFS_BASE);
     return ESP_FAIL;
 }
 
