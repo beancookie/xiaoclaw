@@ -22,7 +22,7 @@ extern "C" {
  * - NVS flash initialized
  * - Default event loop created
  * - WiFi connected (for LLM API access)
- * - SPIFFS partition available
+ * - FATFS partition available
  *
  * This function:
  * - Initializes message bus for communication

@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -80,12 +81,46 @@ static esp_err_t init_fatfs(void)
     };
 
     for (int i = 0; dirs[i] != NULL; i++) {
-        FILE *f = fopen(dirs[i], "w");
-        if (f) {
-            fclose(f);
-        }
+        mkdir(dirs[i], 0755);
     }
     ESP_LOGI(TAG, "FATFS directories initialized");
+
+    /* Create default files if they don't exist */
+    static const char* default_files[] = {
+        MIMI_FATFS_MEMORY_DIR "/skill_index.json",
+        MIMI_FATFS_MEMORY_DIR "/MEMORY.md",
+        MIMI_FATFS_MEMORY_DIR "/facts.json",
+        MIMI_FATFS_CONFIG_DIR "/SOUL.md",
+        MIMI_FATFS_CONFIG_DIR "/USER.md",
+        MIMI_FATFS_BASE "/cron.json",
+        MIMI_FATFS_BASE "/HEARTBEAT.md",
+        NULL
+    };
+
+    static const char* default_contents[] = {
+        "{\"skills\":[]}",  // skill_index.json
+        "",                // MEMORY.md
+        "{\"facts\":[]}",  // facts.json
+        "",                // SOUL.md
+        "",                // USER.md
+        "{}",              // cron.json
+        "",                // HEARTBEAT.md
+        NULL
+    };
+
+    for (int i = 0; default_files[i] != NULL; i++) {
+        struct stat st;
+        if (stat(default_files[i], &st) != 0) {
+            FILE* f = fopen(default_files[i], "w");
+            if (f) {
+                fputs(default_contents[i], f);
+                fclose(f);
+                ESP_LOGI(TAG, "Created default file: %s", default_files[i]);
+            } else {
+                ESP_LOGW(TAG, "Failed to create default file: %s", default_files[i]);
+            }
+        }
+    }
 
     return ESP_OK;
 }
