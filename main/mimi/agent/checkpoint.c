@@ -11,7 +11,7 @@
 
 static const char *TAG = "checkpoint";
 
-#define CHECKPOINT_FILE_PREFIX "/spiffs/sessions/.checkpoint."
+#define CHECKPOINT_FILE_PREFIX "/fatfs/sessions/.checkpoint."
 
 static const char *phase_to_string(checkpoint_phase_t phase)
 {

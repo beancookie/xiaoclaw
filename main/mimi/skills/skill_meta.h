@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include "mimi_config.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <time.h>
@@ -30,7 +31,7 @@ typedef struct {
 /**
  * Path to the skill index JSON file (L1 memory layer).
  */
-#define SKILL_INDEX_PATH "/fatfs/memory/skill_index.json"
+#define SKILL_INDEX_PATH MIMI_FATFS_MEMORY_DIR "/skill_index.json"
 
 /**
  * Maximum number of skills in the index.
