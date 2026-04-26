@@ -1,5 +1,6 @@
 #include "memory_store.h"
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,13 +61,11 @@ esp_err_t memory_read_long_term(char *buf, size_t size)
 
 esp_err_t memory_write_long_term(const char *content)
 {
-    FILE *f = fopen(MIMI_MEMORY_FILE, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Cannot write %s", MIMI_MEMORY_FILE);
-        return ESP_FAIL;
+    esp_err_t err = fatfs_write_atomic(MIMI_MEMORY_FILE, content, strlen(content));
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write %s", MIMI_MEMORY_FILE);
+        return err;
     }
-    fputs(content, f);
-    fclose(f);
     ESP_LOGI(TAG, "Long-term memory updated (%d bytes)", (int)strlen(content));
     return ESP_OK;
 }

@@ -1,5 +1,6 @@
 #include "skills/skill_meta.h"
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -32,12 +33,6 @@ static void simple_hash(const char *str, char *out, size_t out_size)
 
 static esp_err_t save_to_file(void)
 {
-    FILE *f = fopen(SKILL_INDEX_PATH, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open %s for writing", SKILL_INDEX_PATH);
-        return ESP_FAIL;
-    }
-
     cJSON *root = cJSON_CreateObject();
     cJSON *skills_arr = cJSON_CreateArray();
 
@@ -59,12 +54,20 @@ static esp_err_t save_to_file(void)
     cJSON_AddNumberToObject(root, "last_updated", (double)time(NULL));
 
     char *json_str = cJSON_Print(root);
-    if (json_str) {
-        fputs(json_str, f);
-        free(json_str);
-    }
     cJSON_Delete(root);
-    fclose(f);
+
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to serialize skill index JSON");
+        return ESP_ERR_NO_MEM;
+    }
+
+    esp_err_t err = fatfs_write_atomic(SKILL_INDEX_PATH, json_str, strlen(json_str));
+    free(json_str);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write skill index: %s", SKILL_INDEX_PATH);
+        return err;
+    }
 
     s_last_save = time(NULL);
     ESP_LOGI(TAG, "Saved skill index: %d skills", s_skill_count);

@@ -1,6 +1,7 @@
 #include "cron/cron_service.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,21 +216,12 @@ static esp_err_t cron_save_jobs(void)
         return ESP_ERR_NO_MEM;
     }
 
-    FILE *f = fopen(MIMI_CRON_FILE, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open %s for writing", MIMI_CRON_FILE);
-        free(json_str);
-        return ESP_FAIL;
-    }
-
-    size_t len = strlen(json_str);
-    size_t written = fwrite(json_str, 1, len, f);
-    fclose(f);
+    esp_err_t err = fatfs_write_atomic(MIMI_CRON_FILE, json_str, strlen(json_str));
     free(json_str);
 
-    if (written != len) {
-        ESP_LOGE(TAG, "Cron save incomplete: %d/%d bytes", (int)written, (int)len);
-        return ESP_FAIL;
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write cron file: %s", MIMI_CRON_FILE);
+        return err;
     }
 
     ESP_LOGI(TAG, "Saved %d cron jobs to %s", s_job_count, MIMI_CRON_FILE);

@@ -283,7 +283,7 @@ void Application::HandleNetworkConnectedEvent() {
             app->ActivationTask();
             app->activation_task_handle_ = nullptr;
             vTaskDelete(NULL);
-        }, "activation", 4096 * 2, this, 2, &activation_task_handle_);
+        }, "activation", 4096 * 4, this, 2, &activation_task_handle_);
     }
 
     // Update the status bar immediately to show the network state
