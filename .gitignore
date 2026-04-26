@@ -20,5 +20,4 @@ mmap_generate_*.h
 .clangd
 debug/
 examples/
-main/mimi/mimi_secrets.h
 sdkconfig
