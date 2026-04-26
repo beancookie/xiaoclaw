@@ -416,7 +416,6 @@ Skills 从 `/fatfs/skills/` 目录加载，支持 YAML frontmatter。
 /fatfs/skills/
 ├── lua-scripts/SKILL.md      # 手动技能
 ├── mcp-servers/SKILL.md      # 手动技能 (always=true)
-├── skill-creator/SKILL.md    # 手动技能
 └── auto/                     # 自动结晶技能
     └── auto_<name>_<hash>/SKILL.md
 ```
@@ -611,8 +610,7 @@ xiaoclaw/
 │   │   └── skill_index.json # 技能索引
 │   ├── skills/               # 技能目录
 │   │   ├── lua-scripts/
-│   │   ├── mcp-servers/
-│   │   └── skill-creator/
+│   │   └── mcp-servers/
 │   ├── HEARTBEAT.md          # 运行时心跳任务
 │   └── cron.json             # 定时任务配置
 ├── CMakeLists.txt
