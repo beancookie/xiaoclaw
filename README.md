@@ -424,7 +424,6 @@ Skills are loaded from `/fatfs/skills/` directory with YAML frontmatter support.
 /fatfs/skills/
 ├── lua-scripts/SKILL.md      # Manual skill
 ├── mcp-servers/SKILL.md      # Manual skill (always=true)
-├── skill-creator/SKILL.md    # Manual skill
 └── auto/                     # Auto-crystallized skills
     └── auto_<name>_<hash>/SKILL.md
 ```
@@ -619,8 +618,7 @@ xiaoclaw/
 │   │   └── skill_index.json # Skill index
 │   ├── skills/               # Skills directory
 │   │   ├── lua-scripts/
-│   │   ├── mcp-servers/
-│   │   └── skill-creator/
+│   │   └── mcp-servers/
 │   ├── HEARTBEAT.md          # Runtime heartbeat tasks
 │   └── cron.json             # Cron jobs configuration
 ├── CMakeLists.txt
