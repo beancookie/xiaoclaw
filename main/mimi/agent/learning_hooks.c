@@ -10,6 +10,22 @@
 
 static const char *TAG = "learning";
 
+/* ─── Built-in tool names (not skills) ──────────────────────────────── */
+
+static bool is_builtin_tool(const char *tool_name)
+{
+    if (!tool_name) return false;
+    /* Built-in file tools */
+    if (strcmp(tool_name, "read_file") == 0) return true;
+    if (strcmp(tool_name, "write_file") == 0) return true;
+    if (strcmp(tool_name, "edit_file") == 0) return true;
+    if (strcmp(tool_name, "list_dir") == 0) return true;
+    /* MCP protocol tools (mcp_*) */
+    if (strncmp(tool_name, "mcp_", 4) == 0) return true;
+    /* TODO: add other built-in tools */
+    return false;
+}
+
 /* ─── Failure keywords in output ────────────────────────────────────── */
 
 static const char *failure_keywords[] = {
@@ -76,9 +92,9 @@ void learning_hook_on_task_end(const char *chat_id, const void *result)
     ESP_LOGI(TAG, "Task end: chat_id=%s, success=%d, tools=%d, tool_seq_len=%d",
              chat_id ? chat_id : "?", r->task_success, r->tools_used_count, r->tool_sequence_len);
 
-    /* Record usage for each tool used */
+    /* Record usage for each skill used (skip built-in tools) */
     for (int i = 0; i < r->tools_used_count && i < 32; i++) {
-        if (r->tools_used[i][0]) {
+        if (r->tools_used[i][0] && !is_builtin_tool(r->tools_used[i])) {
             skill_meta_record_usage(r->tools_used[i], r->task_success);
         }
     }
