@@ -10,14 +10,9 @@ Connect to MCP (Model Context Protocol) servers to use remote tools. MCP allows 
 
 ## Server Configuration
 
-## test_server
-
-- host: 192.168.1.3
-- port: 8080
-- endpoint: mcp_server
-- auto_connect: true
-- default_params:
-  - tenant_id: 10542
+Server addresses can be configured via:
+1. **Kconfig** (recommended): Set `CONFIG_MIMI_MCP_REMOTE_HOST`, `CONFIG_MIMI_MCP_REMOTE_PORT`, etc.
+2. **SKILL.md** (legacy): Define servers in this file for backward compatibility
 
 ## Available MCP Tools
 
@@ -30,24 +25,16 @@ Connect to MCP (Model Context Protocol) servers to use remote tools. MCP allows 
 
 ## How MCP Works
 
-1. **Connect first**: Use `mcp_connect` with `{"server_name": "test_server"}` to establish connection
+1. **Connect first**: Use `mcp_connect` with `{"server_name": "default"}` to establish connection (uses Kconfig server address)
 2. **Discover tools**: After connecting, use `mcp_server.tools_list` to see available remote tools
 3. **Call remote tools**: Use `mcp_server.tools_call` with `{"name": "tool_name", "arguments": {...}}` to execute
 4. **Disconnect when done**: Use `mcp_disconnect` when finished
 
 ## Important
 
-- Server must be running before connecting (192.168.1.3:8080)
+- Server must be running before connecting (address configured in Kconfig)
 - Always disconnect with `mcp_disconnect` when done
 - Tools are discovered dynamically after connection via `mcp_server.tools_list`
-- **test_server 默认 tenant_id 为 10542，调用工具时arguments中无需显式传入，系统会自动合并**
-
-## Default Parameters
-
-test_server 的所有工具调用都会自动注入以下默认参数：
-| 参数 | 值 | 说明 |
-| ---- | --- | --- |
-| tenant_id | 10542 | 租户标识，无需手动传入 |
 
 ## Note on Tool Calling
 
