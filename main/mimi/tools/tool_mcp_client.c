@@ -81,6 +81,35 @@ static char s_first_class_tool_names[MAX_FIRST_CLASS_TOOLS][128];
 static int s_first_class_tool_count = 0;
 
 /**
+ * @brief Get MCP server configuration from Kconfig
+ *
+ * Returns true if CONFIG_MIMI_MCP_REMOTE_HOST is set and config was filled.
+ * This is used as a fallback when SKILL.md doesn't have the server config.
+ *
+ * @param cfg Output config structure
+ * @return true if Kconfig values are available
+ */
+static bool mcp_get_kconfig_default(mcp_server_config_t *cfg)
+{
+    if (!cfg) {
+        return false;
+    }
+#ifdef CONFIG_MIMI_MCP_CLIENT_ENABLE
+    if (strlen(CONFIG_MIMI_MCP_REMOTE_HOST) > 0) {
+        memset(cfg, 0, sizeof(*cfg));
+        strncpy(cfg->name, "default", sizeof(cfg->name) - 1);
+        strncpy(cfg->host, CONFIG_MIMI_MCP_REMOTE_HOST, sizeof(cfg->host) - 1);
+        cfg->port = CONFIG_MIMI_MCP_REMOTE_PORT;
+        strncpy(cfg->endpoint, CONFIG_MIMI_MCP_REMOTE_EP, sizeof(cfg->endpoint) - 1);
+        cfg->auto_connect = false;
+        ESP_LOGI(TAG, "Using Kconfig MCP server: %s:%d/%s", cfg->host, cfg->port, cfg->endpoint);
+        return true;
+    }
+#endif
+    return false;
+}
+
+/**
  * @brief MCP response callback (called from MCP manager task)
  */
 static esp_err_t mcp_resp_cb(int error_code, const char *ep_name,
@@ -885,13 +914,23 @@ esp_err_t mcp_connect_and_register(const char *server_name)
     int port = 0;
     char endpoint[64] = {0};
 
-    /* Get config from skill_loader */
+    /* Get config from skill_loader first */
     esp_err_t err = skill_loader_get_mcp_server_config(server_name,
                                                          host, sizeof(host),
                                                          &port, endpoint, sizeof(endpoint));
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "mcp_connect_and_register: server '%s' not found", server_name);
-        return err;
+        ESP_LOGW(TAG, "mcp_connect_and_register: server '%s' not found in SKILL.md, trying Kconfig fallback", server_name);
+        /* Fall back to Kconfig if SKILL.md doesn't have the server */
+        mcp_server_config_t kcfg;
+        if (mcp_get_kconfig_default(&kcfg)) {
+            strncpy(host, kcfg.host, sizeof(host) - 1);
+            port = kcfg.port;
+            strncpy(endpoint, kcfg.endpoint, sizeof(endpoint) - 1);
+            ESP_LOGI(TAG, "mcp_connect_and_register: using Kconfig fallback - host=%s, port=%d, endpoint=%s", host, port, endpoint);
+        } else {
+            ESP_LOGW(TAG, "mcp_connect_and_register: no Kconfig fallback available");
+            return err;
+        }
     }
 
     ESP_LOGI(TAG, "mcp_connect_and_register: connecting to %s at %s:%d/%s",
@@ -950,15 +989,24 @@ static esp_err_t mcp_tool_connect(const char *input_json, char *output, size_t o
     int port = 0;
     char endpoint[64] = {0};
 
-    /* Get config from skill_loader */
+    /* Get config from skill_loader first */
     esp_err_t err = skill_loader_get_mcp_server_config(server_name,
                                                          host, sizeof(host),
                                                          &port, endpoint, sizeof(endpoint));
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "mcp_tool_connect: skill_loader_get_mcp_server_config failed: %s", esp_err_to_name(err));
-        cJSON_Delete(root);
-        snprintf(output, output_size, "{\"error\": \"server '%s' not found in mcp-servers.md\"}", server_name);
-        return err;
+        ESP_LOGW(TAG, "mcp_tool_connect: skill_loader_get_mcp_server_config failed: %s, trying Kconfig fallback", esp_err_to_name(err));
+        /* Fall back to Kconfig if SKILL.md doesn't have the server */
+        mcp_server_config_t kcfg;
+        if (mcp_get_kconfig_default(&kcfg)) {
+            strncpy(host, kcfg.host, sizeof(host) - 1);
+            port = kcfg.port;
+            strncpy(endpoint, kcfg.endpoint, sizeof(endpoint) - 1);
+            ESP_LOGI(TAG, "mcp_tool_connect: using Kconfig fallback - host=%s, port=%d, endpoint=%s", host, port, endpoint);
+        } else {
+            cJSON_Delete(root);
+            snprintf(output, output_size, "{\"error\": \"server '%s' not found in mcp-servers.md and no Kconfig fallback\"}", server_name);
+            return ESP_ERR_NOT_FOUND;
+        }
     }
 
     ESP_LOGI(TAG, "mcp_tool_connect: config loaded - host=%s, port=%d, endpoint=%s", host, port, endpoint);
@@ -1246,16 +1294,28 @@ esp_err_t tool_mcp_client_init(void)
 
     tool_registry_rebuild_json();
 
-    /* Auto-connect to servers marked with auto_connect=true */
+    /* Auto-connect to servers marked with auto_connect=true in SKILL.md, or use Kconfig fallback */
     mcp_server_config_t configs[8];
     int count = 0;
     esp_err_t err = mcp_load_all_server_configs(configs, 8, &count);
+    bool auto_connected = false;
     if (err == ESP_OK) {
         for (int i = 0; i < count; i++) {
             if (configs[i].auto_connect) {
                 ESP_LOGI(TAG, "Auto-connecting to MCP server: %s", configs[i].name);
                 mcp_connect_and_register(configs[i].name);
+                auto_connected = true;
             }
+        }
+    }
+
+    /* If no auto_connect servers in SKILL.md, fall back to Kconfig */
+    if (!auto_connected) {
+        mcp_server_config_t kcfg;
+        if (mcp_get_kconfig_default(&kcfg)) {
+            ESP_LOGI(TAG, "Auto-connecting using Kconfig MCP server: %s:%d/%s",
+                     kcfg.host, kcfg.port, kcfg.endpoint);
+            mcp_connect_and_register("default");
         }
     }
 
