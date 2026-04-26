@@ -3,6 +3,7 @@
 #include "esp_err.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <time.h>
 
 /**
  * Skill information structure.
@@ -14,11 +15,15 @@ typedef struct {
     bool available;        /**< true if requirements are met */
     char path[256];        /**< Full path to SKILL.md file */
     char source;           /**< 'w' for workspace, 'b' for builtin */
+    /* Metadata from skill_meta (L1 index) */
+    int usage_count;       /**< Number of times used (from skill_index.json) */
+    float success_rate;    /**< Success rate (from skill_index.json) */
+    time_t last_used;      /**< Last usage timestamp */
 } skill_info_t;
 
 /**
  * Initialize skills system.
- * Scans SPIFFS for available skill markdown files.
+ * Scans FATFS for available skill markdown files.
  */
 esp_err_t skill_loader_init(void);
 
@@ -60,6 +65,16 @@ esp_err_t skill_loader_load(const char *name, char *buf, size_t size);
  * @return Number of bytes written
  */
 size_t skill_loader_get_always_content(char *buf, size_t size);
+
+/**
+ * Get content of "hot" auto skills (usage_count >= 3).
+ * Used by context_builder to load hot skills in L3.
+ *
+ * @param buf   Output buffer
+ * @param size  Buffer size
+ * @return Number of bytes written
+ */
+size_t skill_loader_get_hot_skills_content(char *buf, size_t size);
 
 /**
  * Check if a skill's requirements are met.

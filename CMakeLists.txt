@@ -12,5 +12,5 @@ idf_build_set_property(MINIMAL_BUILD ON)
 set(PROJECT_VER "2.2.4")
 project(xiaozhi)
 
-# Create SPIFFS partition image for mimiclaw memory/skills storage
-spiffs_create_partition_image(spiffs spiffs_data FLASH_IN_PROJECT)
+# Create FATFS partition image for initial data
+fatfs_create_partition_image(fatfs ${CMAKE_SOURCE_DIR}/fatfs_data FLASH_IN_PROJECT)

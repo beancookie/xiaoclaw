@@ -17,6 +17,7 @@ static const char *TAG = "tools";
 
 static mimi_tool_t s_tools[MAX_TOOLS];
 static int s_tool_count = 0;
+static int s_builtin_count = 0;  /* Count of tools registered at init (not dynamic) */
 static char *s_tools_json = NULL;  /* cached JSON array string */
 
 static void register_tool(const mimi_tool_t *tool)
@@ -41,6 +42,37 @@ esp_err_t tool_registry_add(const mimi_tool_t *tool)
     ESP_LOGI(TAG, "Added tool: %s", tool->name);
     /* Note: Caller should call tool_registry_rebuild_json() after adding multiple tools */
     return ESP_OK;
+}
+
+esp_err_t tool_registry_remove(const char *name)
+{
+    for (int i = 0; i < s_tool_count; i++) {
+        if (strcmp(s_tools[i].name, name) == 0) {
+            /* Shift remaining tools down */
+            for (int j = i; j < s_tool_count - 1; j++) {
+                s_tools[j] = s_tools[j + 1];
+            }
+            s_tool_count--;
+            ESP_LOGI(TAG, "Removed tool: %s", name);
+            return ESP_OK;
+        }
+    }
+    ESP_LOGW(TAG, "Tool not found for removal: %s", name);
+    return ESP_ERR_NOT_FOUND;
+}
+
+void tool_registry_clear_dynamic(void)
+{
+    int dynamic_count = s_tool_count - s_builtin_count;
+    if (dynamic_count <= 0) {
+        ESP_LOGI(TAG, "No dynamic tools to clear");
+        return;
+    }
+
+    ESP_LOGI(TAG, "Clearing %d dynamic tools (builtin: %d, total: %d)",
+             dynamic_count, s_builtin_count, s_tool_count);
+    s_tool_count = s_builtin_count;
+    ESP_LOGI(TAG, "Dynamic tools cleared, %d tools remain", s_tool_count);
 }
 
 void tool_registry_rebuild_json(void)
@@ -129,10 +161,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t rf = {
             .name = "read_file",
-            .description = "Read a file from SPIFFS storage. Path must start with " MIMI_SPIFFS_BASE "/.",
+            .description = "Read a file from FATFS storage. Path must start with " MIMI_FATFS_BASE "/.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"}},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"}},"
                 "\"required\":[\"path\"]}",
             .execute = tool_read_file_execute,
             .concurrency_safe = true,
@@ -145,10 +177,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t wf = {
             .name = "write_file",
-            .description = "Write or overwrite a file on SPIFFS storage. Path must start with " MIMI_SPIFFS_BASE "/.",
+            .description = "Write or overwrite a file on FATFS storage. Path must start with " MIMI_FATFS_BASE "/.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"},"
                 "\"content\":{\"type\":\"string\",\"description\":\"File content to write\"}},"
                 "\"required\":[\"path\",\"content\"]}",
             .execute = tool_write_file_execute,
@@ -162,10 +194,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t ef = {
             .name = "edit_file",
-            .description = "Find and replace text in a file on SPIFFS. Replaces first occurrence of old_string with new_string.",
+            .description = "Find and replace text in a file on FATFS. Replaces first occurrence of old_string with new_string.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_SPIFFS_BASE "/\"},"
+                "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Absolute path starting with " MIMI_FATFS_BASE "/\"},"
                 "\"old_string\":{\"type\":\"string\",\"description\":\"Text to find\"},"
                 "\"new_string\":{\"type\":\"string\",\"description\":\"Replacement text\"}},"
                 "\"required\":[\"path\",\"old_string\",\"new_string\"]}",
@@ -180,10 +212,10 @@ esp_err_t tool_registry_init(void)
     {
         static mimi_tool_t ld = {
             .name = "list_dir",
-            .description = "List files on SPIFFS storage, optionally filtered by path prefix.",
+            .description = "List files on FATFS storage, optionally filtered by path prefix.",
             .input_schema_json =
                 "{\"type\":\"object\","
-                "\"properties\":{\"prefix\":{\"type\":\"string\",\"description\":\"Optional path prefix filter, e.g. " MIMI_SPIFFS_BASE "/memory/\"}},"
+                "\"properties\":{\"prefix\":{\"type\":\"string\",\"description\":\"Optional path prefix filter, e.g. " MIMI_FATFS_BASE "/memory/\"}},"
                 "\"required\":[]}",
             .execute = tool_list_dir_execute,
             .concurrency_safe = true,
@@ -263,14 +295,17 @@ esp_err_t tool_registry_init(void)
 
     mimi_tool_t lr = {
         .name = "lua_run",
-        .description = "Execute a Lua script stored in SPIFFS. Path must start with " MIMI_SPIFFS_BASE "/lua/.",
+        .description = "Execute a Lua script stored in FATFS. Path must start with " MIMI_FATFS_BASE "/lua/.",
         .input_schema_json =
             "{\"type\":\"object\","
-            "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to Lua script starting with " MIMI_SPIFFS_BASE "/lua/\"}},"
+            "\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to Lua script starting with " MIMI_FATFS_BASE "/lua/\"}},"
             "\"required\":[\"path\"]}",
         .execute = tool_lua_run_execute,
     };
     register_tool(&lr);
+
+    /* Record the count of built-in tools (before any dynamic additions) */
+    s_builtin_count = s_tool_count;
 
     build_tools_json();
 

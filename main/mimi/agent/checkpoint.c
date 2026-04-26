@@ -1,5 +1,6 @@
 #include "checkpoint.h"
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +12,7 @@
 
 static const char *TAG = "checkpoint";
 
-#define CHECKPOINT_FILE_PREFIX "/spiffs/sessions/.checkpoint."
+#define CHECKPOINT_FILE_PREFIX "/fatfs/sessions/.checkpoint."
 
 static const char *phase_to_string(checkpoint_phase_t phase)
 {
@@ -53,23 +54,24 @@ esp_err_t checkpoint_save(const char *chat_id, checkpoint_phase_t phase,
     cJSON_AddStringToObject(root, "phase", phase_to_string(phase));
     cJSON_AddNumberToObject(root, "iteration", iteration);
     cJSON_AddNumberToObject(root, "saved_at", time(NULL));
-    cJSON_AddItemReferenceToObject(root, "data", checkpoint);  /* Reference, not copy */
+    cJSON_AddItemReferenceToObject(root, "data", (cJSON *)checkpoint);  /* Reference, not copy */
 
-    /* Write to file */
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open checkpoint file: %s", path);
-        cJSON_Delete(root);
-        return ESP_FAIL;
-    }
-
+    /* Write to file atomically */
     char *json_str = cJSON_PrintUnformatted(root);
-    if (json_str) {
-        fputs(json_str, f);
-        free(json_str);
-    }
-    fclose(f);
     cJSON_Delete(root);
+
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to serialize checkpoint JSON");
+        return ESP_ERR_NO_MEM;
+    }
+
+    esp_err_t err = fatfs_write_atomic(path, json_str, strlen(json_str));
+    free(json_str);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write checkpoint file: %s", path);
+        return err;
+    }
 
     ESP_LOGI(TAG, "Checkpoint saved for %s: phase=%s iter=%d", chat_id, phase_to_string(phase), iteration);
     return ESP_OK;

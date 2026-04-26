@@ -1003,6 +1003,18 @@ menu "Secret Configuration"
         default ""
         help
             OpenAI compatible API base URL (e.g., https://api.openai.com/v1)
+
+    config MIMI_SECRET_SEARCH_KEY
+        string "Brave Search API Key"
+        default ""
+        help
+            Brave Search API key for web search (get from https://brave.com/search/api/)
+
+    config MIMI_SECRET_TAVILY_KEY
+        string "Tavily Search API Key"
+        default ""
+        help
+            Tavily Search API key for web search (get from https://tavily.com/)
 endmenu
 
 endmenu

@@ -24,6 +24,7 @@ typedef struct {
     void (*checkpoint_callback)(void *session_key, const char *phase, cJSON *checkpoint);  /**< Called after each phase */
     void *checkpoint_session_key;        /**< Session key passed to checkpoint_callback */
     const mimi_msg_t *current_msg;      /**< Current message for context (channel, chat_id) */
+    const char *user_intent;            /**< User's original message text for learning hooks */
 } AgentRunSpec;
 
 /**
@@ -38,17 +39,12 @@ typedef struct {
     int usage_completion_tokens;        /**< Approximate completion tokens used */
     const char *stop_reason;            /**< "completed", "max_iterations", "error", "tool_error" */
     char *error;                        /**< Error message if stop_reason is "error" or "tool_error" (caller frees with free()) */
+    /* Closed-loop learning support (Hermes Agent) */
+    bool task_success;                  /**< true if task succeeded (evaluated by learning_hook_evaluate) */
+    char tool_sequence_json[2048];      /**< JSON array of {tool, input} for the entire task */
+    int tool_sequence_len;              /**< Number of tool calls in tool_sequence_json */
+    const char *user_intent;            /**< User's original message text */
 } AgentRunResult;
-
-/**
- * Agent Hooks - callback interface for agent events.
- */
-typedef struct {
-    void (*before_iteration)(int iteration, cJSON *messages);
-    void (*after_iteration)(int iteration, cJSON *messages, const char *final_content, const char *stop_reason);
-    void (*on_tool_result)(int iteration, const char *tool_name, const char *result);
-    void (*before_tool_execute)(int iteration, const char *tool_name, cJSON *tool_input);
-} AgentHooks;
 
 /**
  * Initialize the agent runner.

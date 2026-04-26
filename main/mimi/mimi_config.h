@@ -33,7 +33,7 @@
 #define MIMI_SECRET_PROXY_TYPE      ""
 #endif
 #ifndef MIMI_SECRET_SEARCH_KEY
-#define MIMI_SECRET_SEARCH_KEY      ""
+#define MIMI_SECRET_SEARCH_KEY      CONFIG_MIMI_SECRET_SEARCH_KEY
 #endif
 #ifndef MIMI_SECRET_FEISHU_APP_ID
 #define MIMI_SECRET_FEISHU_APP_ID   ""
@@ -42,7 +42,7 @@
 #define MIMI_SECRET_FEISHU_APP_SECRET ""
 #endif
 #ifndef MIMI_SECRET_TAVILY_KEY
-#define MIMI_SECRET_TAVILY_KEY      ""
+#define MIMI_SECRET_TAVILY_KEY      CONFIG_MIMI_SECRET_TAVILY_KEY
 #endif
 #ifndef MIMI_SECRET_ANTHROPIC_API_URL
 #define MIMI_SECRET_ANTHROPIC_API_URL  CONFIG_MIMI_SECRET_ANTHROPIC_API_URL
@@ -103,29 +103,29 @@
 #define MIMI_OUTBOUND_PRIO           5
 #define MIMI_OUTBOUND_CORE           0
 
-/* Memory / SPIFFS */
-#define MIMI_SPIFFS_BASE             "/spiffs"
-#define MIMI_SPIFFS_CONFIG_DIR       MIMI_SPIFFS_BASE "/config"
-#define MIMI_SPIFFS_MEMORY_DIR       MIMI_SPIFFS_BASE "/memory"
-#define MIMI_SPIFFS_SESSION_DIR      MIMI_SPIFFS_BASE "/sessions"
-#define MIMI_MEMORY_FILE             MIMI_SPIFFS_MEMORY_DIR "/MEMORY.md"
-#define MIMI_SOUL_FILE               MIMI_SPIFFS_CONFIG_DIR "/SOUL.md"
-#define MIMI_USER_FILE               MIMI_SPIFFS_CONFIG_DIR "/USER.md"
+/* Memory / FATFS */
+#define MIMI_FATFS_BASE             "/fatfs"
+#define MIMI_FATFS_CONFIG_DIR       MIMI_FATFS_BASE "/config"
+#define MIMI_FATFS_MEMORY_DIR       MIMI_FATFS_BASE "/memory"
+#define MIMI_FATFS_SESSION_DIR      MIMI_FATFS_BASE "/sessions"
+#define MIMI_MEMORY_FILE             MIMI_FATFS_MEMORY_DIR "/MEMORY.md"
+#define MIMI_SOUL_FILE               MIMI_FATFS_CONFIG_DIR "/SOUL.md"
+#define MIMI_USER_FILE               MIMI_FATFS_CONFIG_DIR "/USER.md"
 #define MIMI_CONTEXT_BUF_SIZE        (16 * 1024)
 #define MIMI_SESSION_MAX_MSGS        20
 
 /* Cron / Heartbeat */
-#define MIMI_CRON_FILE               MIMI_SPIFFS_BASE "/cron.json"
+#define MIMI_CRON_FILE               MIMI_FATFS_BASE "/cron.json"
 #define MIMI_CRON_MAX_JOBS           16
 #define MIMI_CRON_CHECK_INTERVAL_MS  (60 * 1000)
-#define MIMI_HEARTBEAT_FILE          MIMI_SPIFFS_BASE "/HEARTBEAT.md"
+#define MIMI_HEARTBEAT_FILE          MIMI_FATFS_BASE "/HEARTBEAT.md"
 #define MIMI_HEARTBEAT_INTERVAL_MS   (30 * 60 * 1000)
 
 /* GPIO */
 #define MIMI_GPIO_CONFIG_SECTION     1   /* enable GPIO tools */
 
 /* Skills */
-#define MIMI_SKILLS_PREFIX           MIMI_SPIFFS_BASE "/skills/"
+#define MIMI_SKILLS_PREFIX           MIMI_FATFS_BASE "/skills/"
 
 /* WebSocket Gateway */
 #define MIMI_WS_PORT                 18789

@@ -1,5 +1,6 @@
 #include "session_manager.h"
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,14 +29,14 @@ static int s_session_cache_count = 0;
 
 void session_get_path(const char *chat_id, char *buf, size_t size)
 {
-    snprintf(buf, size, "%s/tg_%s.jsonl", MIMI_SPIFFS_SESSION_DIR, chat_id);
+    snprintf(buf, size, "%s/tg_%s.jsonl", MIMI_FATFS_SESSION_DIR, chat_id);
 }
 
 /* ─── Helper: get metadata file path ─────────────────────────────────── */
 
 void metadata_get_path(const char *chat_id, char *buf, size_t size)
 {
-    snprintf(buf, size, "%s/tg_%s.meta", MIMI_SPIFFS_SESSION_DIR, chat_id);
+    snprintf(buf, size, "%s/tg_%s.meta", MIMI_FATFS_SESSION_DIR, chat_id);
 }
 
 /* ─── Helper: find or create cache entry ─────────────────────────────── */
@@ -143,19 +144,19 @@ static esp_err_t session_save_metadata_to_file(const char *chat_id, session_meta
     char path[64];
     metadata_get_path(chat_id, path, sizeof(path));
 
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Cannot write metadata file: %s", path);
-        return ESP_FAIL;
-    }
-
-    fprintf(f, "%d:%d:%d:%ld:%ld\n",
+    char buf[256];
+    int len = snprintf(buf, sizeof(buf), "%d:%d:%d:%ld:%ld\n",
             metadata->last_consolidated,
             metadata->total_messages,
             metadata->cursor,
             (long)metadata->created_at,
             (long)metadata->updated_at);
-    fclose(f);
+
+    esp_err_t err = fatfs_write_atomic(path, buf, len);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write metadata file: %s", path);
+        return err;
+    }
 
     return ESP_OK;
 }
@@ -506,7 +507,7 @@ esp_err_t session_clear(const char *chat_id)
 
 void session_list(void)
 {
-    DIR *dir = opendir(MIMI_SPIFFS_SESSION_DIR);
+    DIR *dir = opendir(MIMI_FATFS_SESSION_DIR);
     if (!dir) {
         ESP_LOGW(TAG, "Cannot open session directory");
         return;

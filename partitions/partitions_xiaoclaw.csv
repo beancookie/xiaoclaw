@@ -9,4 +9,4 @@ ota_0,     app,  ota_0,   0x20000,  0x500000
 ota_1,     app,  ota_1,   0x520000, 0x500000
 assets,    data, spiffs,  0xA20000, 0x500000
 model,     data, spiffs,  0xF20000, 0x500000
-spiffs,    data, spiffs,  0x1420000, 0xBE0000
+fatfs,     data, fat,    0x1420000, 0xBE0000

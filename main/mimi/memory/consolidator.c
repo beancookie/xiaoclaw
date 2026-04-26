@@ -12,7 +12,7 @@
 static const char *TAG = "consolidator";
 
 /* Archive subdirectory within session dir */
-#define ARCHIVE_DIR MIMI_SPIFFS_SESSION_DIR "/archive"
+#define ARCHIVE_DIR MIMI_FATFS_SESSION_DIR "/archive"
 #define ARCHIVE_FILE_PREFIX ARCHIVE_DIR "/tg_"
 
 /* Configuration */
@@ -26,7 +26,7 @@ static int s_sessions_consolidated = 0;
 
 static esp_err_t ensure_archive_dir(void)
 {
-    /* SPIFFS is flat, but we use a prefix for archive files */
+    /* FATFS is flat, but we use a prefix for archive files */
     /* Just verify the parent directory is accessible */
     return ESP_OK;
 }
@@ -36,105 +36,6 @@ static esp_err_t ensure_archive_dir(void)
 static void archive_path(const char *chat_id, char *buf, size_t size)
 {
     snprintf(buf, size, "%s%s.archive", ARCHIVE_FILE_PREFIX, chat_id);
-}
-
-/* ─── Helper: count lines in file ───────────────────────────────────── */
-
-static int count_lines(const char *path)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) return 0;
-
-    int count = 0;
-    char line[4096];
-    while (fgets(line, sizeof(line), f)) {
-        count++;
-    }
-    fclose(f);
-    return count;
-}
-
-/* ─── Helper: read last N lines from file ───────────────────────────── */
-
-static char *read_last_lines(const char *path, int n, size_t *out_len)
-{
-    /* First pass: count total lines */
-    int total = count_lines(path);
-    if (total == 0) {
-        *out_len = 0;
-        return NULL;
-    }
-
-    /* Open file */
-    FILE *f = fopen(path, "r");
-    if (!f) return NULL;
-
-    /* Allocate buffer for last N lines */
-    size_t buf_size = n * 2048;  /* Rough estimate */
-    char *buf = malloc(buf_size);
-    if (!buf) {
-        fclose(f);
-        return NULL;
-    }
-
-    /* Read all lines and keep last N */
-    char *lines[256];
-    int idx = 0;
-
-    char line[4096];
-    while (fgets(line, sizeof(line), f) && idx < 256) {
-        lines[idx++] = strdup(line);
-    }
-    fclose(f);
-
-    /* Build output from last N */
-    size_t off = 0;
-    int start = (idx > n) ? (idx - n) : 0;
-
-    for (int i = start; i < idx; i++) {
-        size_t len = strlen(lines[i]);
-        if (off + len < buf_size) {
-            memcpy(buf + off, lines[i], len);
-            off += len;
-        }
-        free(lines[i]);
-    }
-
-    buf[off] = '\0';
-    *out_len = off;
-    free(buf);  /* This is wrong, we already moved data */
-
-    /* Actually, let's just read directly */
-    free(buf);
-
-    /* Reopen and skip to last N lines */
-    f = fopen(path, "r");
-    if (!f) return NULL;
-
-    int skip = (total > n) ? (total - n) : 0;
-    for (int i = 0; i < skip; i++) {
-        if (!fgets(line, sizeof(line), f)) break;
-    }
-
-    buf = malloc(buf_size);
-    if (!buf) {
-        fclose(f);
-        return NULL;
-    }
-
-    off = 0;
-    while (fgets(line, sizeof(line), f) && off < buf_size - 1) {
-        size_t len = strlen(line);
-        if (off + len < buf_size) {
-            memcpy(buf + off, line, len);
-            off += len;
-        }
-    }
-    buf[off] = '\0';
-    fclose(f);
-
-    *out_len = off;
-    return buf;
 }
 
 /* ─── Helper: simple consolidation (truncate oldest) ────────────────── */
@@ -255,49 +156,6 @@ static esp_err_t consolidate_session(const char *chat_id)
              chat_id, archive_count, meta.total_messages);
 
     return ESP_OK;
-}
-
-/* ─── Helper: trim archive if too large ─────────────────────────────── */
-
-static void trim_archive(const char *chat_id)
-{
-    char archive_path_buf[96];
-    archive_path(chat_id, archive_path_buf, sizeof(archive_path_buf));
-
-    int lines = count_lines(archive_path_buf);
-    if (lines <= s_config.archive_max_lines) {
-        return;
-    }
-
-    /* Keep only last archive_max_lines */
-    FILE *f = fopen(archive_path_buf, "r");
-    if (!f) return;
-
-    char *keep_lines[256];
-    int keep_count = 0;
-    char line[4096];
-
-    /* Read all, keep last max */
-    while (fgets(line, sizeof(line), f) && keep_count < 256) {
-        keep_lines[keep_count++] = strdup(line);
-    }
-    fclose(f);
-
-    /* Write back last max_lines */
-    FILE *out = fopen(archive_path_buf, "w");
-    if (out) {
-        int start = (keep_count > s_config.archive_max_lines) ?
-                    (keep_count - s_config.archive_max_lines) : 0;
-        for (int i = start; i < keep_count; i++) {
-            fputs(keep_lines[i], out);
-            free(keep_lines[i]);
-        }
-        fclose(out);
-    } else {
-        for (int i = 0; i < keep_count; i++) {
-            free(keep_lines[i]);
-        }
-    }
 }
 
 /* ─── Public API ─────────────────────────────────────────────────────── */

@@ -61,8 +61,13 @@ list(APPEND SOURCES
     "mimi/memory/consolidator.c"
     "mimi/proxy/http_proxy.c"
     "mimi/skills/skill_loader.c"
+    "mimi/skills/skill_meta.c"
+    "mimi/skills/skill_crystallize.c"
+    "mimi/agent/learning_hooks.c"
+    "mimi/memory/hierarchy.c"
     "mimi/cron/cron_service.c"
     "mimi/heartbeat/heartbeat.c"
+    "mimi/util/fatfs_util.c"
 )
 
 # Bridge layer sources

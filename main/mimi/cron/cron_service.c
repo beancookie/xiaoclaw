@@ -1,6 +1,7 @@
 #include "cron/cron_service.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,21 +216,12 @@ static esp_err_t cron_save_jobs(void)
         return ESP_ERR_NO_MEM;
     }
 
-    FILE *f = fopen(MIMI_CRON_FILE, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open %s for writing", MIMI_CRON_FILE);
-        free(json_str);
-        return ESP_FAIL;
-    }
-
-    size_t len = strlen(json_str);
-    size_t written = fwrite(json_str, 1, len, f);
-    fclose(f);
+    esp_err_t err = fatfs_write_atomic(MIMI_CRON_FILE, json_str, strlen(json_str));
     free(json_str);
 
-    if (written != len) {
-        ESP_LOGE(TAG, "Cron save incomplete: %d/%d bytes", (int)written, (int)len);
-        return ESP_FAIL;
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write cron file: %s", MIMI_CRON_FILE);
+        return err;
     }
 
     ESP_LOGI(TAG, "Saved %d cron jobs to %s", s_job_count, MIMI_CRON_FILE);
@@ -274,7 +266,7 @@ static void cron_process_due_jobs(void)
         if (job->kind == CRON_KIND_AT) {
             /* One-shot: disable or delete */
             if (job->delete_after_run) {
-                /* Remove by shifting array - this requires SPIFFS update */
+                /* Remove by shifting array - this requires FATFS update */
                 ESP_LOGI(TAG, "Deleting one-shot job: %s", job->name);
                 for (int j = i; j < s_job_count - 1; j++) {
                     s_jobs[j] = s_jobs[j + 1];
@@ -287,12 +279,12 @@ static void cron_process_due_jobs(void)
                 job->next_run = 0;
             }
         } else {
-            /* Recurring: compute next run - in-memory only, no SPIFFS write */
+            /* Recurring: compute next run - in-memory only, no FATFS write */
             job->next_run = now + job->interval_s;
         }
     }
 
-    /* Only save to SPIFFS when a job was deleted (add/remove already save) */
+    /* Only save to FATFS when a job was deleted (add/remove already save) */
     if (deleted) {
         cron_save_jobs();
     }
@@ -411,7 +403,7 @@ esp_err_t cron_add_job(cron_job_t *job)
 
     esp_err_t err = cron_save_jobs();
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to persist cron job to SPIFFS");
+        ESP_LOGW(TAG, "Failed to persist cron job to FATFS");
     }
 
     ESP_LOGI(TAG, "Added cron job: %s (%s) kind=%s next_run=%lld",
@@ -436,7 +428,7 @@ esp_err_t cron_remove_job(const char *job_id)
 
             err = cron_save_jobs();
             if (err != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to persist cron job removal to SPIFFS");
+                ESP_LOGW(TAG, "Failed to persist cron job removal to FATFS");
             }
             return ESP_OK;
         }

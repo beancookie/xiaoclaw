@@ -77,7 +77,7 @@ typedef esp_err_t (*mimi_tool_execute_t)(const char *input_json,
 | `edit_file` | 查找替换文件内容 | `{"path": "...", "old_string": "...", "new_string": "..."}` | 否 |
 | `list_dir` | 列出目录文件 | `{"prefix": "..."}` (可选) | 是 |
 
-NOTICE: 路径必须以 `MIMI_SPIFFS_BASE` 开头（如 `/spiffs/`）。
+NOTICE: 路径必须以 `MIMI_FATFS_BASE` 开头（如 `/spiffs/`）。
 
 ---
 
@@ -134,7 +134,7 @@ NOTICE: 路径必须以 `MIMI_SPIFFS_BASE` 开头（如 `/spiffs/`）。
 | `lua_eval` | 执行 Lua 代码字符串 | `{"code": "..."}` | 否 |
 | `lua_run` | 执行 SPIFFS 中的 Lua 脚本 | `{"path": "..."}` | 否 |
 
-脚本路径必须以 `MIMI_SPIFFS_BASE}/lua/` 开头。
+脚本路径必须以 `MIMI_FATFS_BASE}/lua/` 开头。
 
 ---
 

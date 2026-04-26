@@ -9,18 +9,19 @@
  * Key changes from standalone mimiclaw:
  * - WiFi management removed (handled by xiaozhi)
  * - External channels (Telegram/Feishu/WS Server) disabled
- * - NVS/SPIFFS init moved to caller responsibility
+ * - NVS/FATFS init moved to caller responsibility
  */
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"
-#include "esp_spiffs.h"
+#include "esp_vfs_fat.h"
 #include "nvs_flash.h"
 
 #include "mimi_config.h"
@@ -33,6 +34,8 @@
 #include "tools/tool_registry.h"
 #include "tools/tool_mcp_client.h"
 #include "skills/skill_loader.h"
+#include "skills/skill_meta.h"
+#include "skills/skill_crystallize.h"
 
 // Disabled for embedded mode (xiaozhi handles these):
 // #include "channels/telegram/telegram_bot.h"
@@ -43,24 +46,81 @@
 
 static const char *TAG = "mimi";
 
-static esp_err_t init_spiffs(void)
+static esp_err_t init_fatfs(void)
 {
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = MIMI_SPIFFS_BASE,
-        .partition_label = "spiffs",
-        .max_files = 10,
+    /* Register FATFS VFS to ensure /fatfs/ path is available.
+     * The partition "fatfs" has SubType=fat, so we use esp_vfs_fat_spiflash_mount_rw_wl. */
+    ESP_LOGI(TAG, "Mounting FATFS partition 'fatfs' at '%s'", MIMI_FATFS_BASE);
+
+    /* Format if mount fails - FATFS can be formatted.
+     * This ensures the device can boot even if FATFS partition is empty/corrupted. */
+    esp_vfs_fat_mount_config_t mount_config = {
         .format_if_mount_failed = true,
+        .max_files = 10,
+        .allocation_unit_size = 4096,
     };
 
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    wl_handle_t handle;
+    esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(MIMI_FATFS_BASE, "fatfs", &mount_config, &handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "FATFS mount failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    size_t total = 0, used = 0;
-    esp_spiffs_info("spiffs", &total, &used);
-    ESP_LOGI(TAG, "SPIFFS: total=%d, used=%d", (int)total, (int)used);
+    ESP_LOGI(TAG, "FATFS mounted successfully");
+
+    /* Ensure required directories exist */
+    const char *dirs[] = {
+        MIMI_FATFS_BASE "/skills",
+        MIMI_FATFS_BASE "/skills/auto",
+        MIMI_FATFS_BASE "/memory",
+        MIMI_FATFS_BASE "/config",
+        MIMI_FATFS_BASE "/lua",
+        MIMI_FATFS_BASE "/sessions",
+        NULL
+    };
+
+    for (int i = 0; dirs[i] != NULL; i++) {
+        mkdir(dirs[i], 0755);
+    }
+    ESP_LOGI(TAG, "FATFS directories initialized");
+
+    /* Create default files if they don't exist */
+    static const char* default_files[] = {
+        MIMI_FATFS_MEMORY_DIR "/skill_index.json",
+        MIMI_FATFS_MEMORY_DIR "/MEMORY.md",
+        MIMI_FATFS_MEMORY_DIR "/facts.json",
+        MIMI_FATFS_CONFIG_DIR "/SOUL.md",
+        MIMI_FATFS_CONFIG_DIR "/USER.md",
+        MIMI_FATFS_BASE "/cron.json",
+        MIMI_FATFS_BASE "/HEARTBEAT.md",
+        NULL
+    };
+
+    static const char* default_contents[] = {
+        "{\"skills\":[]}",  // skill_index.json
+        "",                // MEMORY.md
+        "{\"facts\":[]}",  // facts.json
+        "",                // SOUL.md
+        "",                // USER.md
+        "{}",              // cron.json
+        "",                // HEARTBEAT.md
+        NULL
+    };
+
+    for (int i = 0; default_files[i] != NULL; i++) {
+        struct stat st;
+        if (stat(default_files[i], &st) != 0) {
+            FILE* f = fopen(default_files[i], "w");
+            if (f) {
+                fputs(default_contents[i], f);
+                fclose(f);
+                ESP_LOGI(TAG, "Created default file: %s", default_files[i]);
+            } else {
+                ESP_LOGW(TAG, "Failed to create default file: %s", default_files[i]);
+            }
+        }
+    }
 
     return ESP_OK;
 }
@@ -73,7 +133,7 @@ static esp_err_t init_spiffs(void)
  * - NVS is initialized
  * - Default event loop is created
  * - WiFi is connected (for LLM API access)
- * - SPIFFS partition is available
+ * - FATFS partition is available
  *
  * @return ESP_OK on success
  */
@@ -89,13 +149,14 @@ esp_err_t mimiclaw_init(void)
     ESP_LOGI(TAG, "PSRAM free:    %d bytes",
              (int)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-    /* Initialize SPIFFS (for memory/sessions/skills storage) */
-    ESP_ERROR_CHECK(init_spiffs());
+    /* Initialize FATFS (for memory/sessions/skills storage) */
+    ESP_ERROR_CHECK(init_fatfs());
 
     /* Initialize core subsystems */
     ESP_ERROR_CHECK(message_bus_init());
     ESP_ERROR_CHECK(memory_store_init());
     ESP_ERROR_CHECK(skill_loader_init());
+    ESP_ERROR_CHECK(skill_crystallize_init());
     ESP_ERROR_CHECK(session_manager_init());
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());
