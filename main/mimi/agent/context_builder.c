@@ -4,6 +4,7 @@
 #include "memory/hierarchy.h"
 #include "skills/skill_loader.h"
 #include "skills/skill_meta.h"
+#include "tools/tool_mcp_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,8 +51,8 @@ static void get_current_time_str(char *buf, size_t size)
 static size_t append_identity(char *buf, size_t size, size_t offset)
 {
     return snprintf(buf + offset, size - offset,
-        "# XiaoClaw: AI Voice Assistant with Local Agent Brain\n\n"
-        "You are XiaoClaw, an AI voice assistant running on an ESP32-S3 device with 32MB Flash and 8MB PSRAM.\n"
+        "# XiaoClaw (小龙虾): AI Voice Assistant with Local Agent Brain\n\n"
+        "You are XiaoClaw (Chinese: 小龙虾), an AI voice assistant running on an ESP32-S3 device with 32MB Flash and 8MB PSRAM.\n"
         "You combine voice interaction (via xiaozhi) with a local AI agent brain (mimiclaw).\n\n"
         "Voice I/O: wake word detection, ASR, TTS playback.\n"
         "Agent Brain: LLM reasoning, tool calling, memory, autonomous tasks.\n\n"
@@ -104,6 +105,22 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
         "- Keep MEMORY.md concise and organized — summarize, don't dump raw conversation.\n"
         "- You should proactively save memory without being asked. If the user tells you their name, preferences, or important facts, persist them immediately.\n\n");
 
+    /* Memory L0-L4 Hierarchy */
+    off += snprintf(buf + offset + off, size - offset - off,
+        "## Memory Hierarchy (L0-L4)\n\n"
+        "| Layer | Content | Storage | Notes |\n"
+        "|-------|---------|---------|-------|\n"
+        "| L0 | System constraints | Hardcoded (SOUL.md) | Base rules |\n"
+        "| L1 | Skill index | " MIMI_FATFS_MEMORY_DIR "/skill_index.json | Auto-updated |\n"
+        "| L2 | User facts/preferences | " MIMI_FATFS_MEMORY_DIR "/MEMORY.md | Long-term |\n"
+        "| L3 | Hot auto-skills (usage>=3) | /fatfs/skills/auto/ | Auto-loaded |\n"
+        "| L4 | Archived sessions | /fatfs/sessions/archive/ | Summarized |\n\n"
+        "**Memory Workflow:**\n"
+        "1. Read: read_file `" MIMI_FATFS_MEMORY_DIR "/MEMORY.md`\n"
+        "2. Update: edit_file (find-and-replace) — NEVER write_file directly\n"
+        "3. Save user facts proactively — name, preferences, habits\n\n"
+        "**Important:** Always read_file before edit_file to avoid losing content.\n\n");
+
     /* Long-term memory */
     if (memory_read_long_term(mem_buf, sizeof(mem_buf)) == ESP_OK && mem_buf[0]) {
         off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_buf);
@@ -118,12 +135,16 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
 {
     size_t off = 0;
 
-    /* L1: Skill index (always loaded - lightweight JSON navigation) */
+    /* L1: Skill index - available skills to CALL when needed */
     char l1_index[2048];
     size_t l1_len = skill_meta_get_all_json(l1_index, sizeof(l1_index));
     if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Skill Index (L1)\n\n%s\n\n", l1_index);
+            "## Available Skills (call by name when relevant)\n\n"
+            "```json\n%s\n```\n\n"
+            "**To use a skill:** Call the tool with `{\"name\": \"<skill_name>\"}`\n"
+            "**Skill names:** auto_<hash> (e.g., auto_97154022)\n\n",
+            l1_index);
     }
 
     /* L2: User facts/preferences (if available) */
@@ -158,6 +179,37 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             "## Available Skills (read full instructions with read_file when needed)\n\n%s\n",
             skills_summary);
     }
+
+    /* Skill Usage Workflow - 强调调用而不是描述 */
+    off += snprintf(buf + offset + off, size - offset - off,
+        "## Skill Usage\n\n"
+        "**When a task matches a known skill:**\n"
+        "1. Call the skill tool directly by name (e.g., `auto_97154022`)\n"
+        "2. Do NOT summarize skill lists — use them!\n\n"
+        "**File tools (for managing skills):**\n"
+        "- list_dir: `{\"prefix\": \"/fatfs/skills\"}` — discover skill files\n"
+        "- read_file: `{\"path\": \"/fatfs/skills/.../SKILL.md\"}` — read skill content\n\n"
+        "All paths must start with `/fatfs/` — `..` is blocked.\n\n");
+
+    /* Skill Auto-Crystallization */
+    off += snprintf(buf + offset + off, size - offset - off,
+        "## Skill Auto-Crystallization\n\n"
+        "When a multi-step task succeeds, you can trigger automatic skill creation:\n\n"
+        "**Crystallization Conditions (all must be met):**\n"
+        "- Task completed successfully\n"
+        "- At least 2 steps were required\n"
+        "- No similar skill already exists\n\n"
+        "**Crystallized skills are saved to:**\n"
+        "`/fatfs/skills/auto/auto_<name>_<hash>/SKILL.md`\n\n"
+        "**To trigger crystallization:**\n"
+        "Complete the multi-step task successfully. The system will:\n"
+        "1. Detect success + multiple steps\n"
+        "2. Check for similar existing skill\n"
+        "3. Auto-create skill in /fatfs/skills/auto/\n\n"
+        "**Skill Metadata Tracking:**\n"
+        "- usage_count: Increments each time skill is used\n"
+        "- success_count: Increments on successful use\n"
+        "- is_hot: True when usage_count >= 3 (full content auto-loaded)\n\n");
 
     return off;
 }
@@ -202,6 +254,20 @@ esp_err_t context_build_system_prompt(char *buf, size_t size)
 
     /* Tools */
     off += append_tools_section(buf, size, off);
+
+    /* MCP Configuration (if enabled) */
+#ifdef CONFIG_MIMI_MCP_CLIENT_ENABLE
+    if (strlen(CONFIG_MIMI_MCP_REMOTE_HOST) > 0) {
+        off += snprintf(buf + off, size - off,
+            "\n## MCP Server Configuration\n\n"
+            "A remote MCP server is configured and available:\n"
+            "- Host: " CONFIG_MIMI_MCP_REMOTE_HOST "\n"
+            "- Port: %d\n"
+            "- Endpoint: " CONFIG_MIMI_MCP_REMOTE_EP "\n"
+            "- Use mcp_connect tool to connect: {\"server_name\": \"default\"}\n\n",
+            CONFIG_MIMI_MCP_REMOTE_PORT);
+    }
+#endif
 
     /* Memory */
     off += append_memory_section(buf, size, off);
