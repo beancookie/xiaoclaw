@@ -140,10 +140,10 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
     size_t l1_len = skill_meta_get_all_json(l1_index, sizeof(l1_index));
     if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Available Skills (call by name when relevant)\n\n"
+            "## Available Skills (TOOLS - call directly, do not just describe)\n\n"
             "```json\n%s\n```\n\n"
-            "**To use a skill:** Call the tool with `{\"name\": \"<skill_name>\"}`\n"
-            "**Skill names:** auto_<hash> (e.g., auto_97154022)\n\n",
+            "**Call format:** `{\"name\": \"auto_xxxxxxxx\"}`\n"
+            "**Important:** Call skills directly, do NOT just list/summarize them!\n\n",
             l1_index);
     }
 
@@ -180,16 +180,16 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             skills_summary);
     }
 
-    /* Skill Usage Workflow - 强调调用而不是描述 */
+    /* Skill Usage Workflow - emphasize calling, not describing */
     off += snprintf(buf + offset + off, size - offset - off,
         "## Skill Usage\n\n"
         "**When a task matches a known skill:**\n"
         "1. Call the skill tool directly by name (e.g., `auto_97154022`)\n"
-        "2. Do NOT summarize skill lists — use them!\n\n"
-        "**File tools (for managing skills):**\n"
-        "- list_dir: `{\"prefix\": \"/fatfs/skills\"}` — discover skill files\n"
-        "- read_file: `{\"path\": \"/fatfs/skills/.../SKILL.md\"}` — read skill content\n\n"
-        "All paths must start with `/fatfs/` — `..` is blocked.\n\n");
+        "2. Do NOT summarize skill lists - use them!\n\n"
+        "**File tools:**\n"
+        "- list_dir: `{\"prefix\": \"/fatfs/skills\"}` - discover skill files\n"
+        "- read_file: `{\"path\": \"/fatfs/skills/.../SKILL.md\"}` - read skill content\n\n"
+        "Paths must start with `/fatfs/` - `..` is blocked.\n\n");
 
     /* Skill Auto-Crystallization */
     off += snprintf(buf + offset + off, size - offset - off,
