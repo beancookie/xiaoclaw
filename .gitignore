@@ -21,3 +21,4 @@ mmap_generate_*.h
 debug/
 examples/
 main/mimi/mimi_secrets.h
+sdkconfig
