@@ -1,4 +1,4 @@
-[2174/2258] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/display/lvgl_display/lvgl_display.cc.obj
+[2092/2158] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/display/lvgl_display/lvgl_display.cc.obj
 In file included from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/managed_components/espressif__esp_video/include/linux/videodev2.h:62,
                  from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/display/lvgl_display/jpg/image_to_jpeg.h:12,
                  from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/display/lvgl_display/lvgl_display.cc:15:
@@ -26,18 +26,7 @@ C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/managed_components/espressif__
 C:/Espressif/frameworks/esp-idf-v5.5.3/components/lwip/lwip/src/include/lwip/sockets.h:423:9: note: this is the location of the previous definition
   423 | #define _IOW(x,y,t)     ((long)(IOC_IN|((sizeof(t)&IOCPARM_MASK)<<16)|((x)<<8)|(y)))
       |         ^~~~
-[2190/2258] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/mimi/memory/consolidator.c.obj
-C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/memory/consolidator.c:262:13: warning: 'trim_archive' defined but not used [-Wunused-function]
-  262 | static void trim_archive(const char *chat_id)
-      |             ^~~~~~~~~~~~
-C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/memory/consolidator.c:59:14: warning: 'read_last_lines' defined but not used [-Wunused-function]
-   59 | static char *read_last_lines(const char *path, int n, size_t *out_len)
-      |              ^~~~~~~~~~~~~~~
-[2194/2258] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/mimi/skills/skill_meta.c.obj
-C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/mimi/skills/skill_meta.c:22:13: warning: 'trim_whitespace' defined but not used [-Wunused-function]
-   22 | static void trim_whitespace(const char *start, size_t len, char *out, size_t out_size)
-      |             ^~~~~~~~~~~~~~~
-[2247/2258] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/boards/esp-vocat/esp_vocat.cc.obj
+[2147/2158] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/boards/esp-vocat/esp_vocat.cc.obj
 In file included from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/managed_components/espressif__esp_video/include/linux/videodev2.h:62,
                  from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/display/lvgl_display/jpg/image_to_jpeg.h:12,
                  from C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/main/boards/common/esp_video.h:13,
@@ -66,4 +55,3 @@ C:/Users/LuZhong/Documents/Code/xiaoclaw/xiaoclaw/managed_components/espressif__
 C:/Espressif/frameworks/esp-idf-v5.5.3/components/lwip/lwip/src/include/lwip/sockets.h:423:9: note: this is the location of the previous definition
   423 | #define _IOW(x,y,t)     ((long)(IOC_IN|((sizeof(t)&IOCPARM_MASK)<<16)|((x)<<8)|(y)))
       |         ^~~~
-[2257/2258] Generating binary image from built executable

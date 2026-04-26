@@ -1,5 +1,6 @@
 #include "session_manager.h"
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -143,19 +144,19 @@ static esp_err_t session_save_metadata_to_file(const char *chat_id, session_meta
     char path[64];
     metadata_get_path(chat_id, path, sizeof(path));
 
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Cannot write metadata file: %s", path);
-        return ESP_FAIL;
-    }
-
-    fprintf(f, "%d:%d:%d:%ld:%ld\n",
+    char buf[256];
+    int len = snprintf(buf, sizeof(buf), "%d:%d:%d:%ld:%ld\n",
             metadata->last_consolidated,
             metadata->total_messages,
             metadata->cursor,
             (long)metadata->created_at,
             (long)metadata->updated_at);
-    fclose(f);
+
+    esp_err_t err = fatfs_write_atomic(path, buf, len);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to atomically write metadata file: %s", path);
+        return err;
+    }
 
     return ESP_OK;
 }

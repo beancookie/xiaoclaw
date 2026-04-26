@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
+#include <sys/stat.h>
 #include "esp_log.h"
 #include "esp_err.h"
 
@@ -56,19 +57,22 @@ static void extract_intent_prefix(const char *intent, char *out, size_t out_size
 
 static esp_err_t ensure_dir(const char *path)
 {
-    /* For FATFS, we just need to ensure the path is valid
-       Directories are created implicitly when writing files */
-    char dir[256];
-    char *p = dir + snprintf(dir, sizeof(dir), "%s", path);
+    char dir[384];
+    snprintf(dir, sizeof(dir), "%s", path);
 
-    while (p < dir + strlen(dir)) {
+    /* Create each directory component */
+    for (char *p = dir; *p; p++) {
         if (*p == '/') {
             *p = '\0';
-            FILE *f = fopen(dir, "w");
-            if (f) fclose(f);
+            if (strlen(dir) > 0) {
+                mkdir(dir, 0755);
+            }
             *p = '/';
         }
-        p++;
+    }
+    /* Create final directory */
+    if (strlen(dir) > 0) {
+        mkdir(dir, 0755);
     }
     return ESP_OK;
 }

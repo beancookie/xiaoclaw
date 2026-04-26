@@ -189,8 +189,26 @@ static void scan_skills_dir(const char *base_path, char source)
         if (ent->d_name[0] == '.') continue;
 
         char dir_name[64] = {0};
-        char skill_path[512] = {0};
-        char skill_file[512] = {0};
+        char skill_path[384] = {0};
+        char skill_file[1024] = {0};
+
+        /* Check if this is a directory or a file */
+        bool is_dir = (ent->d_type == DT_DIR);
+
+        /* FATFS quirk: d_type may be DT_UNKNOWN, so try fopen first */
+        if (!is_dir && ent->d_type == DT_UNKNOWN) {
+            /* Try to open as file first */
+            snprintf(skill_path, sizeof(skill_path), "%s/%s", base_path, ent->d_name);
+            snprintf(skill_file, sizeof(skill_file), "%s/SKILL.md", skill_path);
+            FILE *f = fopen(skill_file, "r");
+            if (f) {
+                /* It's a valid file, not a directory */
+                fclose(f);
+            } else {
+                /* fopen failed, likely a directory - FATFS quirk */
+                is_dir = true;
+            }
+        }
 
         /* FATFS quirk: readdir may return "skill_name/SKILL.md" instead of "skill_name" */
         /* Check if d_name contains '/' (indicating the quirk) */
@@ -202,55 +220,59 @@ static void scan_skills_dir(const char *base_path, char source)
             memcpy(dir_name, ent->d_name, copy_len);
             dir_name[copy_len] = '\0';
         } else {
-            /* Normal case: d_name is the directory name */
+            /* Normal case: d_name is the directory/file name */
             strncpy(dir_name, ent->d_name, sizeof(dir_name) - 1);
         }
 
-        snprintf(skill_path, sizeof(skill_path), "%.*s/%.*s", (int)sizeof(skill_path) - 1, base_path, (int)sizeof(skill_path) - 1, dir_name);
-        snprintf(skill_file, sizeof(skill_file), "%.*s/SKILL.md", (int)sizeof(skill_file) - 10, skill_path);
+        snprintf(skill_path, sizeof(skill_path), "%s/%s", base_path, dir_name);
+        snprintf(skill_file, sizeof(skill_file), "%s/SKILL.md", skill_path);
 
-        /* Try to open SKILL.md directly */
-        FILE *f = fopen(skill_file, "r");
-        if (!f) {
-            ESP_LOGW(TAG, "scan_skills_dir: no SKILL.md at '%s'", skill_file);
-            continue;
+        if (is_dir) {
+            /* Recursively scan subdirectories for SKILL.md */
+            scan_skills_dir(skill_path, source);
+        } else {
+            /* Not a directory, try to open SKILL.md directly */
+            FILE *f = fopen(skill_file, "r");
+            if (!f) {
+                continue;
+            }
+
+            /* Read content for parsing */
+            char content[4096];
+            size_t n = fread(content, 1, sizeof(content) - 1, f);
+            content[n] = '\0';
+            fclose(f);
+
+            /* Parse frontmatter */
+            SkillFrontmatter meta;
+            parse_frontmatter(content, &meta);
+
+            /* Use directory name as skill name if not in frontmatter */
+            if (!meta.name[0]) {
+                strncpy(meta.name, dir_name, sizeof(meta.name) - 1);
+            }
+
+            /* Extract description if not in frontmatter */
+            if (!meta.description[0]) {
+                extract_description(content, meta.description, sizeof(meta.description));
+            }
+
+            /* Build skill info */
+            skill_info_t *info = &s_skills[s_skill_count];
+            memset(info, 0, sizeof(*info));
+
+            strncpy(info->name, meta.name, sizeof(info->name) - 1);
+            strncpy(info->description, meta.description, sizeof(info->description) - 1);
+            info->always = meta.always;
+            info->available = true;
+            strncpy(info->path, skill_file, sizeof(info->path) - 1);
+            info->source = source;
+
+            ESP_LOGI(TAG, "scan_skills_dir: Found skill: %s (always=%d, path=%s)",
+                     info->name, info->always, info->path);
+
+            s_skill_count++;
         }
-
-        /* Read content for parsing */
-        char content[4096];
-        size_t n = fread(content, 1, sizeof(content) - 1, f);
-        content[n] = '\0';
-        fclose(f);
-
-        /* Parse frontmatter */
-        SkillFrontmatter meta;
-        parse_frontmatter(content, &meta);
-
-        /* Use directory name as skill name if not in frontmatter */
-        if (!meta.name[0]) {
-            strncpy(meta.name, dir_name, sizeof(meta.name) - 1);
-        }
-
-        /* Extract description if not in frontmatter */
-        if (!meta.description[0]) {
-            extract_description(content, meta.description, sizeof(meta.description));
-        }
-
-        /* Build skill info */
-        skill_info_t *info = &s_skills[s_skill_count];
-        memset(info, 0, sizeof(*info));
-
-        strncpy(info->name, meta.name, sizeof(info->name) - 1);
-        strncpy(info->description, meta.description, sizeof(info->description) - 1);
-        info->always = meta.always;
-        info->available = true;
-        strncpy(info->path, skill_file, sizeof(info->path) - 1);
-        info->source = source;
-
-        ESP_LOGI(TAG, "scan_skills_dir: Found skill: %s (always=%d, path=%s)",
-                 info->name, info->always, info->path);
-
-        s_skill_count++;
     }
 
     closedir(dir);

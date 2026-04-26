@@ -67,6 +67,7 @@ list(APPEND SOURCES
     "mimi/memory/hierarchy.c"
     "mimi/cron/cron_service.c"
     "mimi/heartbeat/heartbeat.c"
+    "mimi/util/fatfs_util.c"
 )
 
 # Bridge layer sources
