@@ -18,10 +18,18 @@
 
 ## Introduction
 
-**XiaoClaw** is a unified ESP32-S3 firmware that combines voice interaction with a local AI agent brain. It integrates:
+**XiaoClaw** is a unified ESP32-S3 firmware that combines voice interaction with a local AI Agent brain. It integrates:
 
 - **xiaozhi-esp32** — Voice I/O layer: audio recording, playback, wake word detection, display, and network communication
-- **mimiclaw** — Agent brain: LLM-powered reasoning, tool calling, memory management, and autonomous task execution
+- **mimiclaw** — Agent brain: LLM inference, tool calling, memory management, autonomous task execution
+
+**Core Features:**
+- Voice I/O with local wake word detection
+- Local LLM inference with ReAct agent loop
+- **Self-learning**: Multi-step tasks are automatically crystallized into reusable skills
+- Skill system with L0-L4 memory hierarchy
+- Cron scheduler for autonomous tasks
+- MCP client for dynamic remote tools
 
 All running on a single ESP32-S3 chip with 32MB Flash and 8MB PSRAM.
 
@@ -264,63 +272,64 @@ flowchart TB
 | ota_1     | 5MB   | OTA backup                     |
 | assets    | 5MB   | Model assets (wake word, etc.) |
 | model     | 5MB   | AI model storage               |
-| spiffs    | ~12MB | Memory, sessions, skills       |
+| fatfs     | ~12MB | Memory, sessions, skills       |
 
 ### Task Layout
 
-| Task       | Core | Priority | Function             |
-| ---------- | ---- | -------- | -------------------- |
-| audio\_\*  | 0    | 8        | Audio I/O            |
-| main_loop  | 0    | 5        | Application main     |
-| bridge     | 0    | 5        | Bridge communication |
-| agent_loop | 1    | 6        | LLM processing       |
+| Task       | Core | Priority | Stack | Function           |
+| ---------- | ---- | -------- | ----- | ------------------ |
+| agent_loop | 1    | 6        | 24KB  | LLM processing     |
+| tg_poll    | 0    | 5        | 12KB  | Telegram bot       |
+| feishu_ws  | 0    | 5        | 12KB  | Feishu bot         |
+| cron       | any  | 4        | 4KB   | Cron scheduler     |
 
 ## Tools
 
 The agent can use various tools:
 
-| Tool               | Description                            |
-| ------------------ | -------------------------------------- |
-| `web_search`       | Search the web for current information |
-| `get_current_time` | Get current date/time                  |
-| `gpio_write`       | Control GPIO pins                      |
-| `gpio_read`        | Read GPIO state                        |
-| `gpio_read_all`    | Read all allowed GPIO pins             |
-| `lua_eval`         | Execute a Lua code string directly     |
-| `lua_run`          | Execute a Lua script from SPIFFS       |
-| `mcp_connect`      | Connect to an MCP server               |
-| `mcp_disconnect`   | Disconnect from MCP server             |
-| `cron_add`         | Schedule a task                        |
-| `cron_list`        | List scheduled tasks                   |
-| `cron_remove`      | Remove a scheduled task                |
-| `read_file`        | Read file from SPIFFS                  |
-| `write_file`       | Write file to SPIFFS                   |
-| `edit_file`        | Edit file (find-and-replace)           |
-| `list_dir`         | List files in directory                |
-
-**Note:** GPIO tools respect board-specific policies defined in `gpio_policy.h`.
+| Tool                    | Description                            |
+| ----------------------- | -------------------------------------- |
+| `web_search`            | Search the web for current information |
+| `get_datetime`          | Get current date/time                  |
+| `get_unix_timestamp`    | Get current unix timestamp             |
+| `lua_eval`              | Execute a Lua code string directly     |
+| `lua_run`               | Execute a Lua script from FATFS       |
+| `mcp_connect`           | Connect to an MCP server               |
+| `mcp_disconnect`        | Disconnect from MCP server             |
+| `mcp_server.tools_list` | List available remote tools            |
+| `mcp_server.tools_call` | Call a remote tool by name             |
+| `cron_add`              | Schedule a task                        |
+| `cron_list`             | List scheduled tasks                   |
+| `cron_remove`           | Remove a scheduled task                |
+| `read_file`             | Read file from FATFS                  |
+| `write_file`            | Write file to FATFS                   |
+| `edit_file`             | Edit file (find-and-replace)           |
+| `list_dir`              | List files in directory                |
 
 ### MCP Client (Dynamic Remote Tools)
 
-XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools. Server configurations are stored in `mcp-servers.md` skill file.
+XiaoClaw supports connecting to remote MCP servers to dynamically discover and call tools.
 
-**Configuration file:** `/spiffs/skills/mcp-servers.md`
+**Configuration:**
+- **Kconfig** (recommended): Set `CONFIG_MIMI_MCP_REMOTE_HOST`, `CONFIG_MIMI_MCP_REMOTE_PORT`, etc. in `main/Kconfig.projbuild`
+- **SKILL.md** (legacy fallback): `/fatfs/skills/mcp-servers/SKILL.md`
 
-```markdown
-# MCP Servers
-
-## my_server
-
-- host: 192.168.1.100
-- port: 8000
-- endpoint: mcp
-```
+**Kconfig Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `CONFIG_MIMI_MCP_CLIENT_ENABLE` | Enable MCP client | n |
+| `CONFIG_MIMI_MCP_REMOTE_HOST` | Server hostname/IP | "" |
+| `CONFIG_MIMI_MCP_REMOTE_PORT` | Server port | 8080 |
+| `CONFIG_MIMI_MCP_REMOTE_EP` | HTTP endpoint name | mcp_server |
+| `CONFIG_MIMI_MCP_TIMEOUT_MS` | Tool call timeout | 10000 |
 
 **Available tools:**
 | Tool | Description |
 |------|-------------|
 | `mcp_connect` | Connect to an MCP server by name |
 | `mcp_disconnect` | Disconnect from current server |
+| `mcp_server.tools_list` | List available remote tools |
+| `mcp_server.tools_call` | Call a remote tool by name |
 
 **Python MCP Server Example:** `scripts/mcp_server.py`
 
@@ -329,11 +338,26 @@ pip install "mcp[cli]"
 python scripts/mcp_server.py --port 8000
 ```
 
-Remote tools are registered with the `{server_name}.` prefix (e.g., `my_server.get_device_status`), distinguishing them from local tools.
+Remote tools are registered with the actual tool names after connection.
+
+**mcp-servers SKILL.md** (`/fatfs/skills/mcp-servers/SKILL.md`):
+```yaml
+---
+name: mcp-servers
+description: Connect to MCP servers and use remote tools
+always: true
+---
+```
+
+**How it works:**
+1. Configure server via Kconfig or SKILL.md
+2. Use `mcp_connect` with `{"server_name": "default"}` to connect
+3. Use `mcp_server.tools_list` to discover available tools
+4. Use `mcp_server.tools_call` to execute remote tools
 
 ### Lua Scripting
 
-XiaoClaw supports Lua scripting for custom logic and HTTP requests. Scripts are stored in `/spiffs/lua/` directory.
+XiaoClaw supports Lua scripting for custom logic and HTTP requests. Scripts are stored in `/fatfs/lua/` directory.
 
 **Built-in functions:**
 | Function | Description |
@@ -344,7 +368,7 @@ XiaoClaw supports Lua scripting for custom logic and HTTP requests. Scripts are 
 | `http_put(url, body, content_type)` | HTTP PUT request |
 | `http_delete(url)` | HTTP DELETE request |
 
-**Example script:** `/spiffs/lua/hello.lua`
+**Example script:** `/fatfs/lua/hello.lua`
 
 ```lua
 local greeting = "Hello from Lua!"
@@ -352,7 +376,7 @@ local timestamp = os.time()
 return string.format("%s (timestamp: %d)", greeting, timestamp)
 ```
 
-**Example HTTP script:** `/spiffs/lua/http_example.lua`
+**Example HTTP script:** `/fatfs/lua/http_example.lua`
 
 ```lua
 local response, status = http_get("https://example.com")
@@ -364,62 +388,145 @@ Scripts can return values which are serialized as JSON and returned to the agent
 
 ## Memory System
 
-XiaoClaw stores data in plain text files on SPIFFS with session consolidation support:
+XiaoClaw stores data in plain text files on FATFS with session consolidation support:
 
-| Path                           | Purpose                                       |
-| ------------------------------ | --------------------------------------------- |
-| `/spiffs/config/SOUL.md`       | AI personality definition                     |
-| `/spiffs/config/USER.md`       | User information and preferences              |
-| `/spiffs/memory/MEMORY.md`     | Long-term memory                              |
-| `/spiffs/HEARTBEAT.md`         | Autonomous task list (runtime)                |
-| `/spiffs/cron.json`            | Scheduled jobs (runtime)                      |
-| `/spiffs/sessions/tg_*.jsonl`  | Conversation history (JSONL format)           |
-| `/spiffs/sessions/tg_*.meta`   | Session metadata (cursor, consolidated count) |
-| `/spiffs/archive/tg_*.archive` | Archived old messages                         |
+| Path | Purpose |
+|------|---------|
+| `/fatfs/config/SOUL.md` | AI personality |
+| `/fatfs/config/USER.md` | User info |
+| `/fatfs/memory/MEMORY.md` | Long-term memory (L2) |
+| `/fatfs/memory/skill_index.json` | Skill index (L1) |
+| `/fatfs/skills/auto/` | Auto-crystallized skills (L3) |
+| `/fatfs/sessions/` | Sessions + archive (L4) |
+
+### Memory Hierarchy (L0-L4)
+
+| Layer | Content | Storage | Notes |
+| L0 | System constraints | Hardcoded | Base rules |
+| L1 | Skill index | skill_index.json | Auto-updated |
+| L2 | User facts | MEMORY.md | Long-term |
+| L3 | Hot auto-skills | /skills/auto/ | usage>=3 |
+| L4 | Archives | /sessions/ | Summarized |
 
 ### Session Management
 
 - **Cursor-based tracking**: Each session tracks read position via cursor for efficient history traversal
-- **Consolidation**: When session exceeds `max_history` (default: 50) messages, oldest `consolidate_batch` (default: 20) messages are archived to `/spiffs/archive/`
+- **Consolidation**: When session exceeds `max_history` (default: 50) messages, oldest `consolidate_batch` (default: 20) messages are archived to `/fatfs/sessions/`
 - **LRU cache**: Active sessions cached in memory (max 8 sessions) for fast access
 - **Checkpoint recovery**: Agent can resume from last checkpoint on crash
 
 ### Skills System
 
-Skills are loaded from `/spiffs/skills/` directory with YAML frontmatter support. Each skill is a directory containing a `SKILL.md` file:
+Skills are loaded from `/fatfs/skills/` directory with YAML frontmatter support.
 
+**Directory Structure:**
 ```
-/spiffs/skills/
-├── weather/
-│   └── SKILL.md
-├── get-time/
-│   └── SKILL.md
-└── lua-scripts/
-    └── SKILL.md
+/fatfs/skills/
+├── lua-scripts/SKILL.md      # Manual skill
+├── mcp-servers/SKILL.md      # Manual skill (always=true)
+├── skill-creator/SKILL.md    # Manual skill
+└── auto/                     # Auto-crystallized skills
+    └── auto_<name>_<hash>/SKILL.md
 ```
 
-**Frontmatter format:**
+#### Skill Index (L1)
 
+Skill metadata is stored in `/fatfs/memory/skill_index.json`:
+
+```json
+{
+  "skills": [
+    {
+      "name": "auto_light_ctrl_a3f2_7d2e",
+      "path": "/fatfs/skills/auto/auto_light_ctrl_a3f2_7d2e/SKILL.md",
+      "is_auto": true,
+      "usage_count": 5,
+      "success_rate": 0.8,
+      "last_used": 1745678901,
+      "is_hot": true
+    }
+  ],
+  "hot_threshold": 3
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Skill identifier |
+| `path` | Full path to SKILL.md |
+| `is_auto` | true for auto-crystallized skills |
+| `usage_count` | Number of times used |
+| `success_rate` | success_count / usage_count |
+| `is_hot` | true when usage_count >= 3 |
+
+#### Auto-Crystallization (L3)
+
+When a multi-step task succeeds, the system automatically creates a skill.
+
+**Crystallization Conditions:**
+- Task completed successfully
+- At least 2 tool calls required
+- No similar auto-skill exists
+
+**Creation Process:**
+1. Task ends successfully with 2+ tool calls
+2. `learning_hook_on_task_end()` triggers crystallization
+3. Creates `/fatfs/skills/auto/auto_<intent>_<hash>/SKILL.md`
+4. Adds entry to `skill_index.json`
+
+**Hot Skills:**
+- Skills with `usage_count >= 3` are marked as `is_hot=true`
+- Hot auto-skills have full content injected into system prompt (L3)
+
+#### Frontmatter Format
+
+**Manual Skills:**
 ```yaml
 ---
-name: weather
-description: Get current weather and forecasts
-always: false
+name: skill-name
+description: Brief description of what the skill does
+always: false  # true = always injected into system prompt
 ---
-# Weather Skill
+# Skill Content
 ...
 ```
 
-- **`name`**: Skill identifier used by the agent
-- **`description`**: Brief description of what the skill does
-- **`always: true`**: Skill content always injected into system prompt
-- **`requires.bins`**: CLI tools required by the skill (optional)
-- **`requires.env`**: Environment variables needed (optional)
+**Auto-Crystallized Skills:**
+```yaml
+---
+name: auto_light_ctrl_a3f2_7d2e
+description: Auto-generated skill for: turn on the bedroom light
+always: false
+auto: true
+created_from: 3 tool calls
+step_count: 3
+success_rate: 1.0
+---
 
-**Skill file format:**
+# Auto Skill: auto_light_ctrl_a3f2_7d2e
 
-- `SKILL.md` - Contains skill description, usage instructions, and examples
-- Tool definitions in the format: `Tool: tool_name\nInput: {json}`
+## Intent
+turn on the bedroom light
+
+## Tool Sequence
+1. tool_name({"arg": "value"})
+2. another_tool({"arg": "value"})
+
+## Pitfalls
+- Auto-generated from multi-step task execution
+```
+
+#### Memory Integration (L1-L3)
+
+| Layer | Content | Storage | Notes |
+|-------|---------|---------|-------|
+| L1 | Skill index | skill_index.json | All skills metadata |
+| L3 | Hot auto-skills | /skills/auto/ | usage>=3, full content |
+
+**In System Prompt:**
+- **L1**: Skill index shown as "Available Skills" (names only)
+- **L3**: Hot auto-skills (is_hot=true) full content injected
+- **Always**: Skills with `always: true` always injected
 
 ## Development
 
@@ -428,51 +535,94 @@ always: false
 ```
 xiaoclaw/
 ├── main/
-│   ├── mimi/             # Agent brain (from mimiclaw)
-│   │   ├── agent/        # Agent loop, runner, hooks, checkpoint
-│   │   │   ├── agent_loop.c   # Main agent task loop
-│   │   │   ├── runner.c       # ReAct execution engine
+│   ├── mimi/                  # Agent brain (from mimiclaw)
+│   │   ├── agent/            # Agent loop, runner, hooks, checkpoint
+│   │   │   ├── agent_loop.c      # Main agent task loop
+│   │   │   ├── runner.c          # ReAct execution engine
 │   │   │   ├── context_builder.c # System prompt construction
-│   │   │   ├── hook.c         # Agent hooks implementation
-│   │   │   └── checkpoint.c   # Crash recovery checkpoint
-│   │   ├── bus/          # Message bus
-│   │   ├── channels/     # Telegram, Feishu bot integrations
-│   │   ├── cron/         # Cron scheduler service
-│   │   ├── gateway/      # WebSocket server
-│   │   ├── heartbeat/    # Autonomous task heartbeat
-│   │   ├── llm/          # LLM proxy
-│   │   ├── memory/       # Memory store, session manager, consolidator
+│   │   │   ├── hook.c            # Agent hooks implementation
+│   │   │   ├── learning_hooks.c  # Auto-learning/crystallization hooks
+│   │   │   └── checkpoint.c       # Crash recovery checkpoint
+│   │   ├── bus/              # Message bus
+│   │   ├── channels/         # Telegram, Feishu bot integrations
+│   │   │   ├── telegram/
+│   │   │   └── feishu/
+│   │   ├── cron/             # Cron scheduler service
+│   │   ├── gateway/          # WebSocket server
+│   │   ├── heartbeat/        # Autonomous task heartbeat
+│   │   ├── llm/              # LLM proxy
+│   │   ├── memory/           # Memory store, session manager, consolidator
 │   │   │   ├── memory_store.c    # Long-term memory
 │   │   │   ├── session_manager.c # Session with cursor/consolidation
-│   │   │   └── consolidator.c     # Automatic history compression
-│   │   ├── ota/          # OTA updates
-│   │   ├── proxy/        # HTTP proxy
-│   │   ├── skills/       # Skill loader with frontmatter
-│   │   ├── tools/        # Tool registry with concurrency support
-│   ├── audio/            # Voice I/O (from xiaozhi)
-│   ├── bridge/           # Bridge layer
-│   ├── display/
-│   ├── protocols/
-│   ├── boards/
-│   ├── led/              # LED control
-│   ├── lua/              # Lua script support
-│   ├── memory/           # Memory management
-│   ├── skills/           # Skills system
-│   ├── assets.cc/h       # Assets management
-│   ├── application.cc/h  # Main application
-│   ├── device_state.h   # Device state
+│   │   │   ├── consolidator.c    # Automatic history compression
+│   │   │   └── hierarchy.c       # Memory hierarchy management
+│   │   ├── ota/              # OTA updates
+│   │   ├── proxy/            # HTTP proxy
+│   │   ├── skills/           # Skill loader
+│   │   │   ├── skill_loader.c     # Skill loading (frontmatter)
+│   │   │   ├── skill_meta.c       # Skill metadata
+│   │   │   └── skill_crystallize.c # Auto-crystallization
+│   │   ├── tools/            # Tool registry
+│   │   │   ├── tool_registry.c    # Tool registration
+│   │   │   ├── tool_cron.c        # Cron tools
+│   │   │   ├── tool_files.c       # File operation tools
+│   │   │   ├── tool_get_time.c    # Time tools
+│   │   │   ├── tool_lua.c         # Lua execution tool
+│   │   │   ├── tool_mcp_client.c  # MCP client tool
+│   │   │   └── tool_web_search.c  # Web search tool
+│   │   ├── util/             # Utilities
+│   │   │   └── fatfs_util.c
+│   │   ├── mimi.c/h          # Module entry
+│   │   ├── mimi_config.h     # Configuration
+│   │   └── mimi_secrets.h    # Secret keys
+│   ├── audio/                # Voice I/O (from xiaozhi)
+│   │   ├── audio_codec.cc/h
+│   │   ├── audio_service.cc/h
+│   │   ├── codecs/           # Audio codecs
+│   │   ├── demuxer/          # Audio demuxer
+│   │   ├── processors/        # Audio processors (AFE, etc.)
+│   │   └── wake_words/        # Wake word detection
+│   ├── bridge/               # Bridge layer (voice ↔ Agent)
+│   ├── display/              # Display drivers
+│   │   ├── display.cc/h
+│   │   ├── lcd_display.cc/h
+│   │   ├── oled_display.cc/h
+│   │   ├── emote_display.cc/h
+│   │   └── lvgl_display/     # LVGL graphics
+│   ├── protocols/            # Communication protocols
+│   │   ├── websocket_protocol.cc/h
+│   │   └── mqtt_protocol.cc/h
+│   ├── boards/               # Board support (70+ board configs)
+│   │   ├── common/          # Common components
+│   │   └── <board-name>/    # Per-board configs
+│   ├── led/                 # LED control
+│   ├── application.cc/h     # Main application entry
+│   ├── device_state.h       # Device state
 │   ├── device_state_machine.cc/h # State machine
-│   ├── idf_component.yml # Component manifest
-│   ├── main.cc           # Entry point
-│   ├── mcp_server.cc/h   # MCP server
-│   ├── ota.cc/h          # OTA updates
-│   ├── settings.cc/h     # Settings management
-│   └── system_info.cc/h  # System info
-├── spiffs_data/          # SPIFFS content (flashed to /spiffs partition)
-│   ├── config/           # SOUL.md, USER.md
-│   ├── lua/              # Lua scripts (hello.lua, http_example.lua)
-│   ├── memory/            # MEMORY.md
-│   └── skills/            # get-time/, lua-scripts/, mcp-servers/, skill-creator/, weather/
+│   ├── main.cc              # Entry point
+│   ├── mcp_server.cc/h      # MCP server
+│   ├── ota.cc/h             # OTA updates
+│   ├── settings.cc/h         # Settings management
+│   ├── system_info.cc/h      # System info
+│   ├── assets.cc/h           # Assets management
+│   └── idf_component.yml     # Component manifest
+├── fatfs_data/               # FATFS content (flashed to /fatfs partition)
+│   ├── config/
+│   │   ├── SOUL.md          # AI personality definition
+│   │   └── USER.md          # User information
+│   ├── lua/                  # Lua scripts
+│   │   ├── hello.lua
+│   │   └── http_example.lua
+│   ├── memory/
+│   │   ├── MEMORY.md        # Long-term memory
+│   │   ├── facts.json       # Facts database
+│   │   └── skill_index.json # Skill index
+│   ├── skills/               # Skills directory
+│   │   ├── lua-scripts/
+│   │   ├── mcp-servers/
+│   │   └── skill-creator/
+│   ├── HEARTBEAT.md          # Runtime heartbeat tasks
+│   └── cron.json             # Cron jobs configuration
 ├── CMakeLists.txt
 └── sdkconfig.defaults.esp32s3
 ```

@@ -314,6 +314,12 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
         skill_meta_init();
     }
 
+    ESP_LOGI(TAG, "skill_meta_get_all_json: returning %d skills", s_skill_count);
+    for (int i = 0; i < s_skill_count; i++) {
+        ESP_LOGI(TAG, "  skill[%d]: name=%s, is_auto=%d, usage=%d",
+                 i, s_skills[i].name, s_skills[i].is_auto, s_skills[i].usage_count);
+    }
+
     cJSON *root = cJSON_CreateObject();
     cJSON *skills_arr = cJSON_CreateArray();
 
