@@ -187,6 +187,8 @@ Configure via `idf.py menuconfig` under **Xiaozhi Assistant → Secret Configura
 | `CONFIG_MIMI_SECRET_MODEL` | Model name (e.g., `MiniMax-M2.5`, `claude-opus-4-5`) |
 | `CONFIG_MIMI_SECRET_OPENAI_API_URL` | OpenAI compatible API URL |
 | `CONFIG_MIMI_SECRET_ANTHROPIC_API_URL` | Anthropic API URL (optional) |
+| `CONFIG_MIMI_SECRET_SEARCH_KEY` | Brave Search API key (optional) |
+| `CONFIG_MIMI_SECRET_TAVILY_KEY` | Tavily Search API key (optional) |
 
 **Example: Alibaba Cloud Coding+ (通义灵码)**:
 
@@ -472,6 +474,19 @@ When a multi-step task succeeds, the system automatically creates a skill.
 2. `learning_hook_on_task_end()` triggers crystallization
 3. Creates `/fatfs/skills/auto/auto_<intent>_<hash>/SKILL.md`
 4. Adds entry to `skill_index.json`
+
+```mermaid
+flowchart TD
+    A[Task Completes<br/>with 2+ tool calls] --> B{Success?}
+    B -->|No| C[No crystallization]
+    B -->|Yes| D{Similar skill<br/>exists?}
+    D -->|Yes| C
+    D -->|No| E[learning_hook_on_task_end]
+    E --> F[Create skill directory<br/>/fatfs/skills/auto/auto__hash/]
+    F --> G[Write SKILL.md<br/>with frontmatter]
+    G --> H[Add to skill_index.json]
+    H --> I[Skill ready for use]
+```
 
 **Hot Skills:**
 - Skills with `usage_count >= 3` are marked as `is_hot=true`

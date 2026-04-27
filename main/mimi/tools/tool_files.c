@@ -230,9 +230,19 @@ esp_err_t tool_list_dir_execute(const char *input_json, char *output, size_t out
         }
     }
 
-    DIR *dir = opendir(MIMI_FATFS_BASE);
+    /* Open the prefix directory if provided, otherwise open the base directory */
+    const char *dir_path = MIMI_FATFS_BASE;
+    if (prefix) {
+        /* Validate prefix is within FATFS_BASE for safety */
+        size_t base_len = strlen(MIMI_FATFS_BASE);
+        if (strncmp(prefix, MIMI_FATFS_BASE, base_len) == 0) {
+            dir_path = prefix;
+        }
+    }
+
+    DIR *dir = opendir(dir_path);
     if (!dir) {
-        snprintf(output, output_size, "Error: cannot open %s directory", MIMI_FATFS_BASE);
+        snprintf(output, output_size, "Error: cannot open %s directory", dir_path);
         cJSON_Delete(root);
         return ESP_FAIL;
     }
@@ -242,12 +252,15 @@ esp_err_t tool_list_dir_execute(const char *input_json, char *output, size_t out
     int count = 0;
 
     while ((ent = readdir(dir)) != NULL && off < output_size - 1) {
-        /* Build full path: FATFS entries are just filenames with embedded slashes */
+        /* Build full path from dir_path and entry name */
         char full_path[512];
-        snprintf(full_path, sizeof(full_path), "%s/%s", MIMI_FATFS_BASE, ent->d_name);
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, ent->d_name);
 
-        if (prefix && strncmp(full_path, prefix, strlen(prefix)) != 0) {
-            continue;
+        if (prefix) {
+            size_t pfx_len = strlen(prefix);
+            if (strncmp(full_path, prefix, pfx_len) != 0) {
+                continue;
+            }
         }
 
         off += snprintf(output + off, output_size - off, "%s\n", full_path);

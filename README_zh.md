@@ -180,6 +180,8 @@ esptool.py -p PORT write_flash 0x20000 ./build/xiaozhi.bin
 | `CONFIG_MIMI_SECRET_MODEL` | 模型名称（如 `MiniMax-M2.5`、`claude-opus-4-5`） |
 | `CONFIG_MIMI_SECRET_OPENAI_API_URL` | OpenAI 兼容 API 地址 |
 | `CONFIG_MIMI_SECRET_ANTHROPIC_API_URL` | Anthropic API 地址（可选） |
+| `CONFIG_MIMI_SECRET_SEARCH_KEY` | Brave Search API 密钥（可选） |
+| `CONFIG_MIMI_SECRET_TAVILY_KEY` | Tavily Search API 密钥（可选） |
 
 **示例：阿里云通义灵码**:
 
@@ -464,6 +466,19 @@ Skills 从 `/fatfs/skills/` 目录加载，支持 YAML frontmatter。
 2. `learning_hook_on_task_end()` 触发结晶
 3. 创建 `/fatfs/skills/auto/auto_<intent>_<hash>/SKILL.md`
 4. 添加条目到 `skill_index.json`
+
+```mermaid
+flowchart TD
+    A[任务完成<br/>2+ 次工具调用] --> B{成功?}
+    B -->|否| C[不结晶]
+    B -->|是| D{存在相似技能?}
+    D -->|是| C
+    D -->|否| E[learning_hook_on_task_end]
+    E --> F[创建技能目录<br/>/fatfs/skills/auto/auto__hash/]
+    F --> G[写入 SKILL.md<br/>含 frontmatter]
+    G --> H[添加到 skill_index.json]
+    H --> I[技能可用]
+```
 
 **热门技能：**
 - `usage_count >= 3` 的技能标记为 `is_hot=true`
