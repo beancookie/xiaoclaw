@@ -104,6 +104,17 @@ size_t skill_meta_get_all_json(char *buf, size_t size);
 size_t skill_meta_get_hot_skills(char *buf, size_t size);
 
 /**
+ * Get all auto-generated skills (not just hot ones).
+ * Returns full content for each auto-skill, allowing LLM to see
+ * available skills even before they become hot (usage >= 3).
+ *
+ * @param buf   Output buffer
+ * @param size  Buffer size
+ * @return Number of bytes written, 0 if no auto skills
+ */
+size_t skill_meta_get_all_auto_skills(char *buf, size_t size);
+
+/**
  * Save current metadata to FATFS.
  * Called automatically by record_usage and update, but can be
  * called manually to ensure persistence.

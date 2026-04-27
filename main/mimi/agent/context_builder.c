@@ -155,12 +155,12 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             "## User Facts (L2)\n\n%s\n\n", l2_facts);
     }
 
-    /* L3: Hot auto-skills (only is_hot=true, full content) */
-    char l3_hot[4096];
-    size_t l3_len = skill_meta_get_hot_skills(l3_hot, sizeof(l3_hot));
+    /* L3: Auto-skills (all auto skills, not just hot ones) */
+    char l3_auto[4096];
+    size_t l3_len = skill_meta_get_all_auto_skills(l3_auto, sizeof(l3_auto));
     if (l3_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Active Auto-Skills (L3)\n\n%s\n\n", l3_hot);
+            "## Auto-Skills (L3)\n\n%s\n\n", l3_auto);
     }
 
     /* Always skills (always loaded, full content) */

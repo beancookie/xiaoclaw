@@ -399,6 +399,50 @@ size_t skill_meta_get_hot_skills(char *buf, size_t size)
     return off;
 }
 
+size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
+{
+    if (!s_initialized) {
+        skill_meta_init();
+    }
+
+    size_t off = 0;
+    for (int i = 0; i < s_skill_count && off < size - 1; i++) {
+        /* Include all auto skills, not just hot ones */
+        if (s_skills[i].is_auto) {
+            /* Load full content of auto skill */
+            char content[4096];
+            FILE *f = fopen(s_skills[i].path, "r");
+            if (!f) continue;
+
+            size_t n = fread(content, 1, sizeof(content) - 1, f);
+            content[n] = '\0';
+            fclose(f);
+
+            /* Skip YAML frontmatter */
+            char *start = content;
+            if (strncmp(start, "---", 3) == 0) {
+                char *end = strstr(start + 3, "---");
+                if (end) {
+                    start = end + 3;
+                    while (*start == '\n' || *start == '\r') start++;
+                }
+            }
+
+            if (off > 0 && off < size - 4) {
+                off += snprintf(buf + off, size - off, "\n---\n\n");
+            }
+
+            size_t len = strlen(start);
+            size_t copy = len < size - off - 1 ? len : size - off - 1;
+            memcpy(buf + off, start, copy);
+            off += copy;
+        }
+    }
+
+    buf[off] = '\0';
+    return off;
+}
+
 esp_err_t skill_meta_record_skill_usage(const char *tool_name,
                                         const char *tool_input,
                                         bool success)
