@@ -399,6 +399,67 @@ size_t skill_meta_get_hot_skills(char *buf, size_t size)
     return off;
 }
 
+esp_err_t skill_meta_record_skill_usage(const char *tool_name,
+                                        const char *tool_input,
+                                        bool success)
+{
+    if (!s_initialized) {
+        skill_meta_init();
+    }
+
+    if (!tool_name) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Search hot auto-skills for one whose tool sequence contains this tool */
+    for (int i = 0; i < s_skill_count; i++) {
+        if (!s_skills[i].is_hot || !s_skills[i].is_auto) {
+            continue;
+        }
+
+        /* Load skill content to find Tool Sequence section */
+        char content[4096];
+        FILE *f = fopen(s_skills[i].path, "r");
+        if (!f) continue;
+
+        size_t n = fread(content, 1, sizeof(content) - 1, f);
+        content[n] = '\0';
+        fclose(f);
+
+        /* Find "## Tool Sequence" or "## Tool Sequence\n" section */
+        char *seq_start = strstr(content, "## Tool Sequence");
+        if (!seq_start) continue;
+
+        /* Skip to after the header */
+        seq_start += strlen("## Tool Sequence");
+        while (*seq_start == '\n' || *seq_start == ' ') seq_start++;
+
+        /* Find the next section header or end of content */
+        char *seq_end = strstr(seq_start, "\n## ");
+        size_t seq_len;
+        if (seq_end) {
+            seq_len = seq_end - seq_start;
+        } else {
+            seq_len = strlen(seq_start);
+        }
+
+        /* Check if tool_name appears in this skill's tool sequence */
+        char tool_pattern[128];
+        snprintf(tool_pattern, sizeof(tool_pattern), "%s(", tool_name);
+
+        if (strncmp(seq_start, tool_pattern, strlen(tool_pattern)) == 0 ||
+            strstr(seq_start, tool_pattern) != NULL) {
+            /* Found a match - record usage for this skill */
+            ESP_LOGI(TAG, "Tool %s matched skill %s, recording usage",
+                     tool_name, s_skills[i].name);
+            esp_err_t err = skill_meta_record_usage(s_skills[i].name, success);
+            return err;
+        }
+    }
+
+    return ESP_ERR_NOT_FOUND;
+}
+
 esp_err_t skill_meta_save(void)
 {
     return save_to_file();

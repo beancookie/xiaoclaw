@@ -128,3 +128,18 @@ bool skill_meta_similar_exists(const char *intent);
  * @return Actual number of hot skills
  */
 int skill_meta_get_hot_names(char names[][64], int max);
+
+/**
+ * Find which hot auto-skill matches a tool call.
+ * Scans hot auto-skills and checks if the tool name appears in their
+ * tool sequence. When found, records usage for that skill.
+ *
+ * @param tool_name   Name of the tool that was called
+ * @param tool_input  JSON input string (used for pattern matching)
+ * @param success     Whether the tool call succeeded
+ * @return ESP_OK if a matching skill was found and usage recorded,
+ *         ESP_ERR_NOT_FOUND if no matching skill
+ */
+esp_err_t skill_meta_record_skill_usage(const char *tool_name,
+                                         const char *tool_input,
+                                         bool success);
