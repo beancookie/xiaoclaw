@@ -135,15 +135,13 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
 {
     size_t off = 0;
 
-    /* L1: Skill index - available skills to CALL when needed */
+    /* L1: Skill index - available skills information */
     char l1_index[2048];
     size_t l1_len = skill_meta_get_all_json(l1_index, sizeof(l1_index));
     if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Available Skills (TOOLS - call directly, do not just describe)\n\n"
-            "```json\n%s\n```\n\n"
-            "**Call format:** `{\"name\": \"auto_xxxxxxxx\"}`\n"
-            "**Important:** Call skills directly, do NOT just list/summarize them!\n\n",
+            "## Available Skills (L1)\n\n"
+            "```json\n%s\n```\n\n",
             l1_index);
     }
 
@@ -180,12 +178,12 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             skills_summary);
     }
 
-    /* Skill Usage Workflow - emphasize calling, not describing */
+    /* Skill Usage Workflow */
     off += snprintf(buf + offset + off, size - offset - off,
         "## Skill Usage\n\n"
         "**When a task matches a known skill:**\n"
-        "1. Call the skill tool directly by name (e.g., `auto_97154022`)\n"
-        "2. Do NOT summarize skill lists - use them!\n\n"
+        "1. Review the skill's Tool Sequence in L3 above\n"
+        "2. Execute the tools in sequence using their tool names\n\n"
         "**File tools:**\n"
         "- list_dir: `{\"prefix\": \"/fatfs/skills\"}` - discover skill files\n"
         "- read_file: `{\"path\": \"/fatfs/skills/.../SKILL.md\"}` - read skill content\n\n"
@@ -209,7 +207,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
         "**Skill Metadata Tracking:**\n"
         "- usage_count: Increments each time skill is used\n"
         "- success_count: Increments on successful use\n"
-        "- is_hot: True when usage_count >= 3 (full content auto-loaded)\n\n");
+        "- is_hot: True when usage_count >= 3\n\n");
 
     return off;
 }
