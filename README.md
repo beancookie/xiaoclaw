@@ -283,7 +283,7 @@ flowchart TB
 | agent_loop | 1    | 6        | 24KB  | LLM processing     |
 | tg_poll    | 0    | 5        | 12KB  | Telegram bot       |
 | feishu_ws  | 0    | 5        | 12KB  | Feishu bot         |
-| cron       | any  | 4        | 4KB   | Cron scheduler     |
+| cron       | any  | 4        | 8KB   | Cron scheduler     |
 
 ## Tools
 
@@ -491,6 +491,26 @@ flowchart TD
 **Hot Skills:**
 - Skills with `usage_count >= 3` are marked as `is_hot=true`
 - Hot auto-skills have full content injected into system prompt (L3)
+- Non-hot skills can still be used but their full content is NOT injected
+
+```mermaid
+flowchart TB
+    A[Tool call executed] --> B{Match auto-skill<br/>Tool Sequence?}
+    B -->|No| Z[No tracking]
+    B -->|Yes| C[Record usage<br/>for matched skill]
+    C --> D[usage_count++]
+    D --> E{usage_count >= 3?}
+    E -->|No| F[Not hot]
+    E -->|Yes| G[is_hot = true]
+    G --> H[Full content injected<br/>into system prompt L3]
+```
+
+| State | `is_hot` | In System Prompt |
+|-------|----------|-----------------|
+| usage < 3 | false | Index only (can read_file) |
+| usage >= 3 | true | Full content injected |
+
+Note: Usage is tracked for ALL auto-skills (not just hot ones). When a tool call matches an auto-skill's Tool Sequence pattern, that skill's usage_count is incremented. Once usage reaches the hot threshold (3), the skill becomes hot and its full content is injected into the system prompt for faster recall.
 
 #### Frontmatter Format
 

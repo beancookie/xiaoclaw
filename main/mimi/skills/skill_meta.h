@@ -7,6 +7,35 @@
 #include <time.h>
 
 /**
+ * Hot threshold for marking skills as "hot" (loaded in context).
+ * A skill with usage_count >= this value is considered hot and
+ * its full content is included in the system prompt.
+ */
+#define SKILL_META_HOT_THRESHOLD 3
+
+/**
+ * Maximum number of tags per skill.
+ */
+#define SKILL_MAX_TAGS 8
+
+/**
+ * Maximum number of tools per skill.
+ */
+#define SKILL_MAX_TOOLS 16
+
+/**
+ * Quality score weights for overall quality calculation.
+ */
+#define SKILL_QUALITY_SCORE(m) \
+    ((m).clarity * 0.3 + (m).completeness * 0.3 + (m).actionability * 0.4)
+
+/**
+ * Minimum quality score threshold for crystallization.
+ * Skills with quality below this are not crystallized.
+ */
+#define SKILL_QUALITY_THRESHOLD_MIN 30
+
+/**
  * Skill metadata structure for tracking usage and success rates.
  * Stored persistently in /fatfs/memory/skill_index.json
  */
@@ -19,14 +48,21 @@ typedef struct {
     float success_rate;       // Calculated: success_count / usage_count
     time_t last_used;         // Unix timestamp of last use
     bool is_hot;              // true if usage_count >= HOT_THRESHOLD
-} skill_meta_t;
 
-/**
- * Hot threshold for marking skills as "hot" (loaded in context).
- * A skill with usage_count >= this value is considered hot and
- * its full content is included in the system prompt.
- */
-#define SKILL_META_HOT_THRESHOLD 3
+    /* Extended metadata for quality assessment */
+    char description[256];           // Detailed description
+    char one_line_summary[128];       // One-line summary
+    char category[32];               // Category (iot, file_ops, network...)
+    char tags[SKILL_MAX_TAGS][32];   // Tags
+    int tag_count;                    // Number of tags
+    char tools[SKILL_MAX_TOOLS][32]; // Tools used in this skill
+    int tool_count;                  // Number of tools
+
+    /* Quality scores (0-100) */
+    int clarity;        // Clarity score
+    int completeness;  // Completeness score
+    int actionability;  // Actionability score
+} skill_meta_t;
 
 /**
  * Path to the skill index JSON file (L1 memory layer).
@@ -130,6 +166,25 @@ esp_err_t skill_meta_save(void);
  * @return true if a similar skill exists
  */
 bool skill_meta_similar_exists(const char *intent);
+
+/**
+ * Check if a similar auto-skill exists using LLM semantic understanding.
+ * This replaces simple hash-based matching with LLM-based semantic comparison.
+ *
+ * @param new_intent           User's new task intent
+ * @param similar_skill_name   Output: matched skill name (caller allocates, 64 bytes)
+ * @param name_size            Size of similar_skill_name buffer
+ * @return true if similar skill found
+ */
+bool skill_meta_similar_exists_llm(const char *new_intent, char *similar_skill_name, size_t name_size);
+
+/**
+ * Get overall quality score for a skill.
+ *
+ * @param meta  Skill metadata
+ * @return Overall quality score (0-100)
+ */
+int skill_meta_get_quality_score(const skill_meta_t *meta);
 
 /**
  * Get list of hot skill names for context building.

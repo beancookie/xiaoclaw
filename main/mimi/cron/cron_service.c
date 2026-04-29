@@ -355,7 +355,7 @@ esp_err_t cron_service_start(void)
     BaseType_t ok = xTaskCreate(
         cron_task_main,
         "cron",
-        4096,
+        8192,
         NULL,
         4,
         &s_cron_task
