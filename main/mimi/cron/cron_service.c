@@ -9,6 +9,7 @@
 #include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "cJSON.h"
@@ -20,6 +21,8 @@ static const char *TAG = "cron";
 static cron_job_t s_jobs[MAX_CRON_JOBS];
 static int s_job_count = 0;
 static TaskHandle_t s_cron_task = NULL;
+static void *s_cron_stack = NULL;
+static StaticTask_t s_cron_tcb;
 
 static esp_err_t cron_save_jobs(void);
 
@@ -352,15 +355,25 @@ esp_err_t cron_service_start(void)
         }
     }
 
-    BaseType_t ok = xTaskCreate(
+    s_cron_stack = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!s_cron_stack) {
+        ESP_LOGE(TAG, "Failed to allocate cron task stack from PSRAM");
+        return ESP_ERR_NO_MEM;
+    }
+
+    s_cron_task = xTaskCreateStaticPinnedToCore(
         cron_task_main,
         "cron",
         8192,
         NULL,
         4,
-        &s_cron_task
+        (StackType_t *)s_cron_stack,
+        &s_cron_tcb,
+        tskNO_AFFINITY
     );
-    if (ok != pdPASS || !s_cron_task) {
+    if (!s_cron_task) {
+        free(s_cron_stack);
+        s_cron_stack = NULL;
         ESP_LOGE(TAG, "Failed to create cron task");
         return ESP_FAIL;
     }
@@ -375,6 +388,8 @@ void cron_service_stop(void)
     if (s_cron_task) {
         vTaskDelete(s_cron_task);
         s_cron_task = NULL;
+        free(s_cron_stack);
+        s_cron_stack = NULL;
         ESP_LOGI(TAG, "Cron service stopped");
     }
 }

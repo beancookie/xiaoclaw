@@ -154,21 +154,23 @@ esp_err_t mimiclaw_init(void)
 
     /* Initialize core subsystems */
     ESP_ERROR_CHECK(message_bus_init());
-    ESP_ERROR_CHECK(memory_store_init());
-    ESP_ERROR_CHECK(skill_loader_init());
-    ESP_ERROR_CHECK(skill_crystallize_init());
-    ESP_ERROR_CHECK(session_manager_init());
     ESP_ERROR_CHECK(http_proxy_init());
     ESP_ERROR_CHECK(llm_proxy_init());
-    ESP_ERROR_CHECK(tool_registry_init());
-    ESP_ERROR_CHECK(tool_mcp_client_init());
-    ESP_ERROR_CHECK(cron_service_init());
-    ESP_ERROR_CHECK(cron_service_start());
     ESP_ERROR_CHECK(heartbeat_init());
     ESP_ERROR_CHECK(agent_loop_init());
-
-    /* Start Agent Loop on Core 1 */
     ESP_ERROR_CHECK(agent_loop_start());
+
+    ESP_ERROR_CHECK(cron_service_init());
+    ESP_ERROR_CHECK(cron_service_start());
+    
+    ESP_ERROR_CHECK(memory_store_init());
+    ESP_ERROR_CHECK(session_manager_init());
+
+    ESP_ERROR_CHECK(skill_loader_init());
+    ESP_ERROR_CHECK(skill_crystallize_init());
+    
+    ESP_ERROR_CHECK(tool_registry_init());
+    ESP_ERROR_CHECK(tool_mcp_client_init());
 
     ESP_LOGI(TAG, "Mimiclaw Agent Engine initialized successfully");
     return ESP_OK;

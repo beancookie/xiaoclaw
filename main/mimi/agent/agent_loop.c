@@ -21,6 +21,8 @@ static const char *TAG = "agent";
 
 /* Forward declaration */
 static void agent_loop_task(void *arg);
+static void *s_agent_stack = NULL;
+static StaticTask_t s_agent_tcb;
 
 esp_err_t agent_loop_init(void)
 {
@@ -46,21 +48,29 @@ esp_err_t agent_loop_start(void)
 
     for (size_t i = 0; i < (sizeof(stack_candidates) / sizeof(stack_candidates[0])); i++) {
         uint32_t stack_size = stack_candidates[i];
-        BaseType_t ret = xTaskCreatePinnedToCore(
+        s_agent_stack = heap_caps_malloc(stack_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_agent_stack) {
+            ESP_LOGW(TAG, "agent_loop PSRAM alloc failed (stack=%u), retrying...",
+                     (unsigned)stack_size);
+            continue;
+        }
+
+        TaskHandle_t h = xTaskCreateStaticPinnedToCore(
             agent_loop_task, "agent_loop",
             stack_size, NULL,
-            MIMI_AGENT_PRIO, NULL, MIMI_AGENT_CORE);
+            MIMI_AGENT_PRIO,
+            (StackType_t *)s_agent_stack,
+            &s_agent_tcb,
+            MIMI_AGENT_CORE);
 
-        if (ret == pdPASS) {
-            ESP_LOGI(TAG, "agent_loop task created with stack=%u bytes", (unsigned)stack_size);
+        if (h) {
+            ESP_LOGI(TAG, "agent_loop task created with stack=%u bytes (PSRAM)", (unsigned)stack_size);
             return ESP_OK;
         }
 
-        ESP_LOGW(TAG,
-                 "agent_loop create failed (stack=%u, free_internal=%u, largest_internal=%u), retrying...",
-                 (unsigned)stack_size,
-                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        ESP_LOGW(TAG, "agent_loop create failed (stack=%u), retrying...", (unsigned)stack_size);
+        free(s_agent_stack);
+        s_agent_stack = NULL;
     }
 
     return ESP_FAIL;
