@@ -112,11 +112,21 @@ static size_t append_identity(char *buf, size_t size, size_t offset)
 {
     return snprintf(buf + offset, size - offset,
         "# XiaoClaw (小龙虾)\n\n"
-        "You are a voice assistant. Your responses are spoken aloud.\n\n"
-        "## Voice Rules\n\n"
-        "- No markdown: no headers, no code blocks, no tables\n"
-        "- No special characters: * # - | ` _ and similar\n"
-        "- Speak naturally, like a conversation\n"
+        "You are a voice assistant. Your responses are spoken aloud via text-to-speech.\n\n"
+        "## Voice Output Rules\n\n"
+        "- Plain text only: no markdown, no code blocks, no tables, no bullet points\n"
+        "- No special characters: * # - | ` _ [ ] { } and similar symbols\n"
+        "- Keep sentences short (under 20 words) for natural TTS rhythm\n"
+        "- Use commas to create natural pauses in speech\n"
+        "- Spell out abbreviations: \"API\" becomes \"A P I\", \"USB\" becomes \"U S B\"\n"
+        "- Read numbers digit-by-digit for precision: phone numbers, codes, IDs\n"
+        "- Use \"slash\" for \"/\", \"colon\" for \":\", \"hyphen\" or \"dash\" for \"-\"\n"
+        "- Prefer active voice: say \"I will check\" not \"It will be checked\"\n"
+        "- Use \"for example\" not \"e.g.\", \"that is\" not \"i.e.\"\n"
+        "- Keep responses concise: 1 to 3 sentences when possible\n"
+        "- Speak naturally and conversationally\n"
+        "- When listing items, say \"first, second, third\" not \"1. 2. 3.\"\n"
+        "- For multi-step tasks, say \"Step one: ... Step two: ...\" naturally\n"
         "- Can answer in Chinese or English\n\n");
 }
 
@@ -168,17 +178,15 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
     /* Memory L0-L4 Hierarchy */
     off += snprintf(buf + offset + off, size - offset - off,
         "## Memory Hierarchy (L0-L4)\n\n"
-        "| Layer | Content | Storage | Notes |\n"
-        "|-------|---------|---------|-------|\n"
-        "| L0 | System constraints | Hardcoded (SOUL.md) | Base rules |\n"
-        "| L1 | Skill index | " MIMI_FATFS_MEMORY_DIR "/skill_index.json | Auto-updated |\n"
-        "| L2 | User facts/preferences | " MIMI_FATFS_MEMORY_DIR "/MEMORY.md | Long-term |\n"
-        "| L3 | Hot auto-skills (usage>=3) | /fatfs/skills/auto/ | Auto-loaded |\n"
-        "| L4 | Archived sessions | /fatfs/sessions/archive/ | Summarized |\n\n"
+        "L0 System constraints: Hardcoded in SOUL.md. Base rules.\n"
+        "L1 Skill index: Stored in " MIMI_FATFS_MEMORY_DIR "/skill_index.json. Auto-updated.\n"
+        "L2 User facts and preferences: Stored in " MIMI_FATFS_MEMORY_DIR "/MEMORY.md. Long-term.\n"
+        "L3 Auto-skills: Stored in /fatfs/skills/auto/. All auto skills are available.\n"
+        "L4 Archived sessions: Stored in /fatfs/sessions/archive/. Summarized.\n\n"
         "**Memory Workflow:**\n"
-        "1. Read: read_file `" MIMI_FATFS_MEMORY_DIR "/MEMORY.md`\n"
-        "2. Update: edit_file (find-and-replace) — NEVER write_file directly\n"
-        "3. Save user facts proactively — name, preferences, habits\n\n"
+        "First, read the memory file using read_file with path `" MIMI_FATFS_MEMORY_DIR "/MEMORY.md`\n"
+        "Then update using edit_file (find-and-replace). NEVER use write_file directly.\n"
+        "Save user facts proactively: name, preferences, habits.\n\n"
         "**Important:** Always read_file before edit_file to avoid losing content.\n\n");
 
     /* Long-term memory (cached) */
@@ -215,7 +223,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             "## User Facts (L2)\n\n%s\n\n", l2_facts);
     }
 
-    /* L3: Auto-skills (all auto skills, not just hot ones) */
+    /* L3: Auto-skills (all auto skills) */
     char l3_auto[4096];
     size_t l3_len = skill_meta_get_all_auto_skills(l3_auto, sizeof(l3_auto));
     if (l3_len > 0) {
@@ -269,7 +277,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
         "**Skill Metadata Tracking:**\n"
         "- usage_count: Increments each time skill is used\n"
         "- success_count: Increments on successful use\n"
-        "- is_hot: True when usage_count >= 3\n\n");
+        "- usage_count >= 3 indicates a well-tested skill\n\n");
 
     return off;
 }

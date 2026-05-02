@@ -35,12 +35,10 @@ static esp_err_t save_to_file(void)
         cJSON *skill = cJSON_CreateObject();
         cJSON_AddStringToObject(skill, "name", s_skills[i].name);
         cJSON_AddStringToObject(skill, "path", s_skills[i].path);
-        cJSON_AddBoolToObject(skill, "is_auto", s_skills[i].is_auto);
         cJSON_AddNumberToObject(skill, "usage_count", s_skills[i].usage_count);
         cJSON_AddNumberToObject(skill, "success_count", s_skills[i].success_count);
         cJSON_AddNumberToObject(skill, "success_rate", s_skills[i].success_rate);
         cJSON_AddNumberToObject(skill, "last_used", (double)s_skills[i].last_used);
-        cJSON_AddBoolToObject(skill, "is_hot", s_skills[i].is_hot);
 
         /* Extended metadata - only serialize if set */
         if (s_skills[i].description[0] != '\0') {
@@ -81,7 +79,6 @@ static esp_err_t save_to_file(void)
     }
 
     cJSON_AddItemToObject(root, "skills", skills_arr);
-    cJSON_AddNumberToObject(root, "hot_threshold", SKILL_META_HOT_THRESHOLD);
     cJSON_AddNumberToObject(root, "last_updated", (double)time(NULL));
 
     char *json_str = cJSON_Print(root);
@@ -152,9 +149,6 @@ static esp_err_t load_from_file(void)
             m->path[sizeof(m->path) - 1] = '\0';
         }
 
-        cJSON *is_auto = cJSON_GetObjectItem(skill, "is_auto");
-        if (is_auto) m->is_auto = cJSON_IsTrue(is_auto);
-
         cJSON *usage = cJSON_GetObjectItem(skill, "usage_count");
         if (usage) m->usage_count = (int)usage->valueint;
 
@@ -166,9 +160,6 @@ static esp_err_t load_from_file(void)
 
         cJSON *last_used = cJSON_GetObjectItem(skill, "last_used");
         if (last_used) m->last_used = (time_t)last_used->valueint;
-
-        cJSON *is_hot = cJSON_GetObjectItem(skill, "is_hot");
-        if (is_hot) m->is_hot = cJSON_IsTrue(is_hot);
 
         /* Extended metadata (backward compatible - these fields may not exist in old JSON) */
         cJSON *desc = cJSON_GetObjectItem(skill, "description");
@@ -259,13 +250,6 @@ static skill_meta_t *find_skill(const char *name)
     return NULL;
 }
 
-/* ─── Helper: update hot flag ─────────────────────────────────────────── */
-
-static void update_hot_flag(skill_meta_t *m)
-{
-    m->is_hot = (m->usage_count >= SKILL_META_HOT_THRESHOLD);
-}
-
 /* ─── Public API ──────────────────────────────────────────────────────── */
 
 esp_err_t skill_meta_init(void)
@@ -327,11 +311,9 @@ esp_err_t skill_meta_init(void)
                 m->name[sizeof(m->name) - 1] = '\0';
                 strncpy(m->path, skill_path, sizeof(m->path) - 1);
                 m->path[sizeof(m->path) - 1] = '\0';
-                m->is_auto = true;
                 m->usage_count = 0;
                 m->success_rate = 0.0;
                 m->last_used = 0;
-                m->is_hot = false;
                 s_skill_count++;
             }
             fclose(f);
@@ -379,7 +361,6 @@ esp_err_t skill_meta_record_usage(const char *name, bool success)
         m->success_rate = (float)m->success_count / (float)m->usage_count;
     }
     m->last_used = time(NULL);
-    update_hot_flag(m);
 
     return save_to_file();
 }
@@ -397,7 +378,6 @@ esp_err_t skill_meta_update(const char *name, const skill_meta_t *meta)
 
     /* Only allow updating certain fields */
     strncpy(m->path, meta->path, sizeof(m->path) - 1);
-    m->is_auto = meta->is_auto;
     /* Don't reset usage_count via update - use record_usage */
 
     return save_to_file();
@@ -422,7 +402,6 @@ esp_err_t skill_meta_add(const skill_meta_t *meta)
 
     skill_meta_t *m = &s_skills[s_skill_count];
     *m = *meta;
-    update_hot_flag(m);
     s_skill_count++;
 
     return save_to_file();
@@ -436,8 +415,8 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
 
     ESP_LOGI(TAG, "skill_meta_get_all_json: returning %d skills", s_skill_count);
     for (int i = 0; i < s_skill_count; i++) {
-        ESP_LOGI(TAG, "  skill[%d]: name=%s, is_auto=%d, usage=%d",
-                 i, s_skills[i].name, s_skills[i].is_auto, s_skills[i].usage_count);
+        ESP_LOGI(TAG, "  skill[%d]: name=%s, hot=%d, usage=%d",
+                 i, s_skills[i].name, SKILL_IS_HOT(s_skills[i]), s_skills[i].usage_count);
     }
 
     cJSON *root = cJSON_CreateObject();
@@ -447,10 +426,8 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
         cJSON *skill = cJSON_CreateObject();
         cJSON_AddStringToObject(skill, "name", s_skills[i].name);
         cJSON_AddStringToObject(skill, "path", s_skills[i].path);
-        cJSON_AddBoolToObject(skill, "is_auto", s_skills[i].is_auto);
         cJSON_AddNumberToObject(skill, "usage_count", s_skills[i].usage_count);
         cJSON_AddNumberToObject(skill, "success_rate", s_skills[i].success_rate);
-        cJSON_AddBoolToObject(skill, "is_hot", s_skills[i].is_hot);
         if (s_skills[i].last_used > 0) {
             cJSON_AddNumberToObject(skill, "last_used", (double)s_skills[i].last_used);
         }
@@ -458,7 +435,6 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
     }
 
     cJSON_AddItemToObject(root, "skills", skills_arr);
-    cJSON_AddNumberToObject(root, "hot_threshold", SKILL_META_HOT_THRESHOLD);
 
     char *json_str = cJSON_PrintUnformatted(root);
     size_t len = 0;
@@ -476,53 +452,6 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
     return len;
 }
 
-size_t skill_meta_get_hot_skills(char *buf, size_t size)
-{
-    if (!s_initialized) {
-        skill_meta_init();
-    }
-
-    size_t off = 0;
-    for (int i = 0; i < s_skill_count && off < size - 1; i++) {
-        if (s_skills[i].is_hot && s_skills[i].is_auto) {
-            /* Safety: verify file exists and check size before reading */
-            struct stat st;
-            if (stat(s_skills[i].path, &st) != 0) continue;
-            if (st.st_size > SKILL_BUFFER_SIZE - 1) continue;
-
-            /* Load full content of hot auto skill using static buffer */
-            FILE *f = fopen(s_skills[i].path, "r");
-            if (!f) continue;
-
-            size_t n = fread(s_skill_buffer, 1, SKILL_BUFFER_SIZE - 1, f);
-            s_skill_buffer[n] = '\0';
-            fclose(f);
-
-            /* Skip YAML frontmatter */
-            char *start = s_skill_buffer;
-            if (strncmp(start, "---", 3) == 0) {
-                char *end = strstr(start + 3, "---");
-                if (end) {
-                    start = end + 3;
-                    while (*start == '\n' || *start == '\r') start++;
-                }
-            }
-
-            if (off > 0 && off < size - 4) {
-                off += snprintf(buf + off, size - off, "\n---\n\n");
-            }
-
-            size_t len = strlen(start);
-            size_t copy = len < size - off - 1 ? len : size - off - 1;
-            memcpy(buf + off, start, copy);
-            off += copy;
-        }
-    }
-
-    buf[off] = '\0';
-    return off;
-}
-
 size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
 {
     if (!s_initialized) {
@@ -538,10 +467,10 @@ size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
 
     for (int i = 0; i < count && off < size - 1; i++) {
         /* Include all auto skills, not just hot ones */
-        ESP_LOGI(TAG, "Checking skill[%d]: name=%s, path='%s', is_auto=%d",
-                 i, s_skills[i].name, s_skills[i].path, s_skills[i].is_auto);
+        ESP_LOGI(TAG, "Checking skill[%d]: name=%s, path='%s', auto=%d",
+                 i, s_skills[i].name, s_skills[i].path, SKILL_IS_AUTO(s_skills[i]));
 
-        if (s_skills[i].is_auto && s_skills[i].path[0] != '\0') {
+        if (SKILL_IS_AUTO(s_skills[i]) && s_skills[i].path[0] != '\0') {
             /* Safety: verify file exists and check size before reading */
             struct stat st;
             if (stat(s_skills[i].path, &st) != 0) {
@@ -604,7 +533,7 @@ esp_err_t skill_meta_record_skill_usage(const char *tool_name,
 
     /* Search all auto-skills (not just hot) for one whose tool sequence contains this tool */
     for (int i = 0; i < s_skill_count; i++) {
-        if (!s_skills[i].is_auto) {
+        if (!SKILL_IS_AUTO(s_skills[i])) {
             continue;
         }
 
@@ -844,7 +773,7 @@ bool skill_meta_similar_exists_jaccard(const char *new_intent, char *similar_ski
     char best_name[64] = {0};
 
     for (int i = 0; i < s_skill_count; i++) {
-        if (!s_skills[i].is_auto) continue;
+        if (!SKILL_IS_AUTO(s_skills[i])) continue;
 
         char s_text[640];
         skill_text(&s_skills[i], s_text, sizeof(s_text));
@@ -874,21 +803,4 @@ int skill_meta_get_quality_score(const skill_meta_t *meta)
         return 0;
     }
     return (int)SKILL_QUALITY_SCORE(*meta);
-}
-
-int skill_meta_get_hot_names(char names[][64], int max)
-{
-    if (!s_initialized) {
-        skill_meta_init();
-    }
-
-    int count = 0;
-    for (int i = 0; i < s_skill_count && count < max; i++) {
-        if (s_skills[i].is_hot) {
-            strncpy(names[count], s_skills[i].name, 63);
-            names[count][63] = '\0';
-            count++;
-        }
-    }
-    return count;
 }
