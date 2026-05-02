@@ -474,25 +474,48 @@ When a multi-step task succeeds, the system automatically creates a skill.
 
 ```mermaid
 flowchart TD
-    A(["🎯 Task Completes<br/>2+ tool calls"]) --> B{Success?}
-    B -->|No| C["❌ Skip"]
-    B -->|Yes| D{"🔍 Similar skill<br/>exists?"}
+    subgraph Input["<b>📥 Input</b>"]
+        A["🎯 Task Completes<br/>2+ tool calls"]
+    end
+
+    subgraph Validation["<b>✅ Validation</b>"]
+        direction TB
+        B{Success?}
+        D{"🔍 Similar skill<br/>exists?"}
+    end
+
+    subgraph Creation["<b>⚙️ Skill Creation</b>"]
+        direction TB
+        E["📁 Create dir"]
+        F["📝 Write SKILL.md"]
+        G["📋 Update index"]
+    end
+
+    subgraph Output["<b>📤 Output</b>"]
+        I["✅ Skill ready"]
+    end
+
+    C["❌ Skip"]
+
+    A --> B
+    B -->|No| C
+    B -->|Yes| D
     D -->|Yes| C
-    D -->|No| E["⚙️ Crystallize"]
-    E --> F["📁 Create dir<br/>/fatfs/skills/auto/"]
-    F --> G["📝 Write SKILL.md"]
-    G --> H["📋 Update index"]
-    H --> I["✅ Skill ready"]
-    
-    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style C fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style D fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style E fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style G fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style H fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style I fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    D -->|No| E
+    E --> F --> G --> I
+
+    style Input fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Validation fill:#fff8e1,stroke:#f57c00,stroke-width:3px,radius:15px
+    style Creation fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style Output fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style B fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style C fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#fff
+    style D fill:#ffa726,stroke:#fb8c00,stroke-width:2px,color:#fff
+    style E fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style F fill:#66bb6a,stroke:#388e3c,stroke-width:2px,color:#fff
+    style G fill:#26a69a,stroke:#00796b,stroke-width:2px,color:#fff
+    style I fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
 ```
 
 **Auto-Skills:**
@@ -502,16 +525,33 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["🔧 Tool call"] --> B{"🔗 Match<br/>Tool Sequence?"}
-    B -->|No| Z["➖ No tracking"]
-    B -->|Yes| C["📈 Record usage"]
-    C --> D["✅ usage_count++"]
-    
-    style A fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style C fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style Z fill:#ffebee,stroke:#c62828,stroke-width:2px
+    subgraph Trigger["<b>🔧 Trigger</b>"]
+        A["Tool call"]
+    end
+
+    subgraph Match["<b>🔗 Match</b>"]
+        B{"Match<br/>Tool Sequence?"}
+    end
+
+    subgraph Track["<b>📈 Tracking</b>"]
+        C["Record usage"]
+        D["usage_count++"]
+    end
+
+    Z["➖ No tracking"]
+
+    A --> B
+    B -->|No| Z
+    B -->|Yes| C --> D
+
+    style Trigger fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style Match fill:#fff8e1,stroke:#f57c00,stroke-width:3px,radius:15px
+    style Track fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style A fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style B fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style C fill:#66bb6a,stroke:#388e3c,stroke-width:2px,color:#fff
+    style D fill:#26a69a,stroke:#00796b,stroke-width:2px,color:#fff
+    style Z fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#fff
 ```
 
 Note: When a tool call matches an auto-skill's Tool Sequence pattern, that skill's usage_count is incremented.
