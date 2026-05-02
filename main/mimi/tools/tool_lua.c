@@ -31,6 +31,7 @@ typedef struct {
     char *data;
     size_t len;
     size_t cap;
+    bool truncated;
 } http_buf_t;
 
 static esp_err_t http_event_handler(esp_http_client_event_t *evt)
@@ -38,7 +39,16 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
     http_buf_t *hb = (http_buf_t *)evt->user_data;
     if (evt->event_id == HTTP_EVENT_ON_DATA) {
         size_t needed = hb->len + evt->data_len;
-        if (needed < hb->cap) {
+        if (needed >= hb->cap) {
+            hb->truncated = true;
+            /* Copy what we can */
+            size_t copy_len = hb->cap - hb->len - 1;
+            if (copy_len > 0) {
+                memcpy(hb->data + hb->len, evt->data, copy_len);
+                hb->len += copy_len;
+                hb->data[hb->len] = '\0';
+            }
+        } else {
             memcpy(hb->data + hb->len, evt->data, evt->data_len);
             hb->len += evt->data_len;
             hb->data[hb->len] = '\0';
@@ -97,6 +107,11 @@ static int lua_http_request(lua_State *L, const char *method)
     if (err != ESP_OK) {
         free(hb.data);
         return luaL_error(L, "HTTP request failed: %s", esp_err_to_name(err));
+    }
+
+    if (hb.truncated) {
+        free(hb.data);
+        return luaL_error(L, "HTTP response truncated (exceeded %d bytes)", HTTP_BUF_SIZE);
     }
 
     lua_pushstring(L, hb.data);
@@ -162,6 +177,143 @@ static int lua_print_wrapper(lua_State *L)
 }
 
 /**
+ * @brief Escape string for JSON output
+ * @param dst Destination buffer
+ * @param dst_size Destination buffer size
+ * @param src Source string
+ * @return Number of bytes written
+ */
+static size_t json_escape_string(char *dst, size_t dst_size, const char *src)
+{
+    size_t i = 0;
+    size_t j = 0;
+    while (src[i] && j < dst_size - 1) {
+        switch (src[i]) {
+            case '"':
+                if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '"'; }
+                else goto end;
+                break;
+            case '\\':
+                if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '\\'; }
+                else goto end;
+                break;
+            case '\n':
+                if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'n'; }
+                else goto end;
+                break;
+            case '\r':
+                if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'r'; }
+                else goto end;
+                break;
+            case '\t':
+                if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 't'; }
+                else goto end;
+                break;
+            default:
+                dst[j++] = src[i];
+                break;
+        }
+        i++;
+    }
+end:
+    dst[j] = '\0';
+    return j;
+}
+
+/**
+ * @brief Serialize a single Lua value to JSON
+ * @param L Lua state
+ * @param idx Stack index
+ * @param buf Output buffer
+ * @param size Buffer size
+ * @param is_string Whether this is being serialized as array/string context
+ */
+static void serialize_lua_value(lua_State *L, int idx, char *buf, size_t size, bool *first)
+{
+    int type = lua_type(L, idx);
+    char temp[256];
+
+    switch (type) {
+        case LUA_TSTRING: {
+            const char *s = lua_tostring(L, idx);
+            if (s) {
+                json_escape_string(temp, sizeof(temp), s);
+                int written = snprintf(buf, size, "%s\"%s\"", *first ? "" : ", ", temp);
+                if (written > 0 && (size_t)written < size) {
+                    *first = false;
+                }
+            }
+            break;
+        }
+        case LUA_TNUMBER:
+            if (lua_isinteger(L, idx)) {
+                snprintf(buf, size, "%s%d", *first ? "" : ", ", (int)lua_tointeger(L, idx));
+            } else {
+                snprintf(buf, size, "%s%.6g", *first ? "" : ", ", lua_tonumber(L, idx));
+            }
+            *first = false;
+            break;
+        case LUA_TBOOLEAN:
+            snprintf(buf, size, "%s%s", *first ? "" : ", ",
+                     lua_toboolean(L, idx) ? "true" : "false");
+            *first = false;
+            break;
+        case LUA_TNIL:
+            snprintf(buf, size, "%snil", *first ? "" : ", ");
+            *first = false;
+            break;
+        default:
+            snprintf(buf, size, "%s[%s]", *first ? "" : ", ", lua_typename(L, type));
+            *first = false;
+            break;
+    }
+}
+
+/**
+ * @brief Serialize all return values from Lua stack to JSON array
+ * @param L Lua state
+ * @param output Output buffer
+ * @param output_size Buffer size
+ * @return ESP_OK on success
+ */
+static esp_err_t serialize_lua_results(lua_State *L, char *output, size_t output_size)
+{
+    int n = lua_gettop(L);
+    if (n == 0) {
+        snprintf(output, output_size, "{\"result\": null}");
+        return ESP_OK;
+    }
+
+    char *buf = output;
+    size_t remaining = output_size;
+    int written = snprintf(buf, remaining, "{\"result\": [");
+    if (written < 0 || (size_t)written >= remaining) {
+        return ESP_ERR_NO_MEM;
+    }
+    buf += written;
+    remaining -= written;
+
+    bool first = true;
+    for (int i = 1; i <= n; i++) {
+        serialize_lua_value(L, i, buf, remaining, &first);
+        size_t len = strlen(buf);
+        buf += len;
+        remaining -= len;
+        if (remaining == 0) break;
+    }
+
+    /* Close array and object */
+    if (remaining >= 3) {
+        snprintf(buf, remaining, "]}");
+    } else {
+        output[output_size - 1] = '\0';
+    }
+
+    lua_pop(L, n);
+    return ESP_OK;
+}
+
+/**
  * @brief Create and configure a Lua state
  */
 static lua_State *create_lua_state(void)
@@ -194,68 +346,35 @@ static lua_State *create_lua_state(void)
 }
 
 /**
+ * @brief Check if path is safe (starts with /fatfs/ and has no ..)
+ */
+static bool is_path_safe(const char *path)
+{
+    if (strncmp(path, MIMI_FATFS_BASE, strlen(MIMI_FATFS_BASE)) != 0) {
+        return false;
+    }
+    /* Check for path traversal attempts */
+    if (strstr(path, "..") != NULL) {
+        return false;
+    }
+    return true;
+}
+
+/**
  * @brief Execute Lua code and capture output
  */
 static esp_err_t execute_lua_code(lua_State *L, const char *code, char *output, size_t output_size)
 {
     if (luaL_dostring(L, code) != LUA_OK) {
         const char *err = lua_tostring(L, -1);
-        snprintf(output, output_size, "{\"error\": \"%s\"}", err ? err : "unknown error");
+        char escaped[512];
+        json_escape_string(escaped, sizeof(escaped), err ? err : "unknown error");
+        snprintf(output, output_size, "{\"error\": \"%s\"}", escaped);
         lua_pop(L, 1);
         return ESP_ERR_INVALID_STATE;
     }
 
-    /* Check if there's a return value on the stack */
-    int n = lua_gettop(L);
-    if (n > 0) {
-        /* Serialize return value(s) to output */
-        char result[1024] = {0};
-        int offset = 0;
-
-        for (int i = 1; i <= n; i++) {
-            int type = lua_type(L, i);
-            const char *s = NULL;
-
-            switch (type) {
-                case LUA_TSTRING:
-                    s = lua_tostring(L, i);
-                    if (s) {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s%s", offset > 0 ? ", " : "", s);
-                    }
-                    break;
-                case LUA_TNUMBER:
-                    if (lua_isinteger(L, i)) {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s%d", offset > 0 ? ", " : "", (int)lua_tointeger(L, i));
-                    } else {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s%.6g", offset > 0 ? ", " : "", lua_tonumber(L, i));
-                    }
-                    break;
-                case LUA_TBOOLEAN:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%s%s", offset > 0 ? ", " : "",
-                                     lua_toboolean(L, i) ? "true" : "false");
-                    break;
-                case LUA_TNIL:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%snil", offset > 0 ? ", " : "");
-                    break;
-                default:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%s[%s]", offset > 0 ? ", " : "", lua_typename(L, type));
-                    break;
-            }
-        }
-
-        snprintf(output, output_size, "{\"result\": %s}", result);
-        lua_pop(L, n);
-    } else {
-        snprintf(output, output_size, "{\"result\": null}");
-    }
-
-    return ESP_OK;
+    return serialize_lua_results(L, output, output_size);
 }
 
 esp_err_t tool_lua_eval_execute(const char *input_json, char *output, size_t output_size)
@@ -315,11 +434,10 @@ esp_err_t tool_lua_run_execute(const char *input_json, char *output, size_t outp
     }
 
     const char *path = path_item->valuestring;
-    ESP_LOGI(TAG, "Running Lua script: %s", path);
 
-    /* Validate path - must start with /fatfs/ */
-    if (strncmp(path, MIMI_FATFS_BASE, strlen(MIMI_FATFS_BASE)) != 0) {
-        snprintf(output, output_size, "{\"error\": \"path must start with %s\"}", MIMI_FATFS_BASE);
+    /* Validate path is safe */
+    if (!is_path_safe(path)) {
+        snprintf(output, output_size, "{\"error\": \"path must start with %s and not contain '..'\"}", MIMI_FATFS_BASE);
         cJSON_Delete(root);
         return ESP_ERR_INVALID_ARG;
     }
@@ -332,6 +450,8 @@ esp_err_t tool_lua_run_execute(const char *input_json, char *output, size_t outp
         return ESP_ERR_NOT_FOUND;
     }
 
+    ESP_LOGI(TAG, "Running Lua script: %s", path);
+
     lua_State *L = create_lua_state();
     if (!L) {
         snprintf(output, output_size, "{\"error\": \"failed to create Lua state\"}");
@@ -341,65 +461,20 @@ esp_err_t tool_lua_run_execute(const char *input_json, char *output, size_t outp
 
     if (luaL_dofile(L, path) != LUA_OK) {
         const char *err = lua_tostring(L, -1);
-        snprintf(output, output_size, "{\"error\": \"%s\"}", err ? err : "unknown error");
+        char escaped[512];
+        json_escape_string(escaped, sizeof(escaped), err ? err : "unknown error");
+        snprintf(output, output_size, "{\"error\": \"%s\"}", escaped);
         lua_pop(L, 1);
         lua_close(L);
         cJSON_Delete(root);
         return ESP_ERR_INVALID_STATE;
     }
 
-    /* Script ran successfully, check for return values */
-    int n = lua_gettop(L);
-    if (n > 0) {
-        char result[1024] = {0};
-        int offset = 0;
-
-        for (int i = 1; i <= n; i++) {
-            int type = lua_type(L, i);
-            const char *s = NULL;
-
-            switch (type) {
-                case LUA_TSTRING:
-                    s = lua_tostring(L, i);
-                    if (s) {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s\"%s\"", offset > 0 ? ", " : "", s);
-                    }
-                    break;
-                case LUA_TNUMBER:
-                    if (lua_isinteger(L, i)) {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s%d", offset > 0 ? ", " : "", (int)lua_tointeger(L, i));
-                    } else {
-                        offset += snprintf(result + offset, sizeof(result) - offset,
-                                         "%s%.6g", offset > 0 ? ", " : "", lua_tonumber(L, i));
-                    }
-                    break;
-                case LUA_TBOOLEAN:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%s%s", offset > 0 ? ", " : "",
-                                     lua_toboolean(L, i) ? "true" : "false");
-                    break;
-                case LUA_TNIL:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%snil", offset > 0 ? ", " : "");
-                    break;
-                default:
-                    offset += snprintf(result + offset, sizeof(result) - offset,
-                                     "%s[%s]", offset > 0 ? ", " : "", lua_typename(L, type));
-                    break;
-            }
-        }
-
-        snprintf(output, output_size, "{\"result\": [%s]}", result);
-        lua_pop(L, n);
-    } else {
-        snprintf(output, output_size, "{\"result\": null}");
-    }
+    esp_err_t ret = serialize_lua_results(L, output, output_size);
 
     lua_close(L);
     cJSON_Delete(root);
 
     ESP_LOGI(TAG, "Lua script executed successfully");
-    return ESP_OK;
+    return ret;
 }

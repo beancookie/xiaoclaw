@@ -77,6 +77,7 @@ static esp_err_t init_fatfs(void)
         MIMI_FATFS_BASE "/config",
         MIMI_FATFS_BASE "/lua",
         MIMI_FATFS_BASE "/sessions",
+        MIMI_FATFS_BASE "/sessions/archive",
         NULL
     };
 
