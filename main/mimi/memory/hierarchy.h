@@ -9,7 +9,7 @@
  * Layered memory design inspired by Hermes Agent:
  * - L0: System constraints (SOUL.md - hardcoded)
  * - L1: Skill index (/fatfs/memory/skill_index.json)
- * - L2: User preferences and facts (/fatfs/memory/facts.json or USER.md)
+ * - L2: User preferences and facts (/fatfs/memory/facts.json)
  * - L3: Hot auto-skills (usage_count at least 3)
  * - L4: Archived sessions (/fatfs/sessions/archive/)
  */

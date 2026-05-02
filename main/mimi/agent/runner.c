@@ -304,16 +304,6 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         }
         result->tools_used_count = tools_used_idx;
 
-        /* Emit checkpoint before tool execution */
-        if (spec->checkpoint_callback) {
-            cJSON *checkpoint = cJSON_CreateObject();
-            cJSON_AddStringToObject(checkpoint, "phase", "awaiting_tools");
-            cJSON_AddNumberToObject(checkpoint, "iteration", iteration);
-            cJSON_AddItemToObject(checkpoint, "assistant_message", cJSON_Duplicate(asst_content, true));
-            spec->checkpoint_callback(spec->checkpoint_session_key, "awaiting_tools", checkpoint);
-            cJSON_Delete(checkpoint);
-        }
-
         /* Execute tools and append results */
         cJSON *tool_results = build_tool_result_content(&resp, spec->current_msg, tool_output, max_tool_chars);
         append_tool_result_message(messages, tool_results);

@@ -21,7 +21,7 @@ esp_err_t memory_write_long_term(const char *content);
 
 /**
  * Get user facts/preferences (L2 memory layer).
- * Tries facts.json first, then USER.md as fallback.
- * @return ESP_OK on success, ESP_ERR_NOT_FOUND if no facts file
+ * Reads from facts.json only. USER.md is injected separately as static config.
+ * @return ESP_OK on success, ESP_ERR_NOT_FOUND if facts.json missing
  */
 esp_err_t memory_get_facts(char *buf, size_t size);

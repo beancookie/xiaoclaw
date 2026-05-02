@@ -28,7 +28,7 @@
 static const char *TAG = "mcp_client";
 
 /* Default timeout for MCP operations */
-#define DEFAULT_MCP_TIMEOUT_MS 10000
+#define DEFAULT_MCP_TIMEOUT_MS 5000
 
 /**
  * @brief Response synchronization context
@@ -42,11 +42,11 @@ typedef struct {
  * @brief MCP connection state
  */
 typedef struct {
-    char host[128];
+    char host[64];
     int port;
-    char endpoint[64];
+    char endpoint[32];
     int timeout_ms;
-    char server_name[64];
+    char server_name[32];
 } mcp_internal_config_t;
 
 /* Current connected server config */
@@ -709,13 +709,15 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
     }
 
     /* Build base URL */
-    char base_url[256];
+    char base_url[64];
     snprintf(base_url, sizeof(base_url), "http://%s:%d", host, port);
 
-    /* Configure HTTP transport */
+    /* Configure HTTP transport with smaller buffers to reduce memory usage */
     esp_http_client_config_t httpc_cfg = {
         .url = base_url,
         .timeout_ms = s_server_config.timeout_ms,
+        .buffer_size = 1024,    /* reduce from default 4096 */
+        .buffer_size_tx = 512,  /* reduce from default 4096 */
     };
 
     /* Initialize MCP manager */
@@ -732,8 +734,22 @@ static esp_err_t mcp_do_connect(const char *server_name, const char *host, int p
         return err;
     }
 
-    ESP_ERROR_CHECK(esp_mcp_mgr_start(s_mgr));
-    ESP_ERROR_CHECK(esp_mcp_mgr_register_endpoint(s_mgr, endpoint, NULL));
+    err = esp_mcp_mgr_start(s_mgr);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "MCP manager start failed: %s", esp_err_to_name(err));
+        esp_mcp_mgr_deinit(s_mgr);
+        s_mgr = 0;
+        return err;
+    }
+
+    err = esp_mcp_mgr_register_endpoint(s_mgr, endpoint, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "MCP register endpoint failed: %s", esp_err_to_name(err));
+        esp_mcp_mgr_stop(s_mgr);
+        esp_mcp_mgr_deinit(s_mgr);
+        s_mgr = 0;
+        return err;
+    }
 
     /* Send initialize */
     esp_err_t ret = mcp_initialize();

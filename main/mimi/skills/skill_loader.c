@@ -9,13 +9,19 @@
 #include <dirent.h>
 #include <ctype.h>
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "skills";
 
 #define MAX_SKILLS 16
+#define SKILL_SCAN_MAX_DEPTH 3
+#define PARSE_BUFFER_SIZE 8192
 
-/* Cached skills list */
-static skill_info_t s_skills[MAX_SKILLS];
+/* Static buffer for parsing - allocated from PSRAM */
+static char *s_parse_buffer = NULL;
+
+/* Cached skills list - allocated from PSRAM */
+static skill_info_t *s_skills = NULL;
 static int s_skill_count = 0;
 
 /* ─── Helper: trim whitespace ──────────────────────────────────────────── */
@@ -174,9 +180,15 @@ static void extract_description(const char *content, char *out, size_t out_size)
 
 /* ─── Helper: scan skills directory ────────────────────────────────────── */
 
-static void scan_skills_dir(const char *base_path, char source)
+static void scan_skills_dir(const char *base_path, char source, int depth)
 {
-    ESP_LOGI(TAG, "scan_skills_dir: scanning '%s'", base_path);
+    if (depth > SKILL_SCAN_MAX_DEPTH) {
+        ESP_LOGW(TAG, "scan_skills_dir: max depth %d exceeded at '%s'",
+                 SKILL_SCAN_MAX_DEPTH, base_path);
+        return;
+    }
+
+    ESP_LOGI(TAG, "scan_skills_dir: scanning '%s' (depth=%d)", base_path, depth);
     DIR *dir = opendir(base_path);
     if (!dir) {
         ESP_LOGE(TAG, "scan_skills_dir: failed to open '%s'", base_path);
@@ -229,7 +241,7 @@ static void scan_skills_dir(const char *base_path, char source)
 
         if (is_dir) {
             /* Recursively scan subdirectories for SKILL.md */
-            scan_skills_dir(skill_path, source);
+            scan_skills_dir(skill_path, source, depth + 1);
         } else {
             /* Not a directory, try to open SKILL.md directly */
             FILE *f = fopen(skill_file, "r");
@@ -237,15 +249,14 @@ static void scan_skills_dir(const char *base_path, char source)
                 continue;
             }
 
-            /* Read content for parsing */
-            char content[4096];
-            size_t n = fread(content, 1, sizeof(content) - 1, f);
-            content[n] = '\0';
+            /* Read content for parsing - use static buffer to avoid stack overflow */
+            size_t n = fread(s_parse_buffer, 1, PARSE_BUFFER_SIZE - 1, f);
+            s_parse_buffer[n] = '\0';
             fclose(f);
 
             /* Parse frontmatter */
             SkillFrontmatter meta;
-            parse_frontmatter(content, &meta);
+            parse_frontmatter(s_parse_buffer, &meta);
 
             /* Use directory name as skill name if not in frontmatter */
             if (!meta.name[0]) {
@@ -254,7 +265,7 @@ static void scan_skills_dir(const char *base_path, char source)
 
             /* Extract description if not in frontmatter */
             if (!meta.description[0]) {
-                extract_description(content, meta.description, sizeof(meta.description));
+                extract_description(s_parse_buffer, meta.description, sizeof(meta.description));
             }
 
             /* Build skill info */
@@ -285,6 +296,23 @@ esp_err_t skill_loader_init(void)
 {
     ESP_LOGI(TAG, "Initializing skills system");
 
+    /* Allocate buffers from PSRAM to free internal SRAM */
+    if (!s_parse_buffer) {
+        s_parse_buffer = heap_caps_malloc(PARSE_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_parse_buffer) {
+            ESP_LOGE(TAG, "Failed to allocate s_parse_buffer from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    if (!s_skills) {
+        s_skills = heap_caps_calloc(MAX_SKILLS, sizeof(skill_info_t),
+                                     MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_skills) {
+            ESP_LOGE(TAG, "Failed to allocate s_skills from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
     /* Initialize skill metadata system first (L1 index) */
     skill_meta_init();
 
@@ -293,7 +321,7 @@ esp_err_t skill_loader_init(void)
     /* Scan workspace skills */
     char workspace_path[256];
     snprintf(workspace_path, sizeof(workspace_path), "%s/skills", MIMI_FATFS_BASE);
-    scan_skills_dir(workspace_path, 'w');
+    scan_skills_dir(workspace_path, 'w', 0);
 
     /* Merge metadata from skill_index.json (usage_count, success_rate, last_used) */
     for (int i = 0; i < s_skill_count; i++) {
@@ -487,7 +515,8 @@ static bool parse_line(const char *line, char *key, char *value)
     const char *val_start = colon + 1;
     while (*val_start == ' ' || *val_start == '\t') val_start++;
 
-    strcpy(value, val_start);
+    strncpy(value, val_start, 127);
+    value[127] = '\0';
     trim_string(value);
 
     return true;

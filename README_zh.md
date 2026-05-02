@@ -276,7 +276,7 @@ flowchart TB
 | agent_loop | 1    | 6      | 24KB   | LLM 处理    |
 | tg_poll    | 0    | 5      | 12KB   | Telegram 机器人 |
 | feishu_ws  | 0    | 5      | 12KB   | 飞书机器人  |
-| cron       | any  | 4      | 4KB    | 定时任务    |
+| cron       | any  | 4      | 8KB    | 定时任务    |
 
 ## 工具
 
@@ -483,6 +483,26 @@ flowchart TD
 **热门技能：**
 - `usage_count >= 3` 的技能标记为 `is_hot=true`
 - 热门自动技能完整内容注入 system prompt (L3)
+- 非热门技能仍可使用，但不会注入完整内容
+
+```mermaid
+flowchart TB
+    A[工具调用执行] --> B{匹配自动技能<br/>Tool Sequence?}
+    B -->|否| Z[不追踪]
+    B -->|是| C[为匹配的技能<br/>记录使用]
+    C --> D[usage_count++]
+    D --> E{usage_count >= 3?}
+    E -->|否| F[非热门]
+    E -->|是| G[is_hot = true]
+    G --> H[完整内容注入<br/>系统提示词 L3]
+```
+
+| 状态 | `is_hot` | 在系统提示词中 |
+|------|----------|--------------|
+| usage < 3 | false | 仅索引（可 read_file） |
+| usage >= 3 | true | 完整内容注入 |
+
+注意：usage 对所有自动技能都会追踪（不仅仅是热门技能）。当工具调用匹配某个自动技能的 Tool Sequence 模式时，该技能的 usage_count 递增。一旦使用次数达到热门阈值（3），该技能变为热门状态，其完整内容会被注入系统提示词以便快速调用。
 
 #### Frontmatter 格式
 

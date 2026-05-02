@@ -14,34 +14,50 @@
 
 static const char *TAG = "crystallize";
 
-/* ─── Helper: simple hash for intent ─────────────────────────────────── */
+/* ─── Helper: simple hash for intent (UTF-8 aware) ─────────────────── */
 
 static void simple_hash(const char *str, char *out, size_t out_size)
 {
     unsigned int hash = 5381;
     for (const char *p = str; *p; p++) {
+        /* Skip UTF-8 continuation bytes (0x80-0xBF) */
+        if ((unsigned char)*p >= 0x80) {
+            continue;
+        }
         hash = ((hash << 5) + hash) + (unsigned char)*p;
     }
     snprintf(out, out_size, "%04x", hash & 0xffff);
 }
 
-/* ─── Helper: extract first 3 significant words from intent ─────────── */
+/* ─── Helper: extract first 3 significant ASCII words from intent ─── */
 
 static void extract_intent_prefix(const char *intent, char *out, size_t out_size)
 {
-    /* Copy first 3 words or ~20 chars, whichever is smaller */
+    if (!intent) {
+        out[0] = '\0';
+        return;
+    }
+
     size_t i = 0;
     int word_count = 0;
     int char_count = 0;
 
     while (intent[i] && word_count < 3 && char_count < out_size - 1) {
-        if (isspace((unsigned char)intent[i])) {
+        unsigned char c = (unsigned char)intent[i];
+
+        /* Skip UTF-8 multi-byte characters (Chinese, etc.) */
+        if (c >= 0x80) {
+            i++;
+            continue;
+        }
+
+        if (isspace(c)) {
             if (char_count > 0) {
                 out[char_count++] = '_';
                 word_count++;
             }
-        } else if (isalnum((unsigned char)intent[i])) {
-            out[char_count++] = tolower((unsigned char)intent[i]);
+        } else if (isalnum(c)) {
+            out[char_count++] = tolower(c);
         }
         i++;
     }
@@ -85,6 +101,37 @@ esp_err_t skill_crystallize_init(void)
     return ESP_OK;
 }
 
+/* ─── Helper: calculate quality score from crystallization context ─── */
+
+static int calc_quality_score(const crystallize_context_t *ctx)
+{
+    if (!ctx) return 0;
+
+    /* Clarity: workflow complexity — more steps = clearer procedure */
+    int clarity = 50;
+    if (ctx->step_count >= 2) clarity += 10;
+    if (ctx->step_count >= 3) clarity += 10;
+    if (ctx->step_count >= 5) clarity += 10;
+    if (clarity > 100) clarity = 100;
+
+    /* Completeness: proven reliability — success + repetition */
+    int completeness = 50;
+    if (ctx->last_task_success) completeness += 20;
+    if (ctx->is_repetitive) completeness += 20;
+    if (ctx->step_count >= 3) completeness += 10;
+    if (completeness > 100) completeness = 100;
+
+    /* Actionability: can be reproduced — success + sufficient steps */
+    int actionability = 50;
+    if (ctx->last_task_success) actionability += 25;
+    if (ctx->step_count >= 2) actionability += 15;
+    if (ctx->step_count >= 4) actionability += 10;
+    if (actionability > 100) actionability = 100;
+
+    /* Weighted overall score */
+    return (int)(clarity * 0.3 + completeness * 0.3 + actionability * 0.4);
+}
+
 bool skill_crystallize_should_create(const crystallize_context_t *ctx)
 {
     if (!ctx) return false;
@@ -96,25 +143,30 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
     }
 
     /* Must have more than one step */
-    if (ctx->step_count <= 1) {
-        ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need > 1)", ctx->step_count);
-        return false;
-    }
-
-    /* For embedded devices with simple tasks, allow crystallization for step_count >= 2.
-     * This enables learning from multi-step tasks even if not strictly "repetitive". */
     if (ctx->step_count < 2) {
         ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need >= 2)", ctx->step_count);
         return false;
     }
 
-    /* Must not have similar skill */
-    if (ctx->user_intent && skill_meta_similar_exists(ctx->user_intent)) {
-        ESP_LOGI(TAG, "Crystallize skipped: similar skill exists");
+    /* Check quality threshold */
+    int quality_score = calc_quality_score(ctx);
+    if (quality_score < SKILL_QUALITY_THRESHOLD_MIN) {
+        ESP_LOGI(TAG, "Crystallize skipped: quality_score=%d (threshold=%d)",
+                 quality_score, SKILL_QUALITY_THRESHOLD_MIN);
         return false;
     }
 
-    ESP_LOGI(TAG, "Crystallize conditions met: success=true, steps=%d", ctx->step_count);
+    /* Must not have similar skill - use LLM for semantic matching */
+    if (ctx->user_intent) {
+        char matched_skill[64];
+        if (skill_meta_similar_exists_jaccard(ctx->user_intent, matched_skill, sizeof(matched_skill))) {
+            ESP_LOGI(TAG, "Crystallize skipped: similar skill '%s' exists", matched_skill);
+            return false;
+        }
+    }
+
+    ESP_LOGI(TAG, "Crystallize conditions met: success=true, steps=%d, quality=%d",
+             ctx->step_count, quality_score);
     return true;
 }
 
@@ -122,6 +174,11 @@ void skill_crystallize_generate_name(const char *intent, char *buf, size_t size)
 {
     char prefix[32];
     extract_intent_prefix(intent ? intent : "task", prefix, sizeof(prefix));
+
+    /* Fallback to "task" if prefix is empty */
+    if (prefix[0] == '\0') {
+        snprintf(prefix, sizeof(prefix), "task");
+    }
 
     char hash_str[8];
     simple_hash(intent ? intent : "", hash_str, sizeof(hash_str));
@@ -154,8 +211,24 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
         return ESP_FAIL;
     }
 
-    /* Calculate success rate from tool sequence (assume success for now) */
+    /* Calculate success rate and quality scores */
     float success_rate = 1.0f;
+    int clarity = 50, completeness = 50, actionability = 50;
+    if (seq_len >= 2) clarity += 10;
+    if (seq_len >= 3) clarity += 10;
+    if (seq_len >= 5) clarity += 10;
+    if (clarity > 100) clarity = 100;
+    if (seq_len >= 2) completeness += 10;
+    if (seq_len >= 3) completeness += 10;
+    if (seq_len >= 5) completeness += 10;
+    completeness += 10;  /* success */
+    if (completeness > 100) completeness = 100;
+    actionability = 80;  /* success + multi-step */
+    if (actionability > 100) actionability = 100;
+
+    /* Extract unique tools from tool sequence */
+    char tools[SKILL_MAX_TOOLS][32];
+    int tool_count = 0;
 
     /* Write YAML frontmatter */
     fprintf(f, "---\n");
@@ -166,6 +239,10 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
     fprintf(f, "created_from: %d tool calls\n", seq_len);
     fprintf(f, "step_count: %d\n", seq_len);
     fprintf(f, "success_rate: %.1f\n", success_rate);
+    fprintf(f, "quality_score: %d\n", (int)(clarity * 0.3 + completeness * 0.3 + actionability * 0.4));
+    fprintf(f, "clarity: %d\n", clarity);
+    fprintf(f, "completeness: %d\n", completeness);
+    fprintf(f, "actionability: %d\n", actionability);
     fprintf(f, "---\n\n");
 
     /* Write skill content */
@@ -190,6 +267,22 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
                     fprintf(f, "(%s)", input->valuestring);
                 }
                 fprintf(f, "\n");
+
+                /* Extract unique tool names */
+                if (tool_count < SKILL_MAX_TOOLS) {
+                    bool found = false;
+                    for (int t = 0; t < tool_count; t++) {
+                        if (strcmp(tools[t], tool->valuestring) == 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        strncpy(tools[tool_count], tool->valuestring, sizeof(tools[tool_count]) - 1);
+                        tools[tool_count][sizeof(tools[tool_count]) - 1] = '\0';
+                        tool_count++;
+                    }
+                }
             }
         }
         cJSON_Delete(arr);
@@ -204,9 +297,12 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
 
     fclose(f);
 
-    ESP_LOGI(TAG, "Created auto skill: %s", skill_path);
+    ESP_LOGI(TAG, "Created auto skill: %s (quality=%d, tools=%d)",
+             skill_path,
+             (int)(clarity * 0.3 + completeness * 0.3 + actionability * 0.4),
+             tool_count);
 
-    /* Add to skill index */
+    /* Add to skill index with quality scores */
     skill_meta_t meta = {0};
     strncpy(meta.name, name, sizeof(meta.name) - 1);
     strncpy(meta.path, skill_path, sizeof(meta.path) - 1);
@@ -216,6 +312,17 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
     meta.success_rate = 0.0;
     meta.last_used = 0;
     meta.is_hot = false;
+
+    /* Quality scores */
+    meta.clarity = clarity;
+    meta.completeness = completeness;
+    meta.actionability = actionability;
+
+    /* Extract tools to metadata */
+    for (int i = 0; i < tool_count && i < SKILL_MAX_TOOLS; i++) {
+        strncpy(meta.tools[i], tools[i], sizeof(meta.tools[i]) - 1);
+        meta.tool_count++;
+    }
 
     esp_err_t err = skill_meta_add(&meta);
     if (err != ESP_OK) {

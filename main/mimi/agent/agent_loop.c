@@ -1,7 +1,6 @@
 #include "agent_loop.h"
 #include "agent/context_builder.h"
 #include "agent/runner.h"
-#include "agent/checkpoint.h"
 #include "agent/learning_hooks.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
@@ -21,6 +20,8 @@ static const char *TAG = "agent";
 
 /* Forward declaration */
 static void agent_loop_task(void *arg);
+static void *s_agent_stack = NULL;
+static StaticTask_t s_agent_tcb;
 
 esp_err_t agent_loop_init(void)
 {
@@ -46,21 +47,29 @@ esp_err_t agent_loop_start(void)
 
     for (size_t i = 0; i < (sizeof(stack_candidates) / sizeof(stack_candidates[0])); i++) {
         uint32_t stack_size = stack_candidates[i];
-        BaseType_t ret = xTaskCreatePinnedToCore(
+        s_agent_stack = heap_caps_malloc(stack_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (!s_agent_stack) {
+            ESP_LOGW(TAG, "agent_loop PSRAM alloc failed (stack=%u), retrying...",
+                     (unsigned)stack_size);
+            continue;
+        }
+
+        TaskHandle_t h = xTaskCreateStaticPinnedToCore(
             agent_loop_task, "agent_loop",
             stack_size, NULL,
-            MIMI_AGENT_PRIO, NULL, MIMI_AGENT_CORE);
+            MIMI_AGENT_PRIO,
+            (StackType_t *)s_agent_stack,
+            &s_agent_tcb,
+            MIMI_AGENT_CORE);
 
-        if (ret == pdPASS) {
-            ESP_LOGI(TAG, "agent_loop task created with stack=%u bytes", (unsigned)stack_size);
+        if (h) {
+            ESP_LOGI(TAG, "agent_loop task created with stack=%u bytes (internal)", (unsigned)stack_size);
             return ESP_OK;
         }
 
-        ESP_LOGW(TAG,
-                 "agent_loop create failed (stack=%u, free_internal=%u, largest_internal=%u), retrying...",
-                 (unsigned)stack_size,
-                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        ESP_LOGW(TAG, "agent_loop create failed (stack=%u), retrying...", (unsigned)stack_size);
+        free(s_agent_stack);
+        s_agent_stack = NULL;
     }
 
     return ESP_FAIL;
@@ -98,24 +107,6 @@ static void agent_loop_task(void *arg)
             ESP_LOGI(TAG, "Skipping LLM for channel: %s", msg.channel);
             free(msg.content);
             continue;
-        }
-
-        /* Check for pending checkpoint to restore */
-        checkpoint_phase_t phase;
-        int checkpoint_iter;
-        cJSON *checkpoint_data = NULL;
-
-        if (checkpoint_exists(msg.chat_id)) {
-            ESP_LOGI(TAG, "Found pending checkpoint for %s, attempting restore", msg.chat_id);
-            if (checkpoint_load(msg.chat_id, &phase, &checkpoint_iter, &checkpoint_data) == ESP_OK) {
-                ESP_LOGI(TAG, "Restored checkpoint: phase=%d iter=%d", phase, checkpoint_iter);
-                /* TODO: Implement full checkpoint restoration in runner */
-                checkpoint_clear(msg.chat_id);
-            }
-            if (checkpoint_data) {
-                cJSON_Delete(checkpoint_data);
-                checkpoint_data = NULL;
-            }
         }
 
         /* Send "working" indicator */
@@ -223,9 +214,6 @@ static void agent_loop_task(void *arg)
 
         /* Call learning hooks on task end */
         learning_hook_on_task_end(msg.chat_id, result);
-
-        /* Clear checkpoint on successful completion */
-        checkpoint_clear(msg.chat_id);
 
         /* Cleanup */
         cJSON_Delete(messages);

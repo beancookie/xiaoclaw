@@ -74,12 +74,8 @@ esp_err_t memory_get_facts(char *buf, size_t size)
 {
     FILE *f = fopen(FACTS_FILE, "r");
     if (!f) {
-        /* Try USER.md as fallback */
-        f = fopen(MIMI_USER_FILE, "r");
-        if (!f) {
-            buf[0] = '\0';
-            return ESP_ERR_NOT_FOUND;
-        }
+        buf[0] = '\0';
+        return ESP_ERR_NOT_FOUND;
     }
 
     size_t n = fread(buf, 1, size - 1, f);

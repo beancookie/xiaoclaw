@@ -30,11 +30,6 @@ typedef struct {
     void (*on_task_end)(const char *chat_id, const void *result);
 } AgentHooks;
 
-/**
- * Default empty hooks (all NULL).
- */
-extern const AgentHooks AGENT_HOOKS_NONE;
-
 /* ─── Inline helper macros ─────────────────────────────────────────────── */
 
 #define HOOK_CALL(hooks, name, ...) \

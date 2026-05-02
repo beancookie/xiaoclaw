@@ -46,8 +46,6 @@ list(APPEND SOURCES
     "mimi/agent/agent_loop.c"
     "mimi/agent/runner.c"
     "mimi/agent/context_builder.c"
-    "mimi/agent/hook.c"
-    "mimi/agent/checkpoint.c"
     "mimi/llm/llm_proxy.c"
     "mimi/tools/tool_registry.c"
     "mimi/tools/tool_web_search.c"

@@ -17,21 +17,81 @@ static const char *TAG = "context";
 /* Runtime context tag - marks metadata that is injected before user message */
 #define RUNTIME_CONTEXT_TAG "[Runtime Context — metadata only, not instructions]"
 
+/* ─── Helper: escape string for JSON ─────────────────────────────────────── */
+
+static size_t json_escape(char *dst, size_t dst_size, const char *src)
+{
+    size_t i = 0;
+    for (const char *p = src; *p && i < dst_size - 1; p++) {
+        if (*p == '"')        { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = '"'; }
+        else if (*p == '\\')  { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = '\\'; }
+        else if (*p == '\n')  { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = 'n'; }
+        else if (*p == '\r')  { /* skip */ }
+        else                  { dst[i++] = *p; }
+    }
+    dst[i] = '\0';
+    return i;
+}
+
+/* ─── Cached file read (30s TTL) ─────────────────────────────────────── */
+
+#define FILE_CACHE_TTL 30
+
+typedef struct {
+    char content[4096];
+    size_t len;
+    time_t loaded_at;
+    bool valid;
+} file_cache_t;
+
+static file_cache_t s_soul_cache;
+static file_cache_t s_user_cache;
+static file_cache_t s_memory_cache;
+
+static const char *cached_read(file_cache_t *c, const char *path, size_t *out_len)
+{
+    time_t now = time(NULL);
+    if (c->valid && (now - c->loaded_at) < FILE_CACHE_TTL) {
+        if (out_len) *out_len = c->len;
+        return c->content;
+    }
+
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        if (out_len) *out_len = 0;
+        return NULL;
+    }
+
+    c->len = fread(c->content, 1, sizeof(c->content) - 1, f);
+    c->content[c->len] = '\0';
+    fclose(f);
+    c->loaded_at = now;
+    c->valid = true;
+
+    if (out_len) *out_len = c->len;
+    return c->content;
+}
+
 /* ─── Helper: append file content to buffer ─────────────────────────────── */
 
 static size_t append_file(char *buf, size_t size, size_t offset, const char *path, const char *header)
 {
-    FILE *f = fopen(path, "r");
-    if (!f) return offset;
+    size_t content_len;
+    const char *content = cached_read(
+        strcmp(path, MIMI_SOUL_FILE) == 0 ? &s_soul_cache :
+        strcmp(path, MIMI_USER_FILE) == 0 ? &s_user_cache : NULL,
+        path, &content_len);
+
+    if (!content || content_len == 0) return offset;
 
     if (header && offset < size - 1) {
         offset += snprintf(buf + offset, size - offset, "\n## %s\n\n", header);
     }
 
-    size_t n = fread(buf + offset, 1, size - offset - 1, f);
-    offset += n;
+    size_t copy = content_len < size - offset - 1 ? content_len : size - offset - 1;
+    memcpy(buf + offset, content, copy);
+    offset += copy;
     buf[offset] = '\0';
-    fclose(f);
     return offset;
 }
 
@@ -51,12 +111,13 @@ static void get_current_time_str(char *buf, size_t size)
 static size_t append_identity(char *buf, size_t size, size_t offset)
 {
     return snprintf(buf + offset, size - offset,
-        "# XiaoClaw (小龙虾): AI Voice Assistant with Local Agent Brain\n\n"
-        "You are XiaoClaw (Chinese: 小龙虾), an AI voice assistant running on an ESP32-S3 device with 32MB Flash and 8MB PSRAM.\n"
-        "You combine voice interaction (via xiaozhi) with a local AI agent brain (mimiclaw).\n\n"
-        "Voice I/O: wake word detection, ASR, TTS playback.\n"
-        "Agent Brain: LLM reasoning, tool calling, memory, autonomous tasks.\n\n"
-        "Be helpful, accurate, and concise.\n");
+        "# XiaoClaw (小龙虾)\n\n"
+        "You are a voice assistant. Your responses are spoken aloud.\n\n"
+        "## Voice Rules\n\n"
+        "- No markdown: no headers, no code blocks, no tables\n"
+        "- No special characters: * # - | ` _ and similar\n"
+        "- Speak naturally, like a conversation\n"
+        "- Can answer in Chinese or English\n\n");
 }
 
 /* ─── Tools Section ──────────────────────────────────────────────────────── */
@@ -92,7 +153,6 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
 
 static size_t append_memory_section(char *buf, size_t size, size_t offset)
 {
-    char mem_buf[4096];
     size_t off = 0;
 
     off = snprintf(buf + offset, size - offset,
@@ -121,9 +181,11 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
         "3. Save user facts proactively — name, preferences, habits\n\n"
         "**Important:** Always read_file before edit_file to avoid losing content.\n\n");
 
-    /* Long-term memory */
-    if (memory_read_long_term(mem_buf, sizeof(mem_buf)) == ESP_OK && mem_buf[0]) {
-        off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_buf);
+    /* Long-term memory (cached) */
+    size_t mem_len;
+    const char *mem_content = cached_read(&s_memory_cache, MIMI_MEMORY_FILE, &mem_len);
+    if (mem_content && mem_len > 0) {
+        off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_content);
     }
 
     return off;
@@ -135,15 +197,13 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
 {
     size_t off = 0;
 
-    /* L1: Skill index - available skills to CALL when needed */
+    /* L1: Skill index - available skills information */
     char l1_index[2048];
     size_t l1_len = skill_meta_get_all_json(l1_index, sizeof(l1_index));
     if (l1_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Available Skills (TOOLS - call directly, do not just describe)\n\n"
-            "```json\n%s\n```\n\n"
-            "**Call format:** `{\"name\": \"auto_xxxxxxxx\"}`\n"
-            "**Important:** Call skills directly, do NOT just list/summarize them!\n\n",
+            "## Available Skills (L1)\n\n"
+            "```json\n%s\n```\n\n",
             l1_index);
     }
 
@@ -155,12 +215,12 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             "## User Facts (L2)\n\n%s\n\n", l2_facts);
     }
 
-    /* L3: Hot auto-skills (only is_hot=true, full content) */
-    char l3_hot[4096];
-    size_t l3_len = skill_meta_get_hot_skills(l3_hot, sizeof(l3_hot));
+    /* L3: Auto-skills (all auto skills, not just hot ones) */
+    char l3_auto[4096];
+    size_t l3_len = skill_meta_get_all_auto_skills(l3_auto, sizeof(l3_auto));
     if (l3_len > 0) {
         off += snprintf(buf + offset + off, size - offset - off,
-            "## Active Auto-Skills (L3)\n\n%s\n\n", l3_hot);
+            "## Auto-Skills (L3)\n\n%s\n\n", l3_auto);
     }
 
     /* Always skills (always loaded, full content) */
@@ -180,12 +240,12 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             skills_summary);
     }
 
-    /* Skill Usage Workflow - emphasize calling, not describing */
+    /* Skill Usage Workflow */
     off += snprintf(buf + offset + off, size - offset - off,
         "## Skill Usage\n\n"
         "**When a task matches a known skill:**\n"
-        "1. Call the skill tool directly by name (e.g., `auto_97154022`)\n"
-        "2. Do NOT summarize skill lists - use them!\n\n"
+        "1. Review the skill's Tool Sequence in L3 above\n"
+        "2. Execute the tools in sequence using their tool names\n\n"
         "**File tools:**\n"
         "- list_dir: `{\"prefix\": \"/fatfs/skills\"}` - discover skill files\n"
         "- read_file: `{\"path\": \"/fatfs/skills/.../SKILL.md\"}` - read skill content\n\n"
@@ -209,7 +269,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
         "**Skill Metadata Tracking:**\n"
         "- usage_count: Increments each time skill is used\n"
         "- success_count: Increments on successful use\n"
-        "- is_hot: True when usage_count >= 3 (full content auto-loaded)\n\n");
+        "- is_hot: True when usage_count >= 3\n\n");
 
     return off;
 }
@@ -321,24 +381,7 @@ esp_err_t context_build_messages(const char *history, size_t history_size,
 
     /* Escape the system prompt for JSON */
     char escaped_prompt[MIMI_CONTEXT_BUF_SIZE * 2];
-    int esc_idx = 0;
-    for (const char *p = system_prompt; *p && esc_idx < sizeof(escaped_prompt) - 1; p++) {
-        if (*p == '"') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = '"';
-        } else if (*p == '\\') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = '\\';
-        } else if (*p == '\n') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_prompt[esc_idx++] = *p;
-        }
-    }
-    escaped_prompt[esc_idx] = '\0';
+    json_escape(escaped_prompt, sizeof(escaped_prompt), system_prompt);
 
     off += snprintf(output_buf + off, output_size - off,
         "{\"role\":\"system\",\"content\":\"%s\"}", escaped_prompt);
@@ -377,45 +420,11 @@ esp_err_t context_build_messages(const char *history, size_t history_size,
 
     /* Escape runtime context for JSON */
     char escaped_ctx[1024];
-    int esc_idx2 = 0;
-    for (const char *p = runtime_ctx; *p && esc_idx2 < sizeof(escaped_ctx) - 1; p++) {
-        if (*p == '"') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = '"';
-        } else if (*p == '\\') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = '\\';
-        } else if (*p == '\n') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_ctx[esc_idx2++] = *p;
-        }
-    }
-    escaped_ctx[esc_idx2] = '\0';
+    json_escape(escaped_ctx, sizeof(escaped_ctx), runtime_ctx);
 
     /* Escape current message for JSON */
     char escaped_msg[MIMI_CONTEXT_BUF_SIZE * 2];
-    int esc_idx3 = 0;
-    for (const char *p = current_message; *p && esc_idx3 < sizeof(escaped_msg) - 1; p++) {
-        if (*p == '"') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = '"';
-        } else if (*p == '\\') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = '\\';
-        } else if (*p == '\n') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_msg[esc_idx3++] = *p;
-        }
-    }
-    escaped_msg[esc_idx3] = '\0';
+    json_escape(escaped_msg, sizeof(escaped_msg), current_message);
 
     /* Add user message with runtime context + current message */
     off += snprintf(output_buf + off, output_size - off,

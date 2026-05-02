@@ -1,4 +1,5 @@
 #include "bridge.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -19,6 +20,8 @@ static bridge_response_cb_t s_response_callback = nullptr;
 
 // Bridge task handle
 static TaskHandle_t s_bridge_task_handle = nullptr;
+static void *s_bridge_stack = nullptr;
+static StaticTask_t s_bridge_tcb;
 
 // Bridge task stack size
 #define BRIDGE_TASK_STACK_SIZE  4096
@@ -110,17 +113,26 @@ esp_err_t bridge_start(void)
         return ESP_OK;
     }
 
-    BaseType_t ret = xTaskCreatePinnedToCore(
+    s_bridge_stack = heap_caps_malloc(BRIDGE_TASK_STACK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!s_bridge_stack) {
+        ESP_LOGE(TAG, "Failed to allocate bridge task stack from PSRAM");
+        return ESP_ERR_NO_MEM;
+    }
+
+    s_bridge_task_handle = xTaskCreateStaticPinnedToCore(
         bridge_task,
         "bridge",
         BRIDGE_TASK_STACK_SIZE,
         nullptr,
         BRIDGE_TASK_PRIORITY,
-        &s_bridge_task_handle,
+        (StackType_t *)s_bridge_stack,
+        &s_bridge_tcb,
         BRIDGE_TASK_CORE
     );
 
-    if (ret != pdPASS) {
+    if (!s_bridge_task_handle) {
+        free(s_bridge_stack);
+        s_bridge_stack = nullptr;
         ESP_LOGE(TAG, "Failed to create bridge task");
         return ESP_FAIL;
     }
