@@ -181,7 +181,7 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
         "L0 System constraints: Hardcoded in SOUL.md. Base rules.\n"
         "L1 Skill index: Stored in " MIMI_FATFS_MEMORY_DIR "/skill_index.json. Auto-updated.\n"
         "L2 User facts and preferences: Stored in " MIMI_FATFS_MEMORY_DIR "/MEMORY.md. Long-term.\n"
-        "L3 Hot auto-skills (usage count 3 or higher): Stored in /fatfs/skills/auto/. Auto-loaded.\n"
+        "L3 Auto-skills: Stored in /fatfs/skills/auto/. All auto skills are available.\n"
         "L4 Archived sessions: Stored in /fatfs/sessions/archive/. Summarized.\n\n"
         "**Memory Workflow:**\n"
         "First, read the memory file using read_file with path `" MIMI_FATFS_MEMORY_DIR "/MEMORY.md`\n"
@@ -223,7 +223,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
             "## User Facts (L2)\n\n%s\n\n", l2_facts);
     }
 
-    /* L3: Auto-skills (all auto skills, not just hot ones) */
+    /* L3: Auto-skills (all auto skills) */
     char l3_auto[4096];
     size_t l3_len = skill_meta_get_all_auto_skills(l3_auto, sizeof(l3_auto));
     if (l3_len > 0) {
@@ -277,7 +277,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
         "**Skill Metadata Tracking:**\n"
         "- usage_count: Increments each time skill is used\n"
         "- success_count: Increments on successful use\n"
-        "- is_hot: Computed from usage_count >= 3 (SKILL_IS_HOT macro)\n\n");
+        "- usage_count >= 3 indicates a well-tested skill\n\n");
 
     return off;
 }

@@ -79,7 +79,6 @@ static esp_err_t save_to_file(void)
     }
 
     cJSON_AddItemToObject(root, "skills", skills_arr);
-    cJSON_AddNumberToObject(root, "hot_threshold", SKILL_META_HOT_THRESHOLD);
     cJSON_AddNumberToObject(root, "last_updated", (double)time(NULL));
 
     char *json_str = cJSON_Print(root);
@@ -427,10 +426,8 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
         cJSON *skill = cJSON_CreateObject();
         cJSON_AddStringToObject(skill, "name", s_skills[i].name);
         cJSON_AddStringToObject(skill, "path", s_skills[i].path);
-        cJSON_AddBoolToObject(skill, "is_auto", SKILL_IS_AUTO(s_skills[i]));
         cJSON_AddNumberToObject(skill, "usage_count", s_skills[i].usage_count);
         cJSON_AddNumberToObject(skill, "success_rate", s_skills[i].success_rate);
-        cJSON_AddBoolToObject(skill, "is_hot", SKILL_IS_HOT(s_skills[i]));
         if (s_skills[i].last_used > 0) {
             cJSON_AddNumberToObject(skill, "last_used", (double)s_skills[i].last_used);
         }
@@ -438,7 +435,6 @@ size_t skill_meta_get_all_json(char *buf, size_t size)
     }
 
     cJSON_AddItemToObject(root, "skills", skills_arr);
-    cJSON_AddNumberToObject(root, "hot_threshold", SKILL_META_HOT_THRESHOLD);
 
     char *json_str = cJSON_PrintUnformatted(root);
     size_t len = 0;

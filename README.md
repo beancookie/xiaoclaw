@@ -407,7 +407,7 @@ XiaoClaw stores data in plain text files on FATFS with session consolidation sup
 | L0 | System constraints | Hardcoded | Base rules |
 | L1 | Skill index | skill_index.json | Auto-updated |
 | L2 | User facts | MEMORY.md | Long-term |
-| L3 | Hot auto-skills | /skills/auto/ | usage>=3 |
+| L3 | Auto-skills | /skills/auto/ | All available |
 | L4 | Archives | /sessions/ | Summarized |
 
 ### Session Management
@@ -440,14 +440,12 @@ Skill metadata is stored in `/fatfs/memory/skill_index.json`:
     {
       "name": "auto_light_ctrl_a3f2_7d2e",
       "path": "/fatfs/skills/auto/auto_light_ctrl_a3f2_7d2e/SKILL.md",
-      "is_auto": true,
       "usage_count": 5,
       "success_rate": 0.8,
-      "last_used": 1745678901,
-      "is_hot": true
+      "last_used": 1745678901
     }
   ],
-  "hot_threshold": 3
+  "last_updated": 1745678901
 }
 ```
 
@@ -455,10 +453,9 @@ Skill metadata is stored in `/fatfs/memory/skill_index.json`:
 |-------|-------------|
 | `name` | Skill identifier |
 | `path` | Full path to SKILL.md |
-| `is_auto` | true for auto-crystallized skills |
 | `usage_count` | Number of times used |
-| `success_rate` | success_count / usage_count |
-| `is_hot` | true when usage_count >= 3 |
+| `success_rate` | Calculated success rate |
+| `last_used` | Unix timestamp of last use |
 
 #### Auto-Crystallization (L3)
 
@@ -488,10 +485,10 @@ flowchart TD
     H --> I[Skill ready for use]
 ```
 
-**Hot Skills:**
-- Skills with `usage_count >= 3` are marked as `is_hot=true`
-- Hot auto-skills have full content injected into system prompt (L3)
-- Non-hot skills can still be used but their full content is NOT injected
+**Auto-Skills:**
+- All auto-skills in `/fatfs/skills/auto/` are available for use
+- Auto-skills with higher usage_count are more frequently used
+- Skills can be invoked by matching their Tool Sequence
 
 ```mermaid
 flowchart TB
@@ -499,18 +496,9 @@ flowchart TB
     B -->|No| Z[No tracking]
     B -->|Yes| C[Record usage<br/>for matched skill]
     C --> D[usage_count++]
-    D --> E{usage_count >= 3?}
-    E -->|No| F[Not hot]
-    E -->|Yes| G[is_hot = true]
-    G --> H[Full content injected<br/>into system prompt L3]
 ```
 
-| State | `is_hot` | In System Prompt |
-|-------|----------|-----------------|
-| usage < 3 | false | Index only (can read_file) |
-| usage >= 3 | true | Full content injected |
-
-Note: Usage is tracked for ALL auto-skills (not just hot ones). When a tool call matches an auto-skill's Tool Sequence pattern, that skill's usage_count is incremented. Once usage reaches the hot threshold (3), the skill becomes hot and its full content is injected into the system prompt for faster recall.
+Note: When a tool call matches an auto-skill's Tool Sequence pattern, that skill's usage_count is incremented.
 
 #### Frontmatter Format
 
@@ -555,11 +543,11 @@ turn on the bedroom light
 | Layer | Content | Storage | Notes |
 |-------|---------|---------|-------|
 | L1 | Skill index | skill_index.json | All skills metadata |
-| L3 | Hot auto-skills | /skills/auto/ | usage>=3, full content |
+| L3 | Auto-skills | /skills/auto/ | All auto skills available |
 
 **In System Prompt:**
 - **L1**: Skill index shown as "Available Skills" (names only)
-- **L3**: Hot auto-skills (is_hot=true) full content injected
+- **L3**: All auto-skills full content available
 - **Always**: Skills with `always: true` always injected
 
 ## Development
