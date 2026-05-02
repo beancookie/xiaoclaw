@@ -6,6 +6,23 @@
 
 static const char *TAG = "fatfs_util";
 
+esp_err_t fatfs_ensure_file(const char *path, const char *content)
+{
+    if (!path || !content) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Check if file already exists */
+    struct stat st;
+    if (stat(path, &st) == 0) {
+        ESP_LOGD(TAG, "File already exists: %s", path);
+        return ESP_OK;
+    }
+
+    ESP_LOGI(TAG, "Creating file: %s", path);
+    return fatfs_write_atomic(path, content, strlen(content));
+}
+
 esp_err_t fatfs_write_atomic(const char *path, const void *data, size_t len)
 {
     if (!path || !data || len == 0) {

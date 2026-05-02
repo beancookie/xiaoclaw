@@ -474,15 +474,25 @@ When a multi-step task succeeds, the system automatically creates a skill.
 
 ```mermaid
 flowchart TD
-    A[Task Completes<br/>with 2+ tool calls] --> B{Success?}
-    B -->|No| C[No crystallization]
-    B -->|Yes| D{Similar skill<br/>exists?}
+    A(["🎯 Task Completes<br/>2+ tool calls"]) --> B{Success?}
+    B -->|No| C["❌ Skip"]
+    B -->|Yes| D{"🔍 Similar skill<br/>exists?"}
     D -->|Yes| C
-    D -->|No| E[learning_hook_on_task_end]
-    E --> F[Create skill directory<br/>/fatfs/skills/auto/auto__hash/]
-    F --> G[Write SKILL.md<br/>with frontmatter]
-    G --> H[Add to skill_index.json]
-    H --> I[Skill ready for use]
+    D -->|No| E["⚙️ Crystallize"]
+    E --> F["📁 Create dir<br/>/fatfs/skills/auto/"]
+    F --> G["📝 Write SKILL.md"]
+    G --> H["📋 Update index"]
+    H --> I["✅ Skill ready"]
+    
+    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style C fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style D fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style G fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style H fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style I fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 **Auto-Skills:**
@@ -491,11 +501,17 @@ flowchart TD
 - Skills can be invoked by matching their Tool Sequence
 
 ```mermaid
-flowchart TB
-    A[Tool call executed] --> B{Match auto-skill<br/>Tool Sequence?}
-    B -->|No| Z[No tracking]
-    B -->|Yes| C[Record usage<br/>for matched skill]
-    C --> D[usage_count++]
+flowchart LR
+    A["🔧 Tool call"] --> B{"🔗 Match<br/>Tool Sequence?"}
+    B -->|No| Z["➖ No tracking"]
+    B -->|Yes| C["📈 Record usage"]
+    C --> D["✅ usage_count++"]
+    
+    style A fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style C fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style Z fill:#ffebee,stroke:#c62828,stroke-width:2px
 ```
 
 Note: When a tool call matches an auto-skill's Tool Sequence pattern, that skill's usage_count is incremented.

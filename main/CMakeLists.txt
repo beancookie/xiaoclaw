@@ -54,6 +54,8 @@ list(APPEND SOURCES
     "mimi/tools/tool_cron.c"
     "mimi/tools/tool_mcp_client.c"
     "mimi/tools/tool_lua.c"
+    "mimi/tools/lua_cjson.c"
+    "mimi/tools/lua_socket_http.c"
     "mimi/memory/memory_store.c"
     "mimi/memory/session_manager.c"
     "mimi/memory/consolidator.c"
