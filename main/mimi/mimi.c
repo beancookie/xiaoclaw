@@ -25,6 +25,8 @@
 #include "nvs_flash.h"
 
 #include "mimi_config.h"
+#include "util/fatfs_util.h"
+#include "skills/default_skills.h"
 #include "bus/message_bus.h"
 #include "llm/llm_proxy.h"
 #include "agent/agent_loop.h"
@@ -48,12 +50,8 @@ static const char *TAG = "mimi";
 
 static esp_err_t init_fatfs(void)
 {
-    /* Register FATFS VFS to ensure /fatfs/ path is available.
-     * The partition "fatfs" has SubType=fat, so we use esp_vfs_fat_spiflash_mount_rw_wl. */
     ESP_LOGI(TAG, "Mounting FATFS partition 'fatfs' at '%s'", MIMI_FATFS_BASE);
 
-    /* Format if mount fails - FATFS can be formatted.
-     * This ensures the device can boot even if FATFS partition is empty/corrupted. */
     esp_vfs_fat_mount_config_t mount_config = {
         .format_if_mount_failed = true,
         .max_files = 10,
@@ -95,34 +93,29 @@ static esp_err_t init_fatfs(void)
         MIMI_FATFS_CONFIG_DIR "/USER.md",
         MIMI_FATFS_BASE "/cron.json",
         MIMI_FATFS_BASE "/HEARTBEAT.md",
+        MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md",
+        MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md",
         NULL
     };
 
     static const char* default_contents[] = {
-        "{\"skills\":[]}",  // skill_index.json
-        "",                // MEMORY.md
-        "{\"facts\":[]}",  // facts.json
-        "",                // SOUL.md
-        "",                // USER.md
-        "{}",              // cron.json
-        "",                // HEARTBEAT.md
+        "{\"skills\":[]}",          // skill_index.json
+        "",                         // MEMORY.md
+        "{\"facts\":[]}",           // facts.json
+        "",                         // SOUL.md
+        "",                         // USER.md
+        "{}",                       // cron.json
+        "",                         // HEARTBEAT.md
+        DEFAULT_LUA_SCRIPTS_SKILL, // lua-scripts/SKILL.md
+        DEFAULT_MCP_SERVERS_SKILL, // mcp-servers/SKILL.md
         NULL
     };
 
     for (int i = 0; default_files[i] != NULL; i++) {
-        struct stat st;
-        if (stat(default_files[i], &st) != 0) {
-            FILE* f = fopen(default_files[i], "w");
-            if (f) {
-                fputs(default_contents[i], f);
-                fclose(f);
-                ESP_LOGI(TAG, "Created default file: %s", default_files[i]);
-            } else {
-                ESP_LOGW(TAG, "Failed to create default file: %s", default_files[i]);
-            }
-        }
+        fatfs_ensure_file(default_files[i], default_contents[i]);
     }
 
+    ESP_LOGI(TAG, "Default files initialized");
     return ESP_OK;
 }
 

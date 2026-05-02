@@ -23,6 +23,9 @@
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 
+#include "lua_cjson.h"
+#include "lua_socket_http.h"
+
 static const char *TAG = "lua";
 
 /* ── HTTP response buffer ─────────────────────────────────────── */
@@ -326,10 +329,18 @@ static lua_State *create_lua_state(void)
 
     luaL_openlibs(L);
 
+    /* Register cjson module */
+    luaL_requiref(L, "cjson", luaopen_cjson, 1);
+    lua_pop(L, 1);
+
+    /* Register socket.http module (socket parent table) */
+    luaL_requiref(L, "socket", luaopen_socket, 1);
+    lua_pop(L, 1);
+
     /* Register print wrapper */
     lua_register(L, "print", lua_print_wrapper);
 
-    /* Register HTTP wrappers */
+    /* Register HTTP wrappers (legacy API, kept for backward compatibility) */
     lua_register(L, "http_get", lua_http_get);
     lua_register(L, "http_post", lua_http_post);
     lua_register(L, "http_put", lua_http_put);

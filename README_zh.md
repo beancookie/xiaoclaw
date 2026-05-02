@@ -466,15 +466,25 @@ Skills 从 `/fatfs/skills/` 目录加载，支持 YAML frontmatter。
 
 ```mermaid
 flowchart TD
-    A[任务完成<br/>2+ 次工具调用] --> B{成功?}
-    B -->|否| C[不结晶]
-    B -->|是| D{存在相似技能?}
+    A(["🎯 任务完成<br/>2+ 次工具调用"]) --> B{成功?}
+    B -->|否| C["❌ 跳过"]
+    B -->|是| D{"🔍 存在相似技能?"}
     D -->|是| C
-    D -->|否| E[learning_hook_on_task_end]
-    E --> F[创建技能目录<br/>/fatfs/skills/auto/auto__hash/]
-    F --> G[写入 SKILL.md<br/>含 frontmatter]
-    G --> H[添加到 skill_index.json]
-    H --> I[技能可用]
+    D -->|否| E["⚙️ 结晶"]
+    E --> F["📁 创建目录<br/>/fatfs/skills/auto/"]
+    F --> G["📝 写入 SKILL.md"]
+    G --> H["📋 更新索引"]
+    H --> I["✅ 技能就绪"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style C fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style D fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style G fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style H fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style I fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 **自动技能：**
@@ -483,11 +493,17 @@ flowchart TD
 - 技能通过匹配 Tool Sequence 来调用
 
 ```mermaid
-flowchart TB
-    A[工具调用执行] --> B{匹配自动技能<br/>Tool Sequence?}
-    B -->|否| Z[不追踪]
-    B -->|是| C[为匹配的技能<br/>记录使用]
-    C --> D[usage_count++]
+flowchart LR
+    A["🔧 工具调用"] --> B{"🔗 匹配<br/>Tool Sequence?"}
+    B -->|否| Z["➖ 不追踪"]
+    B -->|是| C["📈 记录使用"]
+    C --> D["✅ usage_count++"]
+
+    style A fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style C fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style Z fill:#ffebee,stroke:#c62828,stroke-width:2px
 ```
 
 注意：当工具调用匹配某个自动技能的 Tool Sequence 模式时，该技能的 usage_count 递增。
