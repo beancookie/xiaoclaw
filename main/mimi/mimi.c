@@ -71,6 +71,8 @@ static esp_err_t init_fatfs(void)
     const char *dirs[] = {
         MIMI_FATFS_BASE "/skills",
         MIMI_FATFS_BASE "/skills/auto",
+        MIMI_FATFS_BASE "/skills/lua-scripts",
+        MIMI_FATFS_BASE "/skills/mcp-servers",
         MIMI_FATFS_BASE "/memory",
         MIMI_FATFS_BASE "/config",
         MIMI_FATFS_BASE "/lua",

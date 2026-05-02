@@ -466,25 +466,48 @@ Skills 从 `/fatfs/skills/` 目录加载，支持 YAML frontmatter。
 
 ```mermaid
 flowchart TD
-    A(["🎯 任务完成<br/>2+ 次工具调用"]) --> B{成功?}
-    B -->|否| C["❌ 跳过"]
-    B -->|是| D{"🔍 存在相似技能?"}
-    D -->|是| C
-    D -->|否| E["⚙️ 结晶"]
-    E --> F["📁 创建目录<br/>/fatfs/skills/auto/"]
-    F --> G["📝 写入 SKILL.md"]
-    G --> H["📋 更新索引"]
-    H --> I["✅ 技能就绪"]
+    subgraph Input["<b>📥 输入</b>"]
+        A["🎯 任务完成<br/>2+ 次工具调用"]
+    end
 
-    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style C fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style D fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style E fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style G fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style H fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style I fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    subgraph Validation["<b>✅ 验证</b>"]
+        direction TB
+        B{成功?}
+        D{"🔍 存在相似技能?"}
+    end
+
+    subgraph Creation["<b>⚙️ 技能创建</b>"]
+        direction TB
+        E["📁 创建目录"]
+        F["📝 写入 SKILL.md"]
+        G["📋 更新索引"]
+    end
+
+    subgraph Output["<b>📤 输出</b>"]
+        I["✅ 技能就绪"]
+    end
+
+    C["❌ 跳过"]
+
+    A --> B
+    B -->|否| C
+    B -->|是| D
+    D -->|是| C
+    D -->|否| E
+    E --> F --> G --> I
+
+    style Input fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,radius:15px
+    style Validation fill:#fff8e1,stroke:#f57c00,stroke-width:3px,radius:15px
+    style Creation fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style Output fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style A fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    style B fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style C fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#fff
+    style D fill:#ffa726,stroke:#fb8c00,stroke-width:2px,color:#fff
+    style E fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#fff
+    style F fill:#66bb6a,stroke:#388e3c,stroke-width:2px,color:#fff
+    style G fill:#26a69a,stroke:#00796b,stroke-width:2px,color:#fff
+    style I fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
 ```
 
 **自动技能：**
@@ -494,16 +517,33 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["🔧 工具调用"] --> B{"🔗 匹配<br/>Tool Sequence?"}
-    B -->|否| Z["➖ 不追踪"]
-    B -->|是| C["📈 记录使用"]
-    C --> D["✅ usage_count++"]
+    subgraph Trigger["<b>🔧 触发</b>"]
+        A["工具调用"]
+    end
 
-    style A fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style B fill:#fff8e1,stroke:#f57c00,stroke-width:2px
-    style C fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style Z fill:#ffebee,stroke:#c62828,stroke-width:2px
+    subgraph Match["<b>🔗 匹配</b>"]
+        B{"匹配<br/>Tool Sequence?"}
+    end
+
+    subgraph Track["<b>📈 追踪</b>"]
+        C["记录使用"]
+        D["usage_count++"]
+    end
+
+    Z["➖ 不追踪"]
+
+    A --> B
+    B -->|否| Z
+    B -->|是| C --> D
+
+    style Trigger fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,radius:15px
+    style Match fill:#fff8e1,stroke:#f57c00,stroke-width:3px,radius:15px
+    style Track fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,radius:15px
+    style A fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style B fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#fff
+    style C fill:#66bb6a,stroke:#388e3c,stroke-width:2px,color:#fff
+    style D fill:#26a69a,stroke:#00796b,stroke-width:2px,color:#fff
+    style Z fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#fff
 ```
 
 注意：当工具调用匹配某个自动技能的 Tool Sequence 模式时，该技能的 usage_count 递增。
