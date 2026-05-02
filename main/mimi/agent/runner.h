@@ -21,8 +21,6 @@ typedef struct {
     const char *error_message;           /**< Error message on LLM failure (default: "Sorry, I encountered an error.") */
     bool concurrent_tools;               /**< Enable concurrent tool execution (default: false) */
     void *workspace;                    /**< Workspace path for file tools (optional) */
-    void (*checkpoint_callback)(void *session_key, const char *phase, cJSON *checkpoint);  /**< Called after each phase */
-    void *checkpoint_session_key;        /**< Session key passed to checkpoint_callback */
     const mimi_msg_t *current_msg;      /**< Current message for context (channel, chat_id) */
     const char *user_intent;            /**< User's original message text for learning hooks */
 } AgentRunSpec;

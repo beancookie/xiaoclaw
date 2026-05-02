@@ -107,25 +107,25 @@ static int calc_quality_score(const crystallize_context_t *ctx)
 {
     if (!ctx) return 0;
 
-    /* Calculate clarity: based on step count (more steps = clearer workflow) */
-    int clarity = 50;  /* Base clarity */
+    /* Clarity: workflow complexity — more steps = clearer procedure */
+    int clarity = 50;
     if (ctx->step_count >= 2) clarity += 10;
     if (ctx->step_count >= 3) clarity += 10;
     if (ctx->step_count >= 5) clarity += 10;
     if (clarity > 100) clarity = 100;
 
-    /* Calculate completeness: based on step count and success rate */
-    int completeness = 50;  /* Base completeness */
-    if (ctx->step_count >= 2) completeness += 10;
+    /* Completeness: proven reliability — success + repetition */
+    int completeness = 50;
+    if (ctx->last_task_success) completeness += 20;
+    if (ctx->is_repetitive) completeness += 20;
     if (ctx->step_count >= 3) completeness += 10;
-    if (ctx->step_count >= 5) completeness += 10;
-    if (ctx->last_task_success) completeness += 10;
     if (completeness > 100) completeness = 100;
 
-    /* Calculate actionability: based on success rate */
-    int actionability = 50;  /* Base actionability */
-    if (ctx->last_task_success) actionability += 30;
-    if (ctx->step_count >= 2) actionability += 10;
+    /* Actionability: can be reproduced — success + sufficient steps */
+    int actionability = 50;
+    if (ctx->last_task_success) actionability += 25;
+    if (ctx->step_count >= 2) actionability += 15;
+    if (ctx->step_count >= 4) actionability += 10;
     if (actionability > 100) actionability = 100;
 
     /* Weighted overall score */
@@ -143,13 +143,6 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
     }
 
     /* Must have more than one step */
-    if (ctx->step_count <= 1) {
-        ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need > 1)", ctx->step_count);
-        return false;
-    }
-
-    /* For embedded devices with simple tasks, allow crystallization for step_count >= 2.
-     * This enables learning from multi-step tasks even if not strictly "repetitive". */
     if (ctx->step_count < 2) {
         ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need >= 2)", ctx->step_count);
         return false;
@@ -166,7 +159,7 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
     /* Must not have similar skill - use LLM for semantic matching */
     if (ctx->user_intent) {
         char matched_skill[64];
-        if (skill_meta_similar_exists_llm(ctx->user_intent, matched_skill, sizeof(matched_skill))) {
+        if (skill_meta_similar_exists_jaccard(ctx->user_intent, matched_skill, sizeof(matched_skill))) {
             ESP_LOGI(TAG, "Crystallize skipped: similar skill '%s' exists", matched_skill);
             return false;
         }

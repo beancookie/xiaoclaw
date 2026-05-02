@@ -9,17 +9,19 @@
 #include <dirent.h>
 #include <ctype.h>
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "skills";
 
 #define MAX_SKILLS 16
 #define SKILL_SCAN_MAX_DEPTH 3
+#define PARSE_BUFFER_SIZE 8192
 
-/* Static buffer for parsing - avoids stack overflow from recursive calls */
-static char s_parse_buffer[8192];
+/* Static buffer for parsing - allocated from PSRAM */
+static char *s_parse_buffer = NULL;
 
-/* Cached skills list */
-static skill_info_t s_skills[MAX_SKILLS];
+/* Cached skills list - allocated from PSRAM */
+static skill_info_t *s_skills = NULL;
 static int s_skill_count = 0;
 
 /* ─── Helper: trim whitespace ──────────────────────────────────────────── */
@@ -248,7 +250,7 @@ static void scan_skills_dir(const char *base_path, char source, int depth)
             }
 
             /* Read content for parsing - use static buffer to avoid stack overflow */
-            size_t n = fread(s_parse_buffer, 1, sizeof(s_parse_buffer) - 1, f);
+            size_t n = fread(s_parse_buffer, 1, PARSE_BUFFER_SIZE - 1, f);
             s_parse_buffer[n] = '\0';
             fclose(f);
 
@@ -293,6 +295,23 @@ static void scan_skills_dir(const char *base_path, char source, int depth)
 esp_err_t skill_loader_init(void)
 {
     ESP_LOGI(TAG, "Initializing skills system");
+
+    /* Allocate buffers from PSRAM to free internal SRAM */
+    if (!s_parse_buffer) {
+        s_parse_buffer = heap_caps_malloc(PARSE_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_parse_buffer) {
+            ESP_LOGE(TAG, "Failed to allocate s_parse_buffer from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    if (!s_skills) {
+        s_skills = heap_caps_calloc(MAX_SKILLS, sizeof(skill_info_t),
+                                     MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_skills) {
+            ESP_LOGE(TAG, "Failed to allocate s_skills from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
+    }
 
     /* Initialize skill metadata system first (L1 index) */
     skill_meta_init();
@@ -496,7 +515,8 @@ static bool parse_line(const char *line, char *key, char *value)
     const char *val_start = colon + 1;
     while (*val_start == ' ' || *val_start == '\t') val_start++;
 
-    strcpy(value, val_start);
+    strncpy(value, val_start, 127);
+    value[127] = '\0';
     trim_string(value);
 
     return true;

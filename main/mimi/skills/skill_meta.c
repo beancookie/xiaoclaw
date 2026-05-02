@@ -1,7 +1,6 @@
 #include "skills/skill_meta.h"
 #include "mimi_config.h"
 #include "util/fatfs_util.h"
-#include "llm/llm_proxy.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -10,29 +9,20 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "cJSON.h"
 
 static const char *TAG = "skill_meta";
+#define SKILL_BUFFER_SIZE 8192
 
-/* Static buffer for parsing - avoids stack overflow */
-static char s_skill_buffer[8192];
+/* Static buffer for parsing - allocated from PSRAM */
+static char *s_skill_buffer = NULL;
 
-/* In-memory cache of skill metadata */
-static skill_meta_t s_skills[SKILL_META_MAX_SKILLS];
+/* In-memory cache of skill metadata - allocated from PSRAM */
+static skill_meta_t *s_skills = NULL;
 static int s_skill_count = 0;
 static bool s_initialized = false;
 static time_t s_last_save = 0;
-
-/* ─── Helper: compute simple hash for skill name generation ───────────── */
-
-static void simple_hash(const char *str, char *out, size_t out_size)
-{
-    unsigned int hash = 5381;
-    for (const char *p = str; *p; p++) {
-        hash = ((hash << 5) + hash) + (unsigned char)*p;
-    }
-    snprintf(out, out_size, "%04x", hash & 0xffff);
-}
 
 /* ─── Helper: save metadata to FATFS ─────────────────────────────────── */
 
@@ -125,13 +115,12 @@ static esp_err_t load_from_file(void)
         return ESP_OK;
     }
 
-    /* Read file content */
-    char buf[8192];
-    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
-    buf[n] = '\0';
+    /* Read file content into static buffer to avoid stack overflow */
+    size_t n = fread(s_skill_buffer, 1, SKILL_BUFFER_SIZE - 1, f);
+    s_skill_buffer[n] = '\0';
     fclose(f);
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = cJSON_Parse(s_skill_buffer);
     if (!root) {
         ESP_LOGW(TAG, "Failed to parse skill_index.json, starting fresh");
         return ESP_OK;
@@ -283,6 +272,23 @@ esp_err_t skill_meta_init(void)
 {
     if (s_initialized) {
         return ESP_OK;
+    }
+
+    /* Allocate buffers from PSRAM to free internal SRAM */
+    if (!s_skill_buffer) {
+        s_skill_buffer = heap_caps_malloc(SKILL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_skill_buffer) {
+            ESP_LOGE(TAG, "Failed to allocate s_skill_buffer from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    if (!s_skills) {
+        s_skills = heap_caps_calloc(SKILL_META_MAX_SKILLS, sizeof(skill_meta_t),
+                                     MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_skills) {
+            ESP_LOGE(TAG, "Failed to allocate s_skills from PSRAM");
+            return ESP_ERR_NO_MEM;
+        }
     }
 
     ESP_LOGI(TAG, "Initializing skill metadata system");
@@ -482,13 +488,13 @@ size_t skill_meta_get_hot_skills(char *buf, size_t size)
             /* Safety: verify file exists and check size before reading */
             struct stat st;
             if (stat(s_skills[i].path, &st) != 0) continue;
-            if (st.st_size > sizeof(s_skill_buffer) - 1) continue;
+            if (st.st_size > SKILL_BUFFER_SIZE - 1) continue;
 
             /* Load full content of hot auto skill using static buffer */
             FILE *f = fopen(s_skills[i].path, "r");
             if (!f) continue;
 
-            size_t n = fread(s_skill_buffer, 1, sizeof(s_skill_buffer) - 1, f);
+            size_t n = fread(s_skill_buffer, 1, SKILL_BUFFER_SIZE - 1, f);
             s_skill_buffer[n] = '\0';
             fclose(f);
 
@@ -542,7 +548,7 @@ size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
                 ESP_LOGW(TAG, "skill file stat failed: %s", s_skills[i].path);
                 continue;
             }
-            if (st.st_size > sizeof(s_skill_buffer) - 1) {
+            if (st.st_size > SKILL_BUFFER_SIZE - 1) {
                 ESP_LOGW(TAG, "skill file too large: %s (%ld bytes)",
                          s_skills[i].path, (long)st.st_size);
                 continue;
@@ -555,7 +561,7 @@ size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
                 continue;
             }
 
-            size_t n = fread(s_skill_buffer, 1, sizeof(s_skill_buffer) - 1, f);
+            size_t n = fread(s_skill_buffer, 1, SKILL_BUFFER_SIZE - 1, f);
             s_skill_buffer[n] = '\0';
             fclose(f);
 
@@ -606,7 +612,7 @@ esp_err_t skill_meta_record_skill_usage(const char *tool_name,
         FILE *f = fopen(s_skills[i].path, "r");
         if (!f) continue;
 
-        size_t n = fread(s_skill_buffer, 1, sizeof(s_skill_buffer) - 1, f);
+        size_t n = fread(s_skill_buffer, 1, SKILL_BUFFER_SIZE - 1, f);
         s_skill_buffer[n] = '\0';
         fclose(f);
 
@@ -620,8 +626,10 @@ esp_err_t skill_meta_record_skill_usage(const char *tool_name,
 
         /* Find the next section header to limit search scope */
         char *seq_end = strstr(seq_start, "\n## ");
+        char seq_saved = 0;
         if (seq_end) {
-            *seq_end = '\0';  /* NUL terminate to limit search */
+            seq_saved = *seq_end;
+            *seq_end = '\0';  /* Temporarily limit search scope */
         }
 
         /* Check if tool_name appears in this skill's tool sequence */
@@ -672,11 +680,15 @@ esp_err_t skill_meta_record_skill_usage(const char *tool_name,
 
         /* Also check for tool_name( anywhere in sequence (for completeness) */
         if (strstr(seq_start, tool_pattern) != NULL) {
+            if (seq_end) *seq_end = seq_saved;
             ESP_LOGI(TAG, "Tool %s matched skill %s, recording usage",
                      tool_name, s_skills[i].name);
             esp_err_t err = skill_meta_record_usage(s_skills[i].name, success);
             return err;
         }
+
+        /* Restore buffer before next iteration */
+        if (seq_end) *seq_end = seq_saved;
     }
 
     return ESP_ERR_NOT_FOUND;
@@ -687,43 +699,137 @@ esp_err_t skill_meta_save(void)
     return save_to_file();
 }
 
-bool skill_meta_similar_exists(const char *intent)
+/* ─── Jaccard similarity helpers ──────────────────────────────────────── */
+
+#define JACCARD_MAX_TOKENS 64
+#define JACCARD_THRESHOLD  0.3f
+
+/* Tokenize a string into words. Chinese characters become individual tokens.
+ * Returns number of tokens written to out[][]. */
+static int tokenize(const char *str, char out[][32], int max)
 {
-    if (!s_initialized) {
-        skill_meta_init();
-    }
+    if (!str || !out || max <= 0) return 0;
 
-    if (!intent) {
-        return false;
-    }
+    int count = 0;
+    const char *p = str;
 
-    /* Compute hash of the new intent */
-    char intent_hash[5];
-    simple_hash(intent, intent_hash, sizeof(intent_hash));
+    while (*p && count < max) {
+        unsigned char c = (unsigned char)*p;
 
-    for (int i = 0; i < s_skill_count; i++) {
-        if (s_skills[i].is_auto) {
-            const char *name = s_skills[i].name;
-
-            /* Skill name format: auto_<prefix>_<4_char_hash><4_char_timestamp> */
-            /* Find the last underscore to locate the hash portion */
-            const char *last_underscore = strrchr(name, '_');
-            if (!last_underscore) continue;
-
-            /* Hash is after the last underscore, before the 4-digit timestamp */
-            if (strlen(last_underscore + 1) < 8) continue;
-
-            /* Compare first 4 chars (the intent hash) */
-            if (strncmp(intent_hash, last_underscore + 1, 4) == 0) {
-                ESP_LOGI(TAG, "Similar skill found: %s", name);
-                return true;
+        if (c < 0x80) {
+            /* ASCII: skip whitespace/punctuation, collect word */
+            if (isspace(c) || ispunct(c)) {
+                p++;
+                continue;
             }
+            int len = 0;
+            while (*p && !isspace((unsigned char)*p) && !ispunct((unsigned char)*p) && len < 31) {
+                out[count][len++] = tolower((unsigned char)*p);
+                p++;
+            }
+            out[count][len] = '\0';
+            if (len > 0) count++;
+        } else if ((c & 0xE0) == 0xC0) {
+            /* 2-byte UTF-8 (rare CJK) */
+            out[count][0] = p[0]; out[count][1] = p[1]; out[count][2] = '\0';
+            p += 2; count++;
+        } else if ((c & 0xF0) == 0xE0) {
+            /* 3-byte UTF-8 (most CJK) */
+            out[count][0] = p[0]; out[count][1] = p[1]; out[count][2] = p[2]; out[count][3] = '\0';
+            p += 3; count++;
+        } else if ((c & 0xF8) == 0xF0) {
+            /* 4-byte UTF-8 */
+            out[count][0] = p[0]; out[count][1] = p[1]; out[count][2] = p[2]; out[count][3] = p[3]; out[count][4] = '\0';
+            p += 4; count++;
+        } else {
+            p++; /* skip continuation bytes */
         }
+    }
+    return count;
+}
+
+/* Check if token exists in set */
+static bool token_in(const char *token, char set[][32], int set_size)
+{
+    for (int i = 0; i < set_size; i++) {
+        if (strcmp(token, set[i]) == 0) return true;
     }
     return false;
 }
 
-bool skill_meta_similar_exists_llm(const char *new_intent, char *similar_skill_name, size_t name_size)
+/* Compute Jaccard similarity: |A ∩ B| / |A ∪ B|
+ * Uses PSRAM for token buffers to avoid stack overflow on ESP32. */
+static float jaccard(const char *a, const char *b)
+{
+    char (*tokens_a)[32] = heap_caps_malloc(JACCARD_MAX_TOKENS * 32, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    char (*tokens_b)[32] = heap_caps_malloc(JACCARD_MAX_TOKENS * 32, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!tokens_a || !tokens_b) {
+        free(tokens_a);
+        free(tokens_b);
+        return 0.0f;
+    }
+
+    int na = tokenize(a, tokens_a, JACCARD_MAX_TOKENS);
+    int nb = tokenize(b, tokens_b, JACCARD_MAX_TOKENS);
+
+    if (na == 0 && nb == 0) { free(tokens_a); free(tokens_b); return 1.0f; }
+    if (na == 0 || nb == 0) { free(tokens_a); free(tokens_b); return 0.0f; }
+
+    /* Deduplicate tokens_a */
+    int unique_a = 0;
+    for (int i = 0; i < na; i++) {
+        bool dup = false;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(tokens_a[i], tokens_a[j]) == 0) { dup = true; break; }
+        }
+        if (!dup) {
+            if (unique_a != i) strcpy(tokens_a[unique_a], tokens_a[i]);
+            unique_a++;
+        }
+    }
+
+    /* Deduplicate tokens_b */
+    int unique_b = 0;
+    for (int i = 0; i < nb; i++) {
+        bool dup = false;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(tokens_b[i], tokens_b[j]) == 0) { dup = true; break; }
+        }
+        if (!dup) {
+            if (unique_b != i) strcpy(tokens_b[unique_b], tokens_b[i]);
+            unique_b++;
+        }
+    }
+
+    /* Count intersection */
+    int intersection = 0;
+    for (int i = 0; i < unique_a; i++) {
+        if (token_in(tokens_a[i], tokens_b, unique_b)) intersection++;
+    }
+
+    int union_size = unique_a + unique_b - intersection;
+    float result = union_size > 0 ? (float)intersection / union_size : 0.0f;
+
+    free(tokens_a);
+    free(tokens_b);
+    return result;
+}
+
+/* Build a composite text from skill metadata for comparison */
+static void skill_text(const skill_meta_t *s, char *buf, size_t size)
+{
+    int off = snprintf(buf, size, "%s", s->name);
+    if (s->description[0] && off < size - 1)
+        off += snprintf(buf + off, size - off, " %s", s->description);
+    if (s->one_line_summary[0] && off < size - 1)
+        off += snprintf(buf + off, size - off, " %s", s->one_line_summary);
+    for (int t = 0; t < s->tag_count && off < size - 1; t++)
+        off += snprintf(buf + off, size - off, " %s", s->tags[t]);
+}
+
+/* ─── Public: Jaccard-based similarity check ──────────────────────────── */
+
+bool skill_meta_similar_exists_jaccard(const char *new_intent, char *similar_skill_name, size_t name_size)
 {
     if (!s_initialized) {
         skill_meta_init();
@@ -733,82 +839,32 @@ bool skill_meta_similar_exists_llm(const char *new_intent, char *similar_skill_n
         return false;
     }
 
-    /* Build prompt with existing skills */
-    char skills_context[8192];
-    size_t ctx_len = skill_meta_get_all_auto_skills(skills_context, sizeof(skills_context));
-    if (ctx_len == 0) {
-        ESP_LOGI(TAG, "No existing auto-skills to compare against");
-        return false;
-    }
-
-    char prompt[16384];
-    int len = snprintf(prompt, sizeof(prompt),
-        "判断以下新任务是否与已有技能相似。\n\n"
-        "新任务: %s\n\n"
-        "已有技能:\n%s\n\n"
-        "如果新任务与某个已有技能目标相同或工具序列相似，返回该技能名称（格式：SIMILAR: skill_name）。"
-        "如果不相似，返回：NO_MATCH\n",
-        new_intent, skills_context);
-    if (len >= sizeof(prompt)) {
-        ESP_LOGW(TAG, "Prompt too long, truncated");
-    }
-
-    /* Build messages array for LLM - reference runner.c pattern */
-    cJSON *messages = cJSON_CreateArray();
-    if (!messages) {
-        return false;
-    }
-
-    cJSON *msg = cJSON_CreateObject();
-    if (!msg) {
-        cJSON_Delete(messages);
-        return false;
-    }
-    cJSON_AddStringToObject(msg, "role", "user");
-    cJSON_AddStringToObject(msg, "content", prompt);
-    cJSON_AddItemToArray(messages, msg);
-
-    /* Call LLM without tools (text-only response) - reference runner.c:243 */
-    llm_response_t resp;
-    esp_err_t err = llm_chat_tools(NULL, messages, NULL, &resp);
-
-    cJSON_Delete(messages);
-
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "LLM similar skill check failed: %s, allowing crystallization", esp_err_to_name(err));
-        return false;  /* Fail open - allow crystallization */
-    }
-
-    if (!resp.text || resp.text_len == 0) {
-        ESP_LOGW(TAG, "LLM returned empty response, allowing crystallization");
-        llm_response_free(&resp);
-        return false;
-    }
-
-    ESP_LOGI(TAG, "LLM similarity check response: %.*s", resp.text_len > 100 ? 100 : (int)resp.text_len, resp.text);
-
-    /* Parse response */
     bool found = false;
-    if (strncmp(resp.text, "SIMILAR:", 8) == 0) {
-        const char *name = resp.text + 8;
-        while (*name == ' ') name++;  /* Skip spaces */
-        strncpy(similar_skill_name, name, name_size - 1);
-        similar_skill_name[name_size - 1] = '\0';
-        /* Remove trailing newline or whitespace */
-        for (int i = strlen(similar_skill_name) - 1; i >= 0; i--) {
-            if (similar_skill_name[i] == '\n' || similar_skill_name[i] == '\r' || similar_skill_name[i] == ' ') {
-                similar_skill_name[i] = '\0';
-            } else {
-                break;
-            }
+    float best_score = 0.0f;
+    char best_name[64] = {0};
+
+    for (int i = 0; i < s_skill_count; i++) {
+        if (!s_skills[i].is_auto) continue;
+
+        char s_text[640];
+        skill_text(&s_skills[i], s_text, sizeof(s_text));
+
+        float score = jaccard(new_intent, s_text);
+        if (score > best_score) {
+            best_score = score;
+            strncpy(best_name, s_skills[i].name, sizeof(best_name) - 1);
         }
-        ESP_LOGI(TAG, "LLM found similar skill: %s", similar_skill_name);
+    }
+
+    if (best_score >= JACCARD_THRESHOLD) {
+        ESP_LOGI(TAG, "Jaccard similar skill found: %s (score=%.2f)", best_name, best_score);
+        strncpy(similar_skill_name, best_name, name_size - 1);
+        similar_skill_name[name_size - 1] = '\0';
         found = true;
     } else {
-        ESP_LOGI(TAG, "LLM found no similar skill");
+        ESP_LOGI(TAG, "Jaccard no similar skill (best=%.2f, threshold=%.2f)", best_score, JACCARD_THRESHOLD);
     }
 
-    llm_response_free(&resp);
     return found;
 }
 

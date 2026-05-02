@@ -41,7 +41,7 @@
  */
 typedef struct {
     char name[64];            // Skill name
-    char path[640];           // Full path to SKILL.md file
+    char path[256];           // Full path to SKILL.md file
     bool is_auto;             // true if auto-generated skill
     int usage_count;          // Number of times used
     int success_count;        // Number of successful uses
@@ -160,23 +160,16 @@ size_t skill_meta_get_all_auto_skills(char *buf, size_t size);
 esp_err_t skill_meta_save(void);
 
 /**
- * Check if a similar auto-skill already exists (for crystallization dedup).
- *
- * @param intent  User intent text
- * @return true if a similar skill exists
- */
-bool skill_meta_similar_exists(const char *intent);
-
-/**
- * Check if a similar auto-skill exists using LLM semantic understanding.
- * This replaces simple hash-based matching with LLM-based semantic comparison.
+ * Check if a similar auto-skill exists using Jaccard word-overlap similarity.
+ * Tokenizes intent and skill metadata (name, description, tags) into word sets,
+ * then computes |A ∩ B| / |A ∪ B|. No LLM call required.
  *
  * @param new_intent           User's new task intent
  * @param similar_skill_name   Output: matched skill name (caller allocates, 64 bytes)
  * @param name_size            Size of similar_skill_name buffer
- * @return true if similar skill found
+ * @return true if similar skill found (Jaccard >= 0.3)
  */
-bool skill_meta_similar_exists_llm(const char *new_intent, char *similar_skill_name, size_t name_size);
+bool skill_meta_similar_exists_jaccard(const char *new_intent, char *similar_skill_name, size_t name_size);
 
 /**
  * Get overall quality score for a skill.

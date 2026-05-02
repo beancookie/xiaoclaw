@@ -355,16 +355,17 @@ esp_err_t cron_service_start(void)
         }
     }
 
-    s_cron_stack = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    s_cron_stack = heap_caps_malloc(MIMI_CRON_STACK_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     if (!s_cron_stack) {
-        ESP_LOGE(TAG, "Failed to allocate cron task stack from PSRAM");
+        ESP_LOGE(TAG, "Failed to allocate cron task stack (%d bytes, internal free: %d)",
+                 MIMI_CRON_STACK_SIZE, (int)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
         return ESP_ERR_NO_MEM;
     }
 
     s_cron_task = xTaskCreateStaticPinnedToCore(
         cron_task_main,
         "cron",
-        8192,
+        MIMI_CRON_STACK_SIZE,
         NULL,
         4,
         (StackType_t *)s_cron_stack,

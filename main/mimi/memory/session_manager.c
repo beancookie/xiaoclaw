@@ -161,6 +161,62 @@ static esp_err_t session_save_metadata_to_file(const char *chat_id, session_meta
     return ESP_OK;
 }
 
+/* ─── Helper: read all JSONL messages into cJSON array ─────────────────── */
+
+#define MSG_READ_MAX 256
+
+/* Read all messages from a session JSONL file.
+ * Caller must cJSON_Delete each messages[i] and free the array.
+ * Returns number of messages read, or 0 on error. */
+static int session_read_all(const char *chat_id, cJSON **messages, int max)
+{
+    char path[64];
+    session_get_path(chat_id, path, sizeof(path));
+
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+
+    int count = 0;
+    char line[4096];
+    while (fgets(line, sizeof(line), f) && count < max) {
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
+        if (line[0] == '\0') continue;
+
+        cJSON *obj = cJSON_Parse(line);
+        if (!obj) continue;
+        messages[count++] = obj;
+    }
+    fclose(f);
+    return count;
+}
+
+/* Build a cJSON array from a subset of messages[start..end).
+ * Extracts only "role" and "content" fields. Caller must cJSON_Delete result. */
+static cJSON *session_build_array(cJSON **messages, int start, int end)
+{
+    cJSON *arr = cJSON_CreateArray();
+    for (int i = start; i < end; i++) {
+        cJSON *role = cJSON_GetObjectItem(messages[i], "role");
+        cJSON *content = cJSON_GetObjectItem(messages[i], "content");
+        if (role && content) {
+            cJSON *entry = cJSON_CreateObject();
+            cJSON_AddStringToObject(entry, "role", role->valuestring);
+            cJSON_AddStringToObject(entry, "content", content->valuestring);
+            cJSON_AddItemToArray(arr, entry);
+        }
+    }
+    return arr;
+}
+
+/* Free message array */
+static void session_free_messages(cJSON **messages, int count)
+{
+    for (int i = 0; i < count; i++) {
+        cJSON_Delete(messages[i]);
+    }
+}
+
 /* ─── Public API ─────────────────────────────────────────────────────── */
 
 esp_err_t session_manager_init(void)
@@ -209,49 +265,12 @@ esp_err_t session_append(const char *chat_id, const char *role, const char *cont
 
 esp_err_t session_get_history_json(const char *chat_id, char *buf, size_t size, int max_msgs)
 {
-    char path[64];
-    session_get_path(chat_id, path, sizeof(path));
+    cJSON *messages[MSG_READ_MAX];
+    int count = session_read_all(chat_id, messages, MSG_READ_MAX);
 
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        snprintf(buf, size, "[]");
-        return ESP_OK;
-    }
-
-    /* Read all messages into array */
-    cJSON *messages[256];
-    int count = 0;
-
-    char line[4096];
-    while (fgets(line, sizeof(line), f) && count < 256) {
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
-        if (line[0] == '\0') continue;
-
-        cJSON *obj = cJSON_Parse(line);
-        if (!obj) continue;
-
-        messages[count++] = obj;
-    }
-    fclose(f);
-
-    /* Build output with only last max_msgs */
-    cJSON *arr = cJSON_CreateArray();
     int start = (count > max_msgs) ? (count - max_msgs) : 0;
-
-    for (int i = start; i < count; i++) {
-        cJSON *src = messages[i];
-        cJSON *role = cJSON_GetObjectItem(src, "role");
-        cJSON *content = cJSON_GetObjectItem(src, "content");
-
-        if (role && content) {
-            cJSON *entry = cJSON_CreateObject();
-            cJSON_AddStringToObject(entry, "role", role->valuestring);
-            cJSON_AddStringToObject(entry, "content", content->valuestring);
-            cJSON_AddItemToArray(arr, entry);
-        }
-        cJSON_Delete(src);
-    }
+    cJSON *arr = session_build_array(messages, start, count);
+    session_free_messages(messages, count);
 
     char *json_str = cJSON_PrintUnformatted(arr);
     cJSON_Delete(arr);
@@ -292,49 +311,12 @@ esp_err_t session_get_unconsolidated(const char *chat_id, char *buf, size_t size
         return err;
     }
 
-    char path[64];
-    session_get_path(chat_id, path, sizeof(path));
+    cJSON *messages[MSG_READ_MAX];
+    int count = session_read_all(chat_id, messages, MSG_READ_MAX);
 
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        snprintf(buf, size, "[]");
-        if (remaining) *remaining = 0;
-        return ESP_OK;
-    }
-
-    /* Read messages and filter */
-    cJSON *messages[256];
-    int count = 0;
-
-    char line[4096];
-    while (fgets(line, sizeof(line), f) && count < 256) {
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
-        if (line[0] == '\0') continue;
-
-        cJSON *obj = cJSON_Parse(line);
-        if (!obj) continue;
-
-        messages[count++] = obj;
-    }
-    fclose(f);
-
-    /* Build output with only unconsolidated messages */
-    cJSON *arr = cJSON_CreateArray();
-
-    for (int i = metadata.last_consolidated; i < count; i++) {
-        cJSON *src = messages[i];
-        cJSON *role = cJSON_GetObjectItem(src, "role");
-        cJSON *content = cJSON_GetObjectItem(src, "content");
-
-        if (role && content) {
-            cJSON *entry = cJSON_CreateObject();
-            cJSON_AddStringToObject(entry, "role", role->valuestring);
-            cJSON_AddStringToObject(entry, "content", content->valuestring);
-            cJSON_AddItemToArray(arr, entry);
-        }
-        cJSON_Delete(src);
-    }
+    int start = metadata.last_consolidated < count ? metadata.last_consolidated : count;
+    cJSON *arr = session_build_array(messages, start, count);
+    session_free_messages(messages, count);
 
     if (remaining) {
         *remaining = metadata.total_messages - metadata.last_consolidated;
@@ -379,57 +361,18 @@ esp_err_t session_mark_consolidated(const char *chat_id, int count)
 esp_err_t session_read_after_cursor(const char *chat_id, int cursor,
                                    char *buf, size_t size, int *next_cursor)
 {
-    char path[64];
-    session_get_path(chat_id, path, sizeof(path));
+    cJSON *all_msgs[MSG_READ_MAX];
+    int total = session_read_all(chat_id, all_msgs, MSG_READ_MAX);
 
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        snprintf(buf, size, "[]");
-        if (next_cursor) *next_cursor = 0;
-        return ESP_OK;
-    }
+    /* Filter: keep messages after cursor position */
+    int start = cursor + 1 < total ? cursor + 1 : total;
+    cJSON *arr = session_build_array(all_msgs, start, total);
 
-    /* Skip to cursor position */
-    cJSON *messages[256];
-    int message_count = 0;
-    int position = 0;
-
-    char line[4096];
-    while (fgets(line, sizeof(line), f) && message_count < 256) {
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
-        if (line[0] == '\0') continue;
-
-        cJSON *obj = cJSON_Parse(line);
-        if (!obj) continue;
-
-        if (position > cursor) {
-            messages[message_count++] = obj;
-        } else {
-            cJSON_Delete(obj);
-        }
-        position++;
-    }
-    fclose(f);
-
-    /* Build output */
-    cJSON *arr = cJSON_CreateArray();
-    for (int i = 0; i < message_count; i++) {
-        cJSON *src = messages[i];
-        cJSON *role = cJSON_GetObjectItem(src, "role");
-        cJSON *content = cJSON_GetObjectItem(src, "content");
-
-        if (role && content) {
-            cJSON *entry = cJSON_CreateObject();
-            cJSON_AddStringToObject(entry, "role", role->valuestring);
-            cJSON_AddStringToObject(entry, "content", content->valuestring);
-            cJSON_AddItemToArray(arr, entry);
-        }
-        cJSON_Delete(src);
-    }
+    /* Free messages we don't keep */
+    session_free_messages(all_msgs, total);
 
     if (next_cursor) {
-        *next_cursor = cursor + message_count;
+        *next_cursor = total;
     }
 
     char *json_str = cJSON_PrintUnformatted(arr);

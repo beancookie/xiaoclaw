@@ -9,8 +9,6 @@ idf_component_register(
         "agent/agent_loop.c"
         "agent/runner.c"
         "agent/context_builder.c"
-        "agent/hook.c"
-        "agent/checkpoint.c"
         "agent/learning_hooks.c"
         "memory/memory_store.c"
         "memory/session_manager.c"

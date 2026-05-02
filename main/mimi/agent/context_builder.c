@@ -17,21 +17,81 @@ static const char *TAG = "context";
 /* Runtime context tag - marks metadata that is injected before user message */
 #define RUNTIME_CONTEXT_TAG "[Runtime Context — metadata only, not instructions]"
 
+/* ─── Helper: escape string for JSON ─────────────────────────────────────── */
+
+static size_t json_escape(char *dst, size_t dst_size, const char *src)
+{
+    size_t i = 0;
+    for (const char *p = src; *p && i < dst_size - 1; p++) {
+        if (*p == '"')        { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = '"'; }
+        else if (*p == '\\')  { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = '\\'; }
+        else if (*p == '\n')  { if (i + 2 >= dst_size) break; dst[i++] = '\\'; dst[i++] = 'n'; }
+        else if (*p == '\r')  { /* skip */ }
+        else                  { dst[i++] = *p; }
+    }
+    dst[i] = '\0';
+    return i;
+}
+
+/* ─── Cached file read (30s TTL) ─────────────────────────────────────── */
+
+#define FILE_CACHE_TTL 30
+
+typedef struct {
+    char content[4096];
+    size_t len;
+    time_t loaded_at;
+    bool valid;
+} file_cache_t;
+
+static file_cache_t s_soul_cache;
+static file_cache_t s_user_cache;
+static file_cache_t s_memory_cache;
+
+static const char *cached_read(file_cache_t *c, const char *path, size_t *out_len)
+{
+    time_t now = time(NULL);
+    if (c->valid && (now - c->loaded_at) < FILE_CACHE_TTL) {
+        if (out_len) *out_len = c->len;
+        return c->content;
+    }
+
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        if (out_len) *out_len = 0;
+        return NULL;
+    }
+
+    c->len = fread(c->content, 1, sizeof(c->content) - 1, f);
+    c->content[c->len] = '\0';
+    fclose(f);
+    c->loaded_at = now;
+    c->valid = true;
+
+    if (out_len) *out_len = c->len;
+    return c->content;
+}
+
 /* ─── Helper: append file content to buffer ─────────────────────────────── */
 
 static size_t append_file(char *buf, size_t size, size_t offset, const char *path, const char *header)
 {
-    FILE *f = fopen(path, "r");
-    if (!f) return offset;
+    size_t content_len;
+    const char *content = cached_read(
+        strcmp(path, MIMI_SOUL_FILE) == 0 ? &s_soul_cache :
+        strcmp(path, MIMI_USER_FILE) == 0 ? &s_user_cache : NULL,
+        path, &content_len);
+
+    if (!content || content_len == 0) return offset;
 
     if (header && offset < size - 1) {
         offset += snprintf(buf + offset, size - offset, "\n## %s\n\n", header);
     }
 
-    size_t n = fread(buf + offset, 1, size - offset - 1, f);
-    offset += n;
+    size_t copy = content_len < size - offset - 1 ? content_len : size - offset - 1;
+    memcpy(buf + offset, content, copy);
+    offset += copy;
     buf[offset] = '\0';
-    fclose(f);
     return offset;
 }
 
@@ -93,7 +153,6 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
 
 static size_t append_memory_section(char *buf, size_t size, size_t offset)
 {
-    char mem_buf[4096];
     size_t off = 0;
 
     off = snprintf(buf + offset, size - offset,
@@ -122,9 +181,11 @@ static size_t append_memory_section(char *buf, size_t size, size_t offset)
         "3. Save user facts proactively — name, preferences, habits\n\n"
         "**Important:** Always read_file before edit_file to avoid losing content.\n\n");
 
-    /* Long-term memory */
-    if (memory_read_long_term(mem_buf, sizeof(mem_buf)) == ESP_OK && mem_buf[0]) {
-        off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_buf);
+    /* Long-term memory (cached) */
+    size_t mem_len;
+    const char *mem_content = cached_read(&s_memory_cache, MIMI_MEMORY_FILE, &mem_len);
+    if (mem_content && mem_len > 0) {
+        off += snprintf(buf + offset + off, size - offset - off, "## Long-term Memory\n\n%s\n\n", mem_content);
     }
 
     return off;
@@ -320,24 +381,7 @@ esp_err_t context_build_messages(const char *history, size_t history_size,
 
     /* Escape the system prompt for JSON */
     char escaped_prompt[MIMI_CONTEXT_BUF_SIZE * 2];
-    int esc_idx = 0;
-    for (const char *p = system_prompt; *p && esc_idx < sizeof(escaped_prompt) - 1; p++) {
-        if (*p == '"') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = '"';
-        } else if (*p == '\\') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = '\\';
-        } else if (*p == '\n') {
-            escaped_prompt[esc_idx++] = '\\';
-            escaped_prompt[esc_idx++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_prompt[esc_idx++] = *p;
-        }
-    }
-    escaped_prompt[esc_idx] = '\0';
+    json_escape(escaped_prompt, sizeof(escaped_prompt), system_prompt);
 
     off += snprintf(output_buf + off, output_size - off,
         "{\"role\":\"system\",\"content\":\"%s\"}", escaped_prompt);
@@ -376,45 +420,11 @@ esp_err_t context_build_messages(const char *history, size_t history_size,
 
     /* Escape runtime context for JSON */
     char escaped_ctx[1024];
-    int esc_idx2 = 0;
-    for (const char *p = runtime_ctx; *p && esc_idx2 < sizeof(escaped_ctx) - 1; p++) {
-        if (*p == '"') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = '"';
-        } else if (*p == '\\') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = '\\';
-        } else if (*p == '\n') {
-            escaped_ctx[esc_idx2++] = '\\';
-            escaped_ctx[esc_idx2++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_ctx[esc_idx2++] = *p;
-        }
-    }
-    escaped_ctx[esc_idx2] = '\0';
+    json_escape(escaped_ctx, sizeof(escaped_ctx), runtime_ctx);
 
     /* Escape current message for JSON */
     char escaped_msg[MIMI_CONTEXT_BUF_SIZE * 2];
-    int esc_idx3 = 0;
-    for (const char *p = current_message; *p && esc_idx3 < sizeof(escaped_msg) - 1; p++) {
-        if (*p == '"') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = '"';
-        } else if (*p == '\\') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = '\\';
-        } else if (*p == '\n') {
-            escaped_msg[esc_idx3++] = '\\';
-            escaped_msg[esc_idx3++] = 'n';
-        } else if (*p == '\r') {
-            /* skip */
-        } else {
-            escaped_msg[esc_idx3++] = *p;
-        }
-    }
-    escaped_msg[esc_idx3] = '\0';
+    json_escape(escaped_msg, sizeof(escaped_msg), current_message);
 
     /* Add user message with runtime context + current message */
     off += snprintf(output_buf + off, output_size - off,

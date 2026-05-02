@@ -117,6 +117,7 @@
 /* Cron / Heartbeat */
 #define MIMI_CRON_FILE               MIMI_FATFS_BASE "/cron.json"
 #define MIMI_CRON_MAX_JOBS           16
+#define MIMI_CRON_STACK_SIZE         4096
 #define MIMI_CRON_CHECK_INTERVAL_MS  (60 * 1000)
 #define MIMI_HEARTBEAT_FILE          MIMI_FATFS_BASE "/HEARTBEAT.md"
 #define MIMI_HEARTBEAT_INTERVAL_MS   (30 * 60 * 1000)
