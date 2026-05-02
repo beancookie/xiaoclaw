@@ -67,16 +67,6 @@ esp_err_t skill_loader_load(const char *name, char *buf, size_t size);
 size_t skill_loader_get_always_content(char *buf, size_t size);
 
 /**
- * Get content of "hot" auto skills (usage_count >= 3).
- * Used by context_builder to load hot skills in L3.
- *
- * @param buf   Output buffer
- * @param size  Buffer size
- * @return Number of bytes written
- */
-size_t skill_loader_get_hot_skills_content(char *buf, size_t size);
-
-/**
  * Check if a skill's requirements are met.
  *
  * @param name  Skill name

@@ -453,11 +453,6 @@ size_t skill_loader_get_always_content(char *buf, size_t size)
     return off;
 }
 
-size_t skill_loader_get_hot_skills_content(char *buf, size_t size)
-{
-    return skill_meta_get_hot_skills(buf, size);
-}
-
 bool skill_loader_check_requirements(const char *name)
 {
     /* TODO: Implement requirement checking */

@@ -33,11 +33,6 @@ size_t memory_l2_get_facts(char *buf, size_t size)
     return n;
 }
 
-size_t memory_l3_get_hot_skills(char *buf, size_t size)
-{
-    return skill_meta_get_hot_skills(buf, size);
-}
-
 esp_err_t memory_l4_archive_session(const char *chat_id)
 {
     if (!chat_id) {
@@ -117,10 +112,10 @@ size_t memory_hierarchy_summary(char *buf, size_t size)
     size_t l2_len = memory_l2_get_facts(l2_buf, sizeof(l2_buf));
     off += snprintf(buf + off, size - off, "  L2 (User Facts): %d bytes\n", (int)l2_len);
 
-    /* L3 Hot Skills */
+    /* L3 Auto Skills */
     char l3_buf[4096];
-    size_t l3_len = memory_l3_get_hot_skills(l3_buf, sizeof(l3_buf));
-    off += snprintf(buf + off, size - off, "  L3 (Hot Auto-Skills): %d bytes\n", (int)l3_len);
+    size_t l3_len = skill_meta_get_all_auto_skills(l3_buf, sizeof(l3_buf));
+    off += snprintf(buf + off, size - off, "  L3 (Auto-Skills): %d bytes\n", (int)l3_len);
 
     return off;
 }

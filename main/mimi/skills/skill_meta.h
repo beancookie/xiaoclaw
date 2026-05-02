@@ -30,6 +30,18 @@
     ((m).clarity * 0.3 + (m).completeness * 0.3 + (m).actionability * 0.4)
 
 /**
+ * Macro to check if a skill is "hot" (frequently used).
+ * Derived from usage_count >= HOT_THRESHOLD instead of stored field.
+ */
+#define SKILL_IS_HOT(m) ((m).usage_count >= SKILL_META_HOT_THRESHOLD)
+
+/**
+ * Macro to check if a skill is auto-generated.
+ * Derived from path containing "/auto/" directory instead of stored field.
+ */
+#define SKILL_IS_AUTO(m) (strstr((m).path, "/auto/") != NULL)
+
+/**
  * Minimum quality score threshold for crystallization.
  * Skills with quality below this are not crystallized.
  */
@@ -42,12 +54,10 @@
 typedef struct {
     char name[64];            // Skill name
     char path[256];           // Full path to SKILL.md file
-    bool is_auto;             // true if auto-generated skill
     int usage_count;          // Number of times used
     int success_count;        // Number of successful uses
     float success_rate;       // Calculated: success_count / usage_count
     time_t last_used;         // Unix timestamp of last use
-    bool is_hot;              // true if usage_count >= HOT_THRESHOLD
 
     /* Extended metadata for quality assessment */
     char description[256];           // Detailed description
@@ -130,16 +140,6 @@ esp_err_t skill_meta_add(const skill_meta_t *meta);
 size_t skill_meta_get_all_json(char *buf, size_t size);
 
 /**
- * Get hot skills (usage_count >= HOT_THRESHOLD).
- * Returns full content for each hot auto-skill.
- *
- * @param buf   Output buffer
- * @param size  Buffer size
- * @return Number of bytes written, 0 if no hot skills
- */
-size_t skill_meta_get_hot_skills(char *buf, size_t size);
-
-/**
  * Get all auto-generated skills (not just hot ones).
  * Returns full content for each auto-skill, allowing LLM to see
  * available skills even before they become hot (usage >= 3).
@@ -180,17 +180,8 @@ bool skill_meta_similar_exists_jaccard(const char *new_intent, char *similar_ski
 int skill_meta_get_quality_score(const skill_meta_t *meta);
 
 /**
- * Get list of hot skill names for context building.
- *
- * @param names  Output array of hot skill names (caller allocates)
- * @param max    Maximum number to return
- * @return Actual number of hot skills
- */
-int skill_meta_get_hot_names(char names[][64], int max);
-
-/**
- * Find which hot auto-skill matches a tool call.
- * Scans hot auto-skills and checks if the tool name appears in their
+ * Find which auto-skill matches a tool call.
+ * Scans auto-skills and checks if the tool name appears in their
  * tool sequence. When found, records usage for that skill.
  *
  * @param tool_name   Name of the tool that was called

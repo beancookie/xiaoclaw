@@ -269,7 +269,7 @@ static size_t append_skills_section(char *buf, size_t size, size_t offset)
         "**Skill Metadata Tracking:**\n"
         "- usage_count: Increments each time skill is used\n"
         "- success_count: Increments on successful use\n"
-        "- is_hot: True when usage_count >= 3\n\n");
+        "- is_hot: Computed from usage_count >= 3 (SKILL_IS_HOT macro)\n\n");
 
     return off;
 }

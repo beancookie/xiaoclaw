@@ -33,15 +33,6 @@ size_t memory_l1_get_skill_index(char *buf, size_t size);
 size_t memory_l2_get_facts(char *buf, size_t size);
 
 /**
- * L3: Get hot auto-skills content.
- *
- * @param buf   Output buffer
- * @param size  Buffer size
- * @return Number of bytes written
- */
-size_t memory_l3_get_hot_skills(char *buf, size_t size);
-
-/**
  * L4: Archive a session.
  *
  * @param chat_id  Chat identifier
