@@ -306,6 +306,7 @@ esp_err_t skill_crystallize_create(const char *name, const char *intent,
     skill_meta_t meta = {0};
     strncpy(meta.name, name, sizeof(meta.name) - 1);
     strncpy(meta.path, skill_path, sizeof(meta.path) - 1);
+    strncpy(meta.description, intent, sizeof(meta.description) - 1);
     meta.usage_count = 0;
     meta.success_count = 0;
     meta.success_rate = 0.0;
