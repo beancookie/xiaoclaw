@@ -95,8 +95,6 @@ static esp_err_t init_fatfs(void)
         MIMI_FATFS_CONFIG_DIR "/USER.md",
         MIMI_FATFS_BASE "/cron.json",
         MIMI_FATFS_BASE "/HEARTBEAT.md",
-        MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md",
-        MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md",
         NULL
     };
 
@@ -108,14 +106,18 @@ static esp_err_t init_fatfs(void)
         "",                         // USER.md
         "{}",                       // cron.json
         "",                         // HEARTBEAT.md
-        DEFAULT_LUA_SCRIPTS_SKILL, // lua-scripts/SKILL.md
-        DEFAULT_MCP_SERVERS_SKILL, // mcp-servers/SKILL.md
         NULL
     };
 
     for (int i = 0; default_files[i] != NULL; i++) {
         fatfs_ensure_file(default_files[i], default_contents[i]);
     }
+
+    /* Always overwrite built-in skill files from default_skills.h */
+    remove(MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md");
+    remove(MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md");
+    fatfs_ensure_file(MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md", DEFAULT_LUA_SCRIPTS_SKILL);
+    fatfs_ensure_file(MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md", DEFAULT_MCP_SERVERS_SKILL);
 
     ESP_LOGI(TAG, "Default files initialized");
     return ESP_OK;

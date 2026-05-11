@@ -195,18 +195,12 @@ static int socket_http_request(lua_State *L)
 }
 
 /**
- * @brief Create socket table with http subtable
- * Creates: socket = {http = {request, get, post, ...}}
+ * @brief Create http table with request, get, post, etc.
  */
-static int luaopen_socket_socket(lua_State *L)
+static void create_http_table(lua_State *L)
 {
-    /* Create socket table */
     lua_newtable(L);
 
-    /* Create socket.http table */
-    lua_newtable(L);
-
-    /* Register functions in socket.http */
     lua_pushcfunction(L, socket_http_request);
     lua_setfield(L, -2, "request");
 
@@ -216,24 +210,19 @@ static int luaopen_socket_socket(lua_State *L)
     lua_pushcfunction(L, socket_http_post);
     lua_setfield(L, -2, "post");
 
-    /* Also add PUT and DELETE for convenience */
     lua_pushcfunction(L, socket_http_request);
     lua_setfield(L, -2, "put");
 
     lua_pushcfunction(L, socket_http_request);
     lua_setfield(L, -2, "delete");
-
-    /* Set socket.http as field of socket */
-    lua_setfield(L, -2, "http");
-
-    return 1;
 }
 
 /**
- * @brief socket module entry point
- * Returns socket table with http subtable
+ * @brief socket.http module entry point
+ * Returns http table: {request, get, post, put, delete}
  */
-int luaopen_socket(lua_State *L)
+int luaopen_socket_http(lua_State *L)
 {
-    return luaopen_socket_socket(L);
+    create_http_table(L);
+    return 1;
 }

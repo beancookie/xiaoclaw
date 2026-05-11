@@ -949,6 +949,15 @@ menu "MCP Client Configuration"
             Endpoint name used as HTTP path: POST /<endpoint>.
             Also used as prefix for local tool names.
 
+    config MIMI_MCP_REMOTE_TENANT_ID
+        int "Remote MCP tenant ID"
+        default 0
+        depends on MIMI_MCP_CLIENT_ENABLE
+        help
+            Tenant ID to embed in the MCP skill prompt.
+            The LLM will automatically include this value when calling alarm tools.
+            Set to 0 to disable (caller must supply tenant_id manually).
+
     config MIMI_MCP_TIMEOUT_MS
         int "MCP tool call timeout (ms)"
         range 1000 60000
