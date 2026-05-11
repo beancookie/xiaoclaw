@@ -20,26 +20,7 @@ esp_err_t fatfs_ensure_file(const char *path, const char *content)
     }
 
     ESP_LOGI(TAG, "Creating file: %s", path);
-
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to create file: %s", path);
-        return ESP_FAIL;
-    }
-
-    size_t len = strlen(content);
-    if (len > 0) {
-        size_t written = fwrite(content, 1, len, f);
-        if (written != len) {
-            ESP_LOGE(TAG, "Write incomplete: %s (%d/%d bytes)", path, (int)written, (int)len);
-            fclose(f);
-            return ESP_FAIL;
-        }
-    }
-
-    fclose(f);
-    ESP_LOGI(TAG, "File created: %s (%d bytes)", path, (int)len);
-    return ESP_OK;
+    return fatfs_write_atomic(path, content, strlen(content));
 }
 
 esp_err_t fatfs_write_atomic(const char *path, const void *data, size_t len)

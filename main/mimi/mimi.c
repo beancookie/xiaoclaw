@@ -114,23 +114,8 @@ static esp_err_t init_fatfs(void)
     }
 
     /* Always overwrite built-in skill files from default_skills.h */
-    {
-        static const struct { const char *path; const char *content; } builtin_skills[] = {
-            { MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md", DEFAULT_LUA_SCRIPTS_SKILL },
-            { MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md", DEFAULT_MCP_SERVERS_SKILL },
-            { NULL, NULL }
-        };
-        for (int i = 0; builtin_skills[i].path != NULL; i++) {
-            FILE *f = fopen(builtin_skills[i].path, "w");
-            if (f) {
-                fwrite(builtin_skills[i].content, 1, strlen(builtin_skills[i].content), f);
-                fclose(f);
-                ESP_LOGI(TAG, "Wrote built-in skill: %s", builtin_skills[i].path);
-            } else {
-                ESP_LOGE(TAG, "Failed to write skill: %s", builtin_skills[i].path);
-            }
-        }
-    }
+    fatfs_write_atomic(MIMI_SKILLS_PREFIX "lua-scripts/SKILL.md", DEFAULT_LUA_SCRIPTS_SKILL, strlen(DEFAULT_LUA_SCRIPTS_SKILL));
+    fatfs_write_atomic(MIMI_SKILLS_PREFIX "mcp-servers/SKILL.md", DEFAULT_MCP_SERVERS_SKILL, strlen(DEFAULT_MCP_SERVERS_SKILL));
 
     ESP_LOGI(TAG, "Default files initialized");
     return ESP_OK;
