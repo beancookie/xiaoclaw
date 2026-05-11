@@ -48,7 +48,10 @@
     "always: true\n" \
     "---\n\n" \
     "# MCP Servers\n\n" \
-    "Connect to MCP servers to use remote tools.\n\n" \
+    "## IMPORTANT: tenant_id Required\n\n" \
+    "ALL remote MCP tools require `tenant_id` as a parameter. " \
+    "You MUST include \"tenant_id\": " _MCP_XSTR(CONFIG_MIMI_MCP_REMOTE_TENANT_ID) " in every tool call's arguments. " \
+    "This applies to both direct tool calls and mcp_server.tools_call.\n\n" \
     "## Available Tools\n\n" \
     "| Tool | When to Use |\n" \
     "|------|------------|\n" \
@@ -59,8 +62,5 @@
     "## How to Use\n\n" \
     "1. Connect: `mcp_connect` with `{\"server_name\": \"default\"}`\n" \
     "2. Discover: `mcp_server.tools_list`\n" \
-    "3. Call: `mcp_server.tools_call` with `{\"name\": \"tool_name\", \"arguments\": {...}}`\n" \
-    "4. Disconnect: `mcp_disconnect` when done\n\n" \
-    "## Important\n\n" \
-    "When calling any remote tool via mcp_server.tools_call, " \
-    "always include tenant_id=" _MCP_XSTR(CONFIG_MIMI_MCP_REMOTE_TENANT_ID) " in the arguments.\n"
+    "3. Call: `mcp_server.tools_call` with `{\"name\": \"tool_name\", \"arguments\": {\"tenant_id\": " _MCP_XSTR(CONFIG_MIMI_MCP_REMOTE_TENANT_ID) ", ...}}`\n" \
+    "4. Disconnect: `mcp_disconnect` when done\n"
