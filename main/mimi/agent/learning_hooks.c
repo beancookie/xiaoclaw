@@ -10,29 +10,10 @@
 
 static const char *TAG = "learning";
 
-/* ─── Failure keywords in output ────────────────────────────────────── */
-
-static const char *failure_keywords[] = {
-    "error", "failed", "sorry", "cannot", "unable", "don't know",
-    "couldn't", "wouldn't", "invalid", "not found", "exception",
-    NULL
-};
-
-static bool contains_failure_keywords(const char *output)
-{
-    if (!output) return false;
-
-    for (int i = 0; failure_keywords[i]; i++) {
-        if (strstr(output, failure_keywords[i])) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /* ─── Public API ──────────────────────────────────────────────────────── */
 
-bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_json)
+bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_json,
+                            const char *stop_reason)
 {
     /* Check final_output is non-empty */
     if (!final_output || !final_output[0]) {
@@ -40,19 +21,18 @@ bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_
         return false;
     }
 
-    /* Check for failure keywords */
-    if (contains_failure_keywords(final_output)) {
-        ESP_LOGI(TAG, "Evaluate: failure keywords found -> false");
+    /* Primary signal: stop_reason must be "completed" */
+    if (!stop_reason || strcmp(stop_reason, "completed") != 0) {
+        ESP_LOGI(TAG, "Evaluate: stop_reason=%s -> false", stop_reason ? stop_reason : "null");
         return false;
     }
 
-    /* Check tool_sequence_json is non-empty */
+    /* Must have at least one tool call */
     if (!tool_sequence_json || !tool_sequence_json[0]) {
         ESP_LOGI(TAG, "Evaluate: no tool sequence -> false");
         return false;
     }
 
-    /* Must have at least one tool call in the JSON */
     cJSON *arr = cJSON_Parse(tool_sequence_json);
     if (!arr || !cJSON_IsArray(arr) || cJSON_GetArraySize(arr) == 0) {
         ESP_LOGI(TAG, "Evaluate: invalid or empty tool sequence JSON -> false");
@@ -61,7 +41,7 @@ bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_
     }
     cJSON_Delete(arr);
 
-    ESP_LOGI(TAG, "Evaluate: task succeeded");
+    ESP_LOGI(TAG, "Evaluate: task succeeded (stop_reason=%s)", stop_reason);
     return true;
 }
 
@@ -94,7 +74,8 @@ void learning_hook_on_task_end(const char *chat_id, const void *result)
         crystallize_context_t ctx = {
             .last_task_success = true,
             .step_count = r->tool_sequence_len,
-            .is_repetitive = false,  /* TODO: detect repetitive tasks */
+            .is_repetitive = r->user_intent ?
+            skill_meta_similar_exists_jaccard(r->user_intent, (char[64]){0}, 64) : false,
             .user_intent = r->user_intent,
             .tool_sequence_json = r->tool_sequence_json,
             .sequence_len = r->tool_sequence_len,

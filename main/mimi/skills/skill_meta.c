@@ -474,7 +474,13 @@ size_t skill_meta_get_all_auto_skills(char *buf, size_t size)
             /* Safety: verify file exists and check size before reading */
             struct stat st;
             if (stat(s_skills[i].path, &st) != 0) {
-                ESP_LOGW(TAG, "skill file stat failed: %s", s_skills[i].path);
+                ESP_LOGW(TAG, "skill file missing, removing stale entry: %s", s_skills[i].path);
+                memmove(&s_skills[i], &s_skills[i + 1],
+                        (s_skill_count - i - 1) * sizeof(skill_meta_t));
+                s_skill_count--;
+                count--;
+                i--;
+                save_to_file();
                 continue;
             }
             if (st.st_size > SKILL_BUFFER_SIZE - 1) {
