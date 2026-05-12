@@ -14,18 +14,20 @@
  */
 
 /**
- * Evaluate whether a task succeeded based on final output and tool sequence.
+ * Evaluate whether a task succeeded based on stop_reason, final output, and tool sequence.
  *
  * Success criteria:
  * - final_output is non-empty
- * - final_output doesn't contain failure keywords (error, failed, sorry, cannot, unable)
+ * - stop_reason is "completed" (primary signal)
  * - tool_sequence_json is non-empty (at least one tool was called)
  *
  * @param final_output       The final assistant response
  * @param tool_sequence_json JSON array of tool calls made during the task
+ * @param stop_reason        Agent stop reason: "completed", "error", or "max_iterations"
  * @return true if task succeeded
  */
-bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_json);
+bool learning_hook_evaluate(const char *final_output, const char *tool_sequence_json,
+                            const char *stop_reason);
 
 /**
  * Called when a task ends. Updates skill metadata and checks for crystallization.

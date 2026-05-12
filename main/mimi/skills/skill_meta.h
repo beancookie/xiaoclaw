@@ -45,7 +45,7 @@
  * Minimum quality score threshold for crystallization.
  * Skills with quality below this are not crystallized.
  */
-#define SKILL_QUALITY_THRESHOLD_MIN 30
+#define SKILL_QUALITY_THRESHOLD_MIN 60
 
 /**
  * Skill metadata structure for tracking usage and success rates.

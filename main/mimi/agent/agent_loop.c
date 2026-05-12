@@ -191,7 +191,7 @@ static void agent_loop_task(void *arg)
             }
         } else {
             /* Evaluate task success using learning hooks */
-            bool task_success = learning_hook_evaluate(result->final_content, result->tool_sequence_json);
+            bool task_success = learning_hook_evaluate(result->final_content, result->tool_sequence_json, result->stop_reason);
             result->task_success = task_success;
 
             /* Save to session */

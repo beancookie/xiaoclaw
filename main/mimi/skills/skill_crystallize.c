@@ -143,8 +143,8 @@ bool skill_crystallize_should_create(const crystallize_context_t *ctx)
     }
 
     /* Must have more than one step */
-    if (ctx->step_count < 2) {
-        ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need >= 2)", ctx->step_count);
+    if (ctx->step_count < 4) {
+        ESP_LOGI(TAG, "Crystallize skipped: step_count=%d (need >= 4)", ctx->step_count);
         return false;
     }
 

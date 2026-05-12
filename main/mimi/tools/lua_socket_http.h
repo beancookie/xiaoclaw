@@ -3,7 +3,6 @@
  * @brief socket.http Lua module header
  *
  * Provides LuaSocket-compatible HTTP client API.
- * Wraps the existing lua_http_request function.
  */
 
 #pragma once
@@ -13,8 +12,8 @@
 #include <lauxlib.h>
 
 /**
- * @brief socket module entry point
+ * @brief socket.http module entry point
  * @param L Lua state
- * @return Number of values returned on stack (1 - the socket table with http subtable)
+ * @return 1 - the http table with get, post, request, etc.
  */
-int luaopen_socket(lua_State *L);
+int luaopen_socket_http(lua_State *L);

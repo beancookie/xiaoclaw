@@ -148,13 +148,7 @@ static size_t append_tools_section(char *buf, size_t size, size_t offset)
             skills[i].description);
     }
 
-    off += snprintf(buf + offset + off, size - offset - off,
-        "\n"
-        "Other tools:\n"
-        "- read_file: Read a file from FATFS.\n"
-        "- write_file: Write/overwrite a file.\n"
-        "- edit_file: Find-and-replace edit.\n"
-        "- list_dir: List files in a directory.\n\n");
+    off += snprintf(buf + offset + off, size - offset - off, "\n");
 
     return off;
 }

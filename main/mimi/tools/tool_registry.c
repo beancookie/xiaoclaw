@@ -34,6 +34,15 @@ static void build_tools_json(void);
 
 esp_err_t tool_registry_add(const mimi_tool_t *tool)
 {
+    /* Check for duplicate - replace existing entry if found */
+    for (int i = 0; i < s_tool_count; i++) {
+        if (strcmp(s_tools[i].name, tool->name) == 0) {
+            s_tools[i] = *tool;
+            ESP_LOGI(TAG, "Replaced tool: %s", tool->name);
+            return ESP_OK;
+        }
+    }
+
     if (s_tool_count >= MAX_TOOLS) {
         ESP_LOGE(TAG, "Tool registry full, cannot add: %s", tool->name);
         return ESP_ERR_NO_MEM;

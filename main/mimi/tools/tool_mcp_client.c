@@ -441,7 +441,13 @@ static esp_err_t mcp_tool_execute(const char *tool_name, const char *input_json,
     };
 
     atomic_fetch_add(&ctx->pending_responses, 1);
-    ESP_ERROR_CHECK(esp_mcp_mgr_post_tools_call(s_mgr, &req));
+    esp_err_t post_err = esp_mcp_mgr_post_tools_call(s_mgr, &req);
+    if (post_err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_mcp_mgr_post_tools_call failed: %s", esp_err_to_name(post_err));
+        free_sync_ctx(ctx);
+        snprintf(output, output_size, "{\"error\": \"post failed: %s\"}", esp_err_to_name(post_err));
+        return post_err;
+    }
 
     esp_err_t ret = wait_for_response(ctx, s_server_config.timeout_ms);
 
