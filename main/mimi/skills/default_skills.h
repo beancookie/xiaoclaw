@@ -19,26 +19,17 @@
     "|------|----------|\n" \
     "| lua_run | Execute a stored Lua script from FATFS |\n" \
     "| lua_eval | Execute a Lua code string directly |\n\n" \
-    "## Built-in Modules\n\n" \
-    "### socket.http\n\n" \
-    "HTTP client module.\n\n" \
+    "## Global Functions\n\n" \
+    "These functions are available directly, no require needed:\n\n" \
     "```lua\n" \
-    "local http = require(\"socket.http\")\n\n" \
-    "-- GET: returns response body, status code\n" \
-    "local body, status = http.get(url)\n\n" \
-    "-- POST: returns response body, status code\n" \
-    "local body, status = http.post(url, payload, content_type)\n\n" \
-    "-- General request (GET/POST/PUT/DELETE)\n" \
-    "local body, status = http.request(url)\n" \
-    "local body, status = http.request{url=url, method=\"POST\", body=data}\n" \
-    "```\n\n" \
-    "### cjson\n\n" \
-    "JSON encode/decode.\n\n" \
-    "```lua\n" \
-    "local cjson = require(\"cjson\")\n" \
-    "local json_str = cjson.encode({key = \"value\"})\n" \
-    "local obj = cjson.decode(json_str)\n" \
-    "print(obj.key)\n" \
+    "-- HTTP GET: returns response body, status code\n" \
+    "local body, status = http_get(url)\n\n" \
+    "-- HTTP POST: returns response body, status code\n" \
+    "local body, status = http_post(url, body, content_type)\n\n" \
+    "-- JSON decode: returns Lua table\n" \
+    "local obj = json_decode(json_str)\n\n" \
+    "-- JSON encode: returns JSON string\n" \
+    "local json_str = json_encode(obj)\n" \
     "```\n"
 
 #define DEFAULT_MCP_SERVERS_SKILL \

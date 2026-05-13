@@ -87,6 +87,22 @@ static lua_State *create_lua_state(void)
     /* Register print wrapper */
     lua_register(L, "print", lua_print_wrapper);
 
+    /* Register global convenience functions */
+    (void)luaL_dostring(L,
+        "function http_get(url)\n"
+        "    return socket.http.get(url)\n"
+        "end\n"
+        "function http_post(url, body, content_type)\n"
+        "    return socket.http.post(url, body, content_type)\n"
+        "end\n"
+        "function json_decode(str)\n"
+        "    return cjson.decode(str)\n"
+        "end\n"
+        "function json_encode(obj)\n"
+        "    return cjson.encode(obj)\n"
+        "end\n"
+    );
+
     /* Set package.path to include common locations */
     const char *path_setup = "package.path = package.path .. ';/fatfs/lua/?.lua;/fatfs/?.lua;./?.lua'";
     if (luaL_dostring(L, path_setup) != LUA_OK) {

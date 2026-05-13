@@ -520,6 +520,12 @@ static cJSON *convert_messages_openai(const char *system_prompt, cJSON *messages
             cJSON *m = cJSON_CreateObject();
             cJSON_AddStringToObject(m, "role", "assistant");
 
+            /* Preserve reasoning_content for DeepSeek thinking mode */
+            cJSON *orig_reasoning = cJSON_GetObjectItem(msg, "reasoning_content");
+            if (orig_reasoning && cJSON_IsString(orig_reasoning)) {
+                cJSON_AddStringToObject(m, "reasoning_content", orig_reasoning->valuestring);
+            }
+
             /* collect text */
             char *text_buf = NULL;
             size_t off = 0;
@@ -630,6 +636,9 @@ void llm_response_free(llm_response_t *resp)
     free(resp->text);
     resp->text = NULL;
     resp->text_len = 0;
+    free(resp->reasoning_content);
+    resp->reasoning_content = NULL;
+    resp->reasoning_len = 0;
     for (int i = 0; i < resp->call_count; i++) {
         free(resp->calls[i].input);
         resp->calls[i].input = NULL;
@@ -744,6 +753,17 @@ esp_err_t llm_chat_tools(const char *system_prompt,
                     if (resp->text) {
                         memcpy(resp->text, content->valuestring, tlen);
                         resp->text_len = tlen;
+                    }
+                }
+
+                /* DeepSeek thinking mode: reasoning_content must be preserved */
+                cJSON *reasoning = cJSON_GetObjectItem(message, "reasoning_content");
+                if (reasoning && cJSON_IsString(reasoning)) {
+                    size_t rlen = strlen(reasoning->valuestring);
+                    resp->reasoning_content = calloc(1, rlen + 1);
+                    if (resp->reasoning_content) {
+                        memcpy(resp->reasoning_content, reasoning->valuestring, rlen);
+                        resp->reasoning_len = rlen;
                     }
                 }
 
