@@ -76,16 +76,46 @@ static lua_State *create_lua_state(void)
 
     luaL_openlibs(L);
 
-    /* Register cjson module */
+    /* Register cjson module as global */
     luaL_requiref(L, "cjson", luaopen_cjson, 1);
     lua_pop(L, 1);
 
     /* Register socket.http module */
+    /* First create socket table if it doesn't exist */
+    lua_getglobal(L, "socket");
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setglobal(L, "socket");
+    }
+    /* Now load socket.http and set it in the socket table */
     luaL_requiref(L, "socket.http", luaopen_socket_http, 0);
-    lua_pop(L, 1);
+    lua_setfield(L, -2, "http");
+    lua_pop(L, 1);  /* pop socket table */
 
     /* Register print wrapper */
     lua_register(L, "print", lua_print_wrapper);
+
+    /* Register global convenience functions */
+    int err = luaL_dostring(L,
+        "function http_get(url)\n"
+        "    return socket.http.get(url)\n"
+        "end\n"
+        "function http_post(url, body, content_type)\n"
+        "    return socket.http.post(url, body, content_type)\n"
+        "end\n"
+        "function json_decode(str)\n"
+        "    return cjson.decode(str)\n"
+        "end\n"
+        "function json_encode(obj)\n"
+        "    return cjson.encode(obj)\n"
+        "end\n"
+    );
+    if (err != LUA_OK) {
+        ESP_LOGE(TAG, "Failed to register global functions: %s", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
 
     /* Set package.path to include common locations */
     const char *path_setup = "package.path = package.path .. ';/fatfs/lua/?.lua;/fatfs/?.lua;./?.lua'";

@@ -83,11 +83,15 @@ cJSON *agent_runner_build_assistant_content(const llm_response_t *resp)
 
 /* ─── Helper: append assistant message to messages array ─────────────────── */
 
-static void append_assistant_message(cJSON *messages, cJSON *content)
+static void append_assistant_message(cJSON *messages, cJSON *content, const char *reasoning_content)
 {
     cJSON *asst_msg = cJSON_CreateObject();
     cJSON_AddStringToObject(asst_msg, "role", "assistant");
     cJSON_AddItemToObject(asst_msg, "content", content);
+    /* Preserve reasoning_content for DeepSeek thinking mode */
+    if (reasoning_content && reasoning_content[0]) {
+        cJSON_AddStringToObject(asst_msg, "reasoning_content", reasoning_content);
+    }
     cJSON_AddItemToArray(messages, asst_msg);
 }
 
@@ -103,7 +107,7 @@ static void append_tool_result_message(cJSON *messages, cJSON *tool_results)
 
 /* ─── Helper: append final text as assistant message ────────────────────── */
 
-static void append_final_message(cJSON *messages, const char *text)
+static void append_final_message(cJSON *messages, const char *text, const char *reasoning_content)
 {
     cJSON *content = cJSON_CreateArray();
     cJSON *text_block = cJSON_CreateObject();
@@ -114,6 +118,9 @@ static void append_final_message(cJSON *messages, const char *text)
     cJSON *asst_msg = cJSON_CreateObject();
     cJSON_AddStringToObject(asst_msg, "role", "assistant");
     cJSON_AddItemToObject(asst_msg, "content", content);
+    if (reasoning_content && reasoning_content[0]) {
+        cJSON_AddStringToObject(asst_msg, "reasoning_content", reasoning_content);
+    }
     cJSON_AddItemToArray(messages, asst_msg);
 }
 
@@ -262,7 +269,7 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
             /* No tool use - normal completion */
             if (resp.text && resp.text_len > 0) {
                 final_text = strdup(resp.text);
-                append_final_message(messages, final_text);
+                append_final_message(messages, final_text, resp.reasoning_content);
             }
             stop_reason = "completed";
             llm_response_free(&resp);
@@ -280,7 +287,7 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
 
         /* Append assistant message with content array */
         cJSON *asst_content = agent_runner_build_assistant_content(&resp);
-        append_assistant_message(messages, asst_content);
+        append_assistant_message(messages, asst_content, resp.reasoning_content);
 
         /* Track tools used and build tool_sequence_json */
         for (int i = 0; i < resp.call_count && tools_used_idx < 32; i++) {
@@ -323,7 +330,7 @@ esp_err_t agent_runner_run(const AgentRunSpec *spec, AgentRunResult *result)
         if (!final_text) {
             final_text = strdup("Task completed with maximum iterations reached.");
         }
-        append_final_message(messages, final_text);
+        append_final_message(messages, final_text, NULL);
     }
 
     /* Build result */

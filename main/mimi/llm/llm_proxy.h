@@ -46,6 +46,8 @@ typedef struct {
 typedef struct {
     char *text;                                  /* accumulated text blocks */
     size_t text_len;
+    char *reasoning_content;                     /* DeepSeek thinking mode reasoning */
+    size_t reasoning_len;
     llm_tool_call_t calls[MIMI_MAX_TOOL_CALLS];
     int call_count;
     bool tool_use;                               /* stop_reason == "tool_use" */
