@@ -1,5 +1,5 @@
 ## IDF Component Manager Manifest File
-dependencies:
+ependencies:
   idf:
     version: ">=5.3.2"
   
@@ -47,22 +47,13 @@ dependencies:
   espressif/esp_lcd_touch_gt911:
     version: "^1.0.0"
 
-  # MQTT клиент
-  eclipse/paho.mqtt.embedded-c:
+  # MQTT клиент (ИСПРАВЛЕНО ИМЯ)
+  eclipse/paho-mqtt:
     version: "^1.0.0"
 
   # JSON парсер
   cJSON:
     version: "^1.0.2"
-
-  # HTTP клиент (встроен в IDF, но можно явно указать версию компонента если нужно)
-  # Для ESP32-P4 часто используется встроенный esp_http_client
-  
-  # Аудио драйверы (если требуются)
-  # espressif/esp-sr: 
-  #   version: "^1.4.0"
-  #   rules:
-  #     - if: "target in ['esp32s3']"
 
   # Утилиты
   espressif/esp_console:
