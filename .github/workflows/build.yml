@@ -93,9 +93,15 @@ jobs:
 
       - name: Clean component manager cache
         run: |
-          rm -rf ~/.espressif/idf_component_manager/cache
+          rm -rf ~/.espressif/idf_component_manager
           rm -rf managed_components
           rm -f component_manager.lock
+          rm -rf build
+          mkdir -p ~/.espressif/idf_component_manager
+
+      - name: Disable component manager cache
+        run: |
+          echo "IDF_COMPONENTS_CACHE_DISABLE=1" >> $GITHUB_ENV
 
       - name: Build current variant
         shell: bash
