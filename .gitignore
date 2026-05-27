@@ -1,42 +1,17 @@
 ```
-# ESP-IDF specific ignores
-components/**
+# Build artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+*.out
+
+# CMake build directories
 build/
-cmake-build*/
-idf_components/
-managed_components/
-*.bin
-*.elf
-*.map
-*.csv
-
-# Dependencies
-.idf_py/
-idf_tool_env/
-
-# Logs and temporary files
-*.log
-*.tmp
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editor/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage and testing
-.coverage
-coverage/
-htmlcov/
-.pytest_cache/
-.mypy_cache/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
 ```
