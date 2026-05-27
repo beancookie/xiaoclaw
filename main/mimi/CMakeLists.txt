@@ -31,5 +31,5 @@ idf_component_register(
     REQUIRES
         nvs_flash esp_wifi esp_netif esp_http_client esp_http_server
         esp_https_ota esp_event json fatfs console vfs app_update esp-tls wl
-        esp_timer esp_websocket_client esp_driver_gpio mcp-c-sdk
+        esp_timer esp_websocket_client esp_driver_gpio
 )

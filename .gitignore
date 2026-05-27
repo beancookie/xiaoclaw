@@ -3,8 +3,10 @@
 *.o
 *.obj
 *.a
+*.lib
 *.so
 *.dll
+*.dylib
 *.exe
 *.out
 
@@ -13,5 +15,36 @@ build/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
-Makefile
+cmake_install.manifest
+compile_commands.json
+
+# Dependencies
+node_modules/
+vendor/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# OS specific
+.DS_Store
+Thumbs.db
 ```
