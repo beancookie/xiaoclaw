@@ -51,7 +51,7 @@ dependencies:
     version: "^1.0.0"
 
   # JSON парсер
-  espressif/cJSON:
+  cJSON:
     version: "^1.0.2"
 
   # Утилиты
