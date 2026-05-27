@@ -1,22 +1,36 @@
 ```
+# ESP-IDF specific ignores
+build/
+cmake-build-*/
+partition_table/
+ota_data_initial.bin
+phy_init_data.bin
+
 # Dependencies
-node_modules/
+idf_components/
+managed_components/
+
+# Logs and temp files
+*.log
+*.tmp
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
+.idea/
 
-# Logs
-*.log
+# OS generated files
+.DS_Store
+Thumbs.db
 
-# Build artifacts
-build/
-dist/
-target/
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
 # Python
 __pycache__/
@@ -24,65 +38,12 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/modules/
-*.sublime-workspace
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# Compiled and binary files
-*.o
-*.obj
-*.exe
-*.dll
 *.so
-*.a
-*.out
-*.class
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.swp
-*.swo
-
-# Coverage
-coverage/
-htmlcov/
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage*
+nosetests.xml
 ```
