@@ -15,11 +15,8 @@
 
 #if CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4B
 #include "esp_lcd_st7703.h"
-<<<<<<< HEAD
-=======
 #elif CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
 #include "esp_lcd_st7701.h"
->>>>>>> upstream/main
 #elif CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_7B
 #include "esp_lcd_ek79007.h"
 #elif CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_3_4C || CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4C \
@@ -141,8 +138,6 @@ private:
             .vendor_config = &vendor_config,
         };
         esp_lcd_new_panel_st7703(io, &lcd_dev_config, &disp_panel);
-<<<<<<< HEAD
-=======
 #elif CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_4_3
     esp_lcd_dpi_panel_config_t dpi_config = {                                                 
         .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,  
@@ -183,7 +178,6 @@ private:
             .vendor_config = &vendor_config,
     };
     esp_lcd_new_panel_st7701(io, &lcd_dev_config, &disp_panel);
->>>>>>> upstream/main
 #elif CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_7B
     esp_lcd_dpi_panel_config_t dpi_config = {
             .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,
