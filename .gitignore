@@ -1,48 +1,57 @@
 ```
-# GitHub workflow artifacts (except workflows)
-.github/ISSUE_TEMPLATE/
-.github/workflows/*.log
+# Dependencies
+node_modules/
 
-# Keep workflow files
-!.github/workflows/
+# Environment
+.env
+.env.local
+.env.*
 
-# Environment variables
-.env*
-!.env.example
+# Editors
+.vscode/
+
+# Logs
+*.log
 
 # Build artifacts
 build/
 dist/
-*.o
-*.obj
-*.out
+target/
 
-# Dependencies
-node_modules/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
 venv/
 .venv/
-__pycache__/
-*.egg-info/
-
-# Logs and temporary files
-*.log
-*.tmp
-*.swp
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# IDE specific
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Coverage reports
-coverage/
-htmlcov/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
 .coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+*.sublime-workspace
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Compiled and binary files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+*.class
 
 # Compressed files
 *.zip
@@ -63,4 +72,17 @@ htmlcov/
 *.Z
 *.lz
 *.lzo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Coverage
+coverage/
+htmlcov/
 ```
