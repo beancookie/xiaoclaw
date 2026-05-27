@@ -1,29 +1,34 @@
 ```
 # ESP-IDF specific ignores
-components/**
 build/
-cmake-build*/
+cmake-build-*/
 partition_table/
 ota_data_initial.bin
-bootloader/bootloader.bin
-*.map
-*.bin
-*.elf
+phy_init_data.bin
 
 # Dependencies
-idf_components/
-managed_components/
-
-# Build artifacts
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pip_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage/
+
+# Build artifacts
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
@@ -31,11 +36,11 @@ __pycache__/
 *.swp
 *.swo
 
-# Logs
-*.log
-
-# Temp files
-*.tmp
+# OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+*.tmp
 ```
