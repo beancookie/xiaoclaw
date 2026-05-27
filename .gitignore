@@ -1,23 +1,49 @@
-tmp/
-components/
-managed_components/
+```
+# ESP-IDF specific ignores
 build/
-dist/
-.vscode/
-.devcontainer/
-sdkconfig.old
-sdkconfig
-dependencies.lock
+cmake-build-*/
+partition_table/
+ota_data_initial.bin
+phy_init_data.bin
+
+# Dependencies
+idf_components/
+managed_components/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
 .env
-releases/
-main/assets/lang_config.h
-main/mmap_generate_emoji.h
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# OS generated files
 .DS_Store
-.cache
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python
+__pycache__/
 *.pyc
-*.bin
-mmap_generate_*.h
-.clangd
-debug/
-examples/
-sdkconfig
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage*
+nosetests.xml
+```
