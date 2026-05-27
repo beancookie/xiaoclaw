@@ -1,5 +1,5 @@
 ## IDF Component Manager Manifest File
-ependencies:
+dependencies:
   idf:
     version: ">=5.3.2"
   
