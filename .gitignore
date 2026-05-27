@@ -1,16 +1,20 @@
 ```
 # ESP-IDF specific ignores
+components/**
 build/
-cmake-build-*/
-partition_table/
-ota_data_initial.bin
-phy_init_data.bin
-
-# Dependencies
+cmake-build*/
 idf_components/
 managed_components/
+*.bin
+*.elf
+*.map
+*.csv
 
-# Logs and temp files
+# Dependencies
+.idf_py/
+idf_tool_env/
+
+# Logs and temporary files
 *.log
 *.tmp
 
@@ -19,31 +23,20 @@ managed_components/
 .env.local
 *.env.*
 
-# Editors
+# Editor/IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# OS generated files
+# OS
 .DS_Store
 Thumbs.db
 
-# Coverage
+# Coverage and testing
+.coverage
 coverage/
 htmlcov/
-.coverage
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg-info/
-.eggs/
-.mypy_cache/
 .pytest_cache/
-.tox/
-.coverage*
-nosetests.xml
+.mypy_cache/
 ```
