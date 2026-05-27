@@ -11,21 +11,37 @@ on:
       - master
   release:
     types: [created]
+  workflow_dispatch: # Добавлено для ручного запуска
+    inputs:
+      log_level:
+        description: 'Уровень логирования'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - info
+          - debug
+          - warning
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Принудительное использование Node.js 24 для javascript actions
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
     container: espressif/idf:v5.3.2
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5 # Обновлено до v5
         with:
           submodules: 'recursive'
+          fetch-depth: 0
 
       - name: Install dependencies
         run: |
-          apt-get update && apt-get install -y git wget flex bison gperf cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0 python3-pip python3-setuptools
+          apt-get update && apt-get install -y git wget flex bison gperf cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0 python3-pip python3-setuptools zip
 
       - name: Setup ESP-IDF Environment
         run: |
@@ -43,27 +59,27 @@ jobs:
           idf.py build
         env:
           IDF_PATH: /opt/esp/idf
+          LOG_LEVEL: ${{ inputs.log_level || 'info' }}
 
       - name: Upload Binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # v4 уже поддерживает новые рантаймы
         with:
-          name: xiaoclaw-esp32p4-firmware
+          name: xiaoclaw-esp32p4-firmware-${{ github.run_number }}
           path: |
             build/*.bin
             build/bootloader/*.bin
             build/partition_table/*.bin
           retention-days: 30
+          if-no-files-found: error
 
       - name: Create Release Assets (if tagged)
         if: github.event_name == 'release'
         run: |
           zip -j xiaoclaw-esp32p4-${{ github.ref_name }}.zip build/*.bin build/bootloader/*.bin build/partition_table/*.bin
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Assets
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2 # Обновлено до v2
         with:
           files: xiaoclaw-esp32p4-${{ github.ref_name }}.zip
         env:
