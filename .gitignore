@@ -1,23 +1,29 @@
-tmp/
-components/
-managed_components/
+```
+# ESP-IDF build artifacts
 build/
-dist/
-.vscode/
-.devcontainer/
+cmake-build-*/
+sdkconfig
 sdkconfig.old
-sdkconfig
-dependencies.lock
+flasher_args.json
+partition_table/
+bootloader/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+
+# Environment files
 .env
-releases/
-main/assets/lang_config.h
-main/mmap_generate_emoji.h
-.DS_Store
-.cache
-*.pyc
-*.bin
-mmap_generate_*.h
-.clangd
-debug/
-examples/
-sdkconfig
+.env.local
+*.env.*
+
+# Dependencies
+idf_components/
+managed_components/
+```

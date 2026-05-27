@@ -1,0 +1,46 @@
+# Git ignore file for ESP-IDF projects
+
+# Build directories
+build/
+sdkconfig
+sdkconfig.old
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Debug files
+*.core
+*.dmp
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+
+# Ninja files
+.ninja_log
+build.ninja
+
+# Compiler artifacts
+*.o
+*.a
+*.so
+*.elf
+
+# Documentation generated
+docs/_build/
