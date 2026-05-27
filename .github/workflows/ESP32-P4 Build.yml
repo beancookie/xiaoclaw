@@ -1,0 +1,92 @@
+name: ESP32-P4 Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      log_level:
+        description: 'Уровень логирования'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - info
+          - debug
+          - warn
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.3.2
+    
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: 'recursive'
+
+      - name: Clean component manager cache
+        run: |
+          rm -rf ~/.espressif/idf_component_manager
+          rm -rf managed_components
+          rm -f component_manager.lock
+          rm -rf build
+          mkdir -p ~/.espressif/idf_component_manager
+
+      - name: Disable component manager cache
+        run: |
+          echo "IDF_COMPONENTS_CACHE_DISABLE=1" >> $GITHUB_ENV
+
+      - name: Install dependencies (if needed)
+        run: |
+          # В официальном контейнере большинство зависимостей уже есть
+          apt-get update && apt-get install -y git wget flex bison gperf cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0 python3-pip python3-setuptools || true
+
+      - name: Set Target to ESP32-P4
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32p4
+        shell: bash
+
+      - name: Build Project
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py build
+        shell: bash
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaoclaw-esp32p4-firmware
+          path: |
+            build/*.bin
+            build/bootloader/*.bin
+            build/partition_table/*.bin
+          retention-days: 30
+
+      - name: Create Release Assets (if tagged)
+        if: github.event_name == 'release'
+        run: |
+          . /opt/esp/idf/export.sh
+          zip -j xiaoclaw-esp32p4-${{ github.ref_name }}.zip build/*.bin build/bootloader/*.bin build/partition_table/*.bin
+        shell: bash
+
+      - name: Upload Release Assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: xiaoclaw-esp32p4-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,6 @@ idf_component_register(
     SRCS
         "mimi.c"
         "bus/message_bus.c"
-        "wifi/wifi_manager.c"
         "channels/telegram/telegram_bot.c"
         "channels/feishu/feishu_bot.c"
         "llm/llm_proxy.c"
@@ -15,7 +14,6 @@ idf_component_register(
         "memory/consolidator.c"
         "memory/hierarchy.c"
         "gateway/ws_server.c"
-        "cli/serial_cli.c"
         "proxy/http_proxy.c"
         "cron/cron_service.c"
         "heartbeat/heartbeat.c"
@@ -33,5 +31,5 @@ idf_component_register(
     REQUIRES
         nvs_flash esp_wifi esp_netif esp_http_client esp_http_server
         esp_https_ota esp_event json fatfs console vfs app_update esp-tls wl
-        esp_timer esp_websocket_client esp_driver_gpio mcp-c-sdk
+        esp_timer esp_websocket_client esp_driver_gpio
 )

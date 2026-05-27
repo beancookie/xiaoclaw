@@ -86,10 +86,22 @@ jobs:
         include: ${{ fromJson(needs.prepare.outputs.variants) }}
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.5.2
+      image: espressif/idf:v5.3.2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Clean component manager cache
+        run: |
+          rm -rf ~/.espressif/idf_component_manager
+          rm -rf managed_components
+          rm -f component_manager.lock
+          rm -rf build
+          mkdir -p ~/.espressif/idf_component_manager
+
+      - name: Disable component manager cache
+        run: |
+          echo "IDF_COMPONENTS_CACHE_DISABLE=1" >> $GITHUB_ENV
 
       - name: Build current variant
         shell: bash

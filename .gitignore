@@ -1,23 +1,50 @@
-tmp/
-components/
-managed_components/
+```
+# Build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# CMake build directories
 build/
-dist/
-.vscode/
-.devcontainer/
-sdkconfig.old
-sdkconfig
-dependencies.lock
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.manifest
+compile_commands.json
+
+# Dependencies
+node_modules/
+vendor/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Environment
 .env
-releases/
-main/assets/lang_config.h
-main/mmap_generate_emoji.h
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# OS specific
 .DS_Store
-.cache
-*.pyc
-*.bin
-mmap_generate_*.h
-.clangd
-debug/
-examples/
-sdkconfig
+Thumbs.db
+```
