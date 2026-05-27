@@ -61,5 +61,5 @@ dependencies:
 
 # Настройки менеджера компонентов
 manager:
-  skip_checks: true
-  ignore_warnings: true
+  skip_checks: false
+  ignore_warnings: false
