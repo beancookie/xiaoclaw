@@ -37,6 +37,13 @@ jobs:
         with:
           submodules: 'recursive'
 
+      - name: Clean component manager cache
+        run: |
+          rm -rf ~/.espressif/idf_component_manager/cache
+          rm -rf managed_components
+          rm -f component_manager.lock
+          rm -rf ~/.cache/pip
+
       - name: Install dependencies (if needed)
         run: |
           # В официальном контейнере большинство зависимостей уже есть
