@@ -124,8 +124,8 @@ dependencies:
   ## Lua scripting support
   georgik/lua: "==5.4.7"
 
-  ## MCP Client support
-  espressif/mcp-c-sdk: "~1.*"
+  ## MCP Client support (требуется IDF >=5.4.0, отключено для сборки на IDF 5.3.2)
+  # espressif/mcp-c-sdk: "~1.*"
 
   ## Required IDF version
   idf:
