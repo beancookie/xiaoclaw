@@ -1,0 +1,70 @@
+name: ESP32-P4 Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.3.2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y git wget flex bison gperf cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0 python3-pip python3-setuptools
+
+      - name: Setup ESP-IDF Environment
+        run: |
+          . /opt/esp/idf/export.sh
+          echo "IDF_PATH=/opt/esp/idf" >> $GITHUB_ENV
+
+      - name: Set Target to ESP32-P4
+        run: |
+          idf.py set-target esp32p4
+        env:
+          IDF_PATH: /opt/esp/idf
+
+      - name: Build Project
+        run: |
+          idf.py build
+        env:
+          IDF_PATH: /opt/esp/idf
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaoclaw-esp32p4-firmware
+          path: |
+            build/*.bin
+            build/bootloader/*.bin
+            build/partition_table/*.bin
+          retention-days: 30
+
+      - name: Create Release Assets (if tagged)
+        if: github.event_name == 'release'
+        run: |
+          zip -j xiaoclaw-esp32p4-${{ github.ref_name }}.zip build/*.bin build/bootloader/*.bin build/partition_table/*.bin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: xiaoclaw-esp32p4-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
