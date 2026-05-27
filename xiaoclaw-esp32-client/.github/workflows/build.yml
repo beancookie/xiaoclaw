@@ -1,0 +1,96 @@
+name: ESP32-P4 Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  IDF_VERSION: v5.3.2
+  TARGET_BOARD: esp32p4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:${{ env.IDF_VERSION }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y \
+            git \
+            wget \
+            flex \
+            bison \
+            gperf \
+            cmake \
+            ninja-build \
+            ccache \
+            libffi-dev \
+            libssl-dev \
+            dfu-util \
+            libusb-1.0-0 \
+            python3-pip
+
+      - name: Setup ESP-IDF Environment
+        run: |
+          # Вход в среду ESP-IDF уже выполнен благодаря контейнеру,
+          # но убедимся, что переменные окружения экспортированы корректно
+          . /opt/esp/idf/export.sh
+          echo "IDF_PATH=/opt/esp/idf" >> $GITHUB_ENV
+          echo "PATH=$PATH:/opt/esp/tools/esp-idf-tools/$IDF_VERSION/python_env/idf5.3_py3.10_env/bin" >> $GITHUB_ENV
+
+      - name: Set Target to ESP32-P4
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py set-target ${{ env.TARGET_BOARD }}
+
+      - name: Configure Project (Optional)
+        run: |
+          . /opt/esp/idf/export.sh
+          # Если нужен menuconfig с сохраненными настройками, раскомментируйте:
+          # idf.py menuconfig
+          # Здесь мы используем настройки по умолчанию из sdkconfig.defaults
+          echo "Using default sdkconfig settings..."
+
+      - name: Build Project
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py build
+
+      - name: Check Build Artifacts
+        run: |
+          ls -lh build/*.bin
+          echo "BUILD_STATUS=SUCCESS" >> $GITHUB_ENV
+
+      - name: Upload Firmware Binaries
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: xiaoclaw-esp32p4-firmware
+          path: |
+            build/*.bin
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+          retention-days: 30
+
+      - name: Create Release Archive (Optional)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd build
+          zip -r ../xiaoclaw-firmware-${{ github.ref_name }}.zip *.bin bootloader/*.bin partition_table/*.bin
+          cd ..
+
+      - name: Upload Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: xiaoclaw-firmware-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
